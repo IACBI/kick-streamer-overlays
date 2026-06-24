@@ -18,8 +18,10 @@ Desteklenen uzantılar: .svg .png .webp .gif .jpg .jpeg
 
 NOT 1: Abonelerin AYLIK rozetleri buraya KONMAZ. Onlar senin
         kendi kanal API'nden OTOMATİK çekilir.
-NOT 2: Kick'in resmi rozet görsellerini bu pakete koymadık
-        (telif). Yalnızca hakkına sahip olduğun görselleri kullan.
+NOT 2: Bu pakette örnek olarak Kick'in standart rol-rozet ikonları
+        gelir: moderator, vip, og, verified, founder. Bunlar Kick'in
+        görselidir, yalnızca kolaylık için eklenmiştir; istersen kendi
+        görsellerinle değiştir. (gifter ve staff yok -> çizili sembole düşer.)
 
 EN -----------------------------------------------------------
 This folder is OPTIONAL. chat.html shows role badges (mod, vip,
@@ -37,5 +39,7 @@ Tip: use small (~18px) images with a transparent background.
 
 NOTE 1: subscribers' MONTHLY badges do NOT go here. They are
         fetched AUTOMATICALLY from your own channel API.
-NOTE 2: we did not ship Kick's official badge images in this pack
-        (copyright). Only use images you have the right to use.
+NOTE 2: this pack ships Kick's standard role-badge icons as examples:
+        moderator, vip, og, verified, founder. They are Kick's artwork,
+        added only for convenience; replace them with your own if you like.
+        (gifter and staff are not included -> they fall back to drawn symbols.)

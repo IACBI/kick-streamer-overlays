@@ -29,11 +29,13 @@ SORUMLU TUTULAMAZ.
 ---
 
 Note / Not:
-EN: This Pack uses Kick's public/unofficial endpoints. "Kick" and its badge
-    artwork are trademarks/property of their respective owners and are not
-    included in this Pack. This project is community-made and not affiliated
-    with or endorsed by Kick.
+EN: This Pack uses Kick's public/unofficial endpoints. "Kick" and the role-badge
+    icons in the `badges/` folder are trademarks/artwork of their respective
+    owners, bundled here only for convenience; you may replace or remove them
+    freely. This project is community-made and not affiliated with or endorsed
+    by Kick.
 TR: Bu paket Kick'in herkese açık/resmi olmayan uçlarını kullanır. "Kick" ve
-    rozet görselleri ilgili sahiplerinin markası/mülküdür ve bu pakete dahil
-    EDİLMEMİŞTİR. Bu proje topluluk yapımıdır; Kick ile bağlantılı veya onun
-    tarafından onaylanmış değildir.
+    `badges/` klasöründeki rol-rozet ikonları ilgili sahiplerinin markası/
+    görselidir; yalnızca kolaylık için pakete konmuştur, dilediğin gibi
+    değiştirebilir veya kaldırabilirsin. Bu proje topluluk yapımıdır; Kick ile
+    bağlantılı veya onun tarafından onaylanmış değildir.
