@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kick Combined Bar</title>
+<!-- TR: Tek ayar dosyası, inline script'ten ÖNCE. / EN: Single settings file, BEFORE the inline script. -->
+<script src="AYARLAR.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     BİRLEŞİK PANEL  /  COMBINED PANEL — TAKİPÇİ + ABONE
+     ------------------------------------------------------------
+     TR: İKİ bar tek panelde. Her barda: SOL=güncel · ORTA=etiket · SAĞ=hedef.
+         OBS: Browser > Local file. 520 x 180.
+         NOT: Bu panel kendi sabit tasarımına sahiptir; AYARLAR.js'teki
+         "stil/renk" yalnızca diğer overlay'leri etkiler (bunu değil).
+     EN: TWO bars in one panel. Each bar: LEFT=current · CENTER=label · RIGHT=goal.
+         OBS: Browser > Local file. 520 x 180.
+         NOTE: this panel has its own fixed design; the "stil/renk" in
+         AYARLAR.js affect the other overlays, not this one.
+
+     VERİ / DATA:
+       TR: TAKİPÇİ canlı (followers_count). ABONE canlı sayaç, 0'dan başlar
+           (Kick toplam abone vermez); chat ile aynı Pusher soketinden artar.
+       EN: FOLLOWERS live (followers_count). SUBS live counter, starts at 0
+           (Kick gives no total); increments via the same Pusher socket as chat.
+     ============================================================ */
+  :root{
+    --acc-follow:#53fc18; --acc-follow-d:#1f7a0c;   /* TR: takipçi = yeşil / EN: follower = green */
+    --acc-sub:#a855f7;    --acc-sub-d:#5b21b6;      /* TR: abone = mor / EN: sub = purple */
+    --acc-gold:#f5b014;
+    --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --txt-shadow:0 1px 3px rgba(0,0,0,0.95),0 0 8px rgba(0,0,0,0.6);
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ background:transparent; overflow:hidden; font-family:var(--font); -webkit-font-smoothing:antialiased; }
+  body{ display:flex; align-items:center; justify-content:center; height:100vh; padding:16px; }
+
+  .panel{ width:100%; max-width:500px; background:rgba(14,14,18,0.55);
+    backdrop-filter:blur(16px) saturate(140%); -webkit-backdrop-filter:blur(16px) saturate(140%);
+    border:1px solid rgba(255,255,255,0.10); border-radius:22px; padding:16px;
+    display:flex; flex-direction:column; gap:13px; box-shadow:0 10px 34px rgba(0,0,0,0.4); position:relative; }
+
+  .bar{ position:relative; width:100%; height:46px; border-radius:23px; overflow:hidden;
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+    box-shadow:inset 0 1px 3px rgba(0,0,0,0.45); }
+  .fill{ position:absolute; left:0; top:0; bottom:0; width:0%; border-radius:23px;
+    transition:width 1.5s cubic-bezier(.22,1,.36,1); }
+  /* TR: ışık parıltısı — seyrek tek geçiş; takipçi ~2.5dk, abone ~2dk (aşağıda .sub override).
+     EN: light shimmer — single rare pass; follower ~2.5min, sub ~2min (.sub override below). */
+  .fill::after{ content:''; position:absolute; top:0; bottom:0; left:0; width:60px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent);
+    animation:shimmer 150s linear infinite; }
+  @keyframes shimmer{
+    0%   { transform:translateX(-80px); opacity:0; }
+    0.4% { opacity:1; }
+    1.2% { transform:translateX(540px); opacity:1; }
+    1.5% { transform:translateX(540px); opacity:0; }
+    100% { transform:translateX(540px); opacity:0; }
+  }
+
+  .content{ position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between;
+    padding:0 18px; z-index:2; pointer-events:none; }
+  .cur,.goal{ font-weight:800; font-size:17px; color:#fff; text-shadow:var(--txt-shadow);
+    font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .goal{ opacity:.92; }
+  .label{ display:flex; align-items:baseline; gap:6px; text-shadow:var(--txt-shadow); white-space:nowrap; }
+  /* TR: TR ve EN aynı boyut + aynı renk (sembol/emoji yok) / EN: TR and EN same size + same color (no symbols) */
+  .label .tr,.label .en{ font-weight:700; font-size:14px; color:#fff; letter-spacing:.2px; text-transform:none; }
+  .label .sep{ font-weight:400; font-size:14px; color:rgba(255,255,255,0.55); }
+
+  /* TR: takipçi barı (yeşil) / EN: follower bar (green) */
+  .follow .fill{ background:linear-gradient(90deg,var(--acc-follow-d),var(--acc-follow));
+    box-shadow:0 0 18px color-mix(in srgb,var(--acc-follow) 55%,transparent); }
+  /* TR: abone barı (mor -> altın) / EN: sub bar (purple -> gold) */
+  .sub .fill{ background:linear-gradient(90deg,var(--acc-sub-d),var(--acc-sub) 65%,var(--acc-gold));
+    box-shadow:0 0 18px color-mix(in srgb,var(--acc-sub) 55%,transparent); }
+  .sub .fill::after{ animation-duration:120s; }   /* TR: abone parıltısı ~2 dakika / EN: sub shimmer ~2 min */
+
+  /* TR: kanal ayarlanmamışsa kurulum ipucu / EN: setup hint when channel is unset */
+  #setup-hint{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.6); color:#fff; font-size:13px; text-align:center; padding:0 16px; border-radius:22px; }
+</style>
+</head>
+<body>
+<div class="panel" id="panel">
+  <!-- TR: TAKİPÇİ BARI / EN: FOLLOWER BAR -->
+  <div class="bar follow">
+    <div class="fill" id="fFill"></div>
+    <div class="content">
+      <span class="cur" id="fCur">0</span>
+      <span class="label"><span class="tr">Takipçi</span><span class="sep">/</span><span class="en">Follower</span></span>
+      <span class="goal" id="fGoal">0</span>
+    </div>
+  </div>
+  <!-- TR: ABONE BARI / EN: SUBSCRIBER BAR -->
+  <div class="bar sub">
+    <div class="fill" id="sFill"></div>
+    <div class="content">
+      <span class="cur" id="sCur">0</span>
+      <span class="label"><span class="tr">Abone</span><span class="sep">/</span><span class="en">Subscriber</span></span>
+      <span class="goal" id="sGoal">0</span>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+/* =================== TR: AYARLAR / EN: SETTINGS =================== */
+const A = (window.KICK_OVERLAY_AYARLAR || {});
+const CONFIG = {
+  CHANNEL:      String(A.kanal || "").trim().toLowerCase(),
+  followGoal:   +A.takipciHedefi || 1000,   // TR: takipçi hedefi / EN: follower goal
+  followCurrent:+A.takipciYedek || 0,        // TR: takipçi yedek / EN: follower fallback
+  subStart: 0,                               // TR: abone 0'dan / EN: subs start at 0
+  subGoal:  +A.aboneHedefi || 100,           // TR: abone hedefi / EN: subscriber goal
+  refreshSec: +A.yenilemeSn || 30
+};
+const CHANNEL = CONFIG.CHANNEL;
+const PUSHER_KEY = "32cbd69e4b950bf97679", PUSHER_CLUSTER = "us2";
+const disp  = { f:0, s:0 };
+const goals = { f:CONFIG.followGoal, s:CONFIG.subGoal };
+const cur   = { f:0, s:CONFIG.subStart };
+const rafId = { f:null, s:null };
+
+function paint(prefix){
+  const c = cur[prefix], goal = goals[prefix];
+  const pct = Math.max(0, Math.min(100,(c/goal)*100));
+  document.getElementById(prefix+'Goal').textContent = goal.toLocaleString('en-US');
+  document.getElementById(prefix+'Fill').style.width = pct + '%';
+  cancelAnimationFrame(rafId[prefix]);       // TR: önceki animasyonu durdur / EN: stop previous tween
+  const from = disp[prefix], start = performance.now(), el = document.getElementById(prefix+'Cur');
+  (function up(now){
+    const p = Math.min(1,(now-start)/1100), e = 1-Math.pow(1-p,3);
+    el.textContent = Math.round(from+(c-from)*e).toLocaleString('en-US');
+    if(p<1) rafId[prefix] = requestAnimationFrame(up);
+  })(start);
+  disp[prefix] = c;
+}
+function setFollow(n){ cur.f = n; paint('f'); }
+function addSubs(n){ if(!(n>0)) n=1; cur.s += n; paint('s'); console.log(`[sub] +${n} -> ${cur.s}`); }
+
+/* ---- TR: TAKİPÇİ — gerçek sayı (v2=followers_count / v1=followersCount) ----
+   ---- EN: FOLLOWERS — real count (v2=followers_count / v1=followersCount) ---- */
+async function fetchFollowers(){
+  const tryUrl = async (url) => { const r=await fetch(url,{headers:{Accept:"application/json"},cache:"no-store"}); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); };
+  try{ const d = await tryUrl(`https://kick.com/api/v2/channels/${encodeURIComponent(CHANNEL)}`);
+    const n = d.followers_count ?? d.followersCount ?? d.followers ?? null; if(typeof n==="number") return n; }catch(e){ console.debug("v2 follower:", e); }
+  try{ const d = await tryUrl(`https://kick.com/api/v1/channels/${encodeURIComponent(CHANNEL)}`);
+    const n = d.followersCount ?? d.followers_count ?? d.followers ?? null; if(typeof n==="number") return n; }catch(e){ console.debug("v1 follower:", e); }
+  return null;
+}
+
+/* ---- TR: ABONE — canlı Pusher sayacı (toplam sayı olmadığı için) ----
+   ---- EN: SUBS — live Pusher counter (because there is no total count) ---- */
+async function getChatroomId(){
+  const tryUrl = async (url)=>{ const r=await fetch(url,{headers:{Accept:"application/json"},cache:"no-store"}); if(!r.ok) throw 0; return r.json(); };
+  for(const v of ["v2","v1"]){ try{ const d=await tryUrl(`https://kick.com/api/${v}/channels/${encodeURIComponent(CHANNEL)}`); const id=d?.chatroom?.id||d?.chatroom_id; if(id) return id; }catch(e){} }
+  throw new Error("chatroom_id not found");
+}
+function handleSubEvent(payload){
+  const ev = String(payload.event||""); let data = payload.data;
+  if(typeof data==="string"){ try{ data=JSON.parse(data); }catch{ data={}; } } data=data||{};
+  // TR: Pusher sistem mesajını (pusher_internal:subscription_succeeded) ELE -> gerçek abone değil
+  //     (yoksa sayaç 0 yerine 2'den başlardı: 2 kanal aboneliği = sahte 2).
+  // EN: Ignore Pusher system events (pusher_internal:subscription_succeeded) -> not real subs
+  //     (otherwise the counter would start at 2: 2 channel subscriptions = fake 2).
+  if(/^pusher/i.test(ev)) return;
+  if(/Gifted/i.test(ev) && /Sub/i.test(ev)){   // TR: hediye'yi ÖNCE / EN: gifts FIRST -> no double count
+    const n=(Array.isArray(data.gifted_usernames)&&data.gifted_usernames.length)||(Array.isArray(data.usernames)&&data.usernames.length)||data.quantity||data.amount||1;
+    addSubs(n);
+  } else if(/SubscriptionEvent/i.test(ev)){ addSubs(1); }   // TR/EN: only real App\Events\SubscriptionEvent
+}
+function connectSubs(chatroomId){
+  const url=`wss://ws-${PUSHER_CLUSTER}.pusher.com/app/${PUSHER_KEY}?protocol=7&client=js&version=8.4.0&flash=false`;
+  let ws,ping,retry=1000;
+  // TR: sadece chatroom kanalları (presence kanalını dinleme -> çift sayma yok)
+  // EN: only chatroom channels (don't listen to presence -> no double counting)
+  const open=()=>{ ws=new WebSocket(url);
+    ws.onopen=()=>{ [`chatrooms.${chatroomId}`,`chatrooms.${chatroomId}.v2`].forEach(c=>ws.send(JSON.stringify({event:"pusher:subscribe",data:{auth:"",channel:c}})));
+      retry=1000; clearInterval(ping); ping=setInterval(()=>{ if(ws.readyState===1) ws.send(JSON.stringify({event:"pusher:ping",data:{}})); },30000); console.log("[sub] live connected:",CHANNEL); };
+    ws.onmessage=(e)=>{ let p; try{p=JSON.parse(e.data);}catch{return;} const ev=String(p.event||""); if(/^pusher/i.test(ev)) return; if(/Sub/i.test(ev)) handleSubEvent(p); };
+    ws.onclose=()=>{ clearInterval(ping); setTimeout(open,retry); retry=Math.min(retry*1.8,15000); };
+    ws.onerror=()=>{ try{ws.close();}catch{} };
+  };
+  open();
+}
+
+/* TR: kanal yazılmamışsa kurulum ipucu / EN: setup hint when channel is unset */
+function showSetupHint(){
+  const h = document.createElement('div');
+  h.id = 'setup-hint';
+  h.innerHTML = '⚙ AYARLAR.js → "kanal"<br>Set your channel name';
+  document.getElementById('panel').appendChild(h);
+}
+
+(async function init(){
+  paint('s');                                   // TR: abone 0'dan başla / EN: subs start at 0
+  if(!CHANNEL){ setFollow(CONFIG.followCurrent); showSetupHint(); return; }
+  const n = await fetchFollowers();
+  setFollow(n !== null ? n : CONFIG.followCurrent);
+  if(n !== null) setInterval(async ()=>{ const m=await fetchFollowers(); if(m!==null) setFollow(m); }, CONFIG.refreshSec*1000);
+  try{ const id = await getChatroomId(); connectSubs(id); }catch(e){ console.warn("[sub] could not connect live:", e.message); }
+})();
+
+/* TR: manuel / test (konsoldan) / EN: manual / test (from console) */
+window.updateFollowers = setFollow;
+window.setSubs  = function(n){ cur.s = Number(n)||0; paint('s'); };
+window.addSubs  = addSubs;
+window.testSub  = ()=> handleSubEvent({event:"App\\Events\\SubscriptionEvent", data:{}});
+window.testGift = (n=3)=> handleSubEvent({event:"App\\Events\\GiftedSubscriptionsEvent", data:{gifted_usernames:Array(n).fill("x")}});
+})();
+</script>
+</body>
+</html>

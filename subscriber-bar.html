@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kick Subscriber Bar</title>
+<!-- TR: Tek ayar dosyası, inline script'ten ÖNCE. / EN: Single settings file, BEFORE the inline script. -->
+<script src="AYARLAR.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     ABONE BARI  /  SUBSCRIBER BAR  — TEK BAR, CANLI SAYAÇ
+     ------------------------------------------------------------
+     TR: SOL = abone · ORTA = "Abone / Subscriber" · SAĞ = hedef.
+         OBS: Browser > Local file. 520 x 90.
+     EN: LEFT = subs · CENTER = "Abone / Subscriber" · RIGHT = goal.
+         OBS: Browser > Local file. 520 x 90.
+
+     >>> TR: ABONE SAYISI NASIL ÇALIŞIR (ÖNEMLİ) <<<
+     Kick HİÇBİR veride "toplam abone sayısı" vermez (yalnızca abonelik
+     OLAYLARI vardır). Bu yüzden bu bar YAYIN BOYUNCA gelen aboneleri
+     CANLI sayar: 0'dan başlar, abone/hediye geldikçe otomatik artar.
+     Veri: chat ile AYNI Pusher WebSocket (sunucu/auth gerekmez).
+     >>> EN: HOW THE SUB COUNT WORKS (IMPORTANT) <<<
+     Kick exposes NO "total subscriber count" anywhere (only subscription
+     EVENTS). So this bar counts subs LIVE during the stream: starts at 0,
+     auto-increments on each sub/gift. Data: the SAME Pusher WebSocket as chat.
+     ============================================================ */
+  :root{
+    --accent:#a855f7; --accent2:#f5b014; --accent-dark:#5b21b6;
+    --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --txt-shadow:0 1px 3px rgba(0,0,0,0.95),0 0 8px rgba(0,0,0,0.6);
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ background:transparent; overflow:hidden; font-family:var(--font); -webkit-font-smoothing:antialiased; }
+  body{ display:flex; align-items:center; justify-content:center; height:100vh; padding:16px; }
+  .wrap{ width:100%; max-width:488px; }
+
+  .bar{ position:relative; width:100%; height:50px; border-radius:25px; overflow:hidden;
+    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.14);
+    box-shadow:inset 0 1px 3px rgba(0,0,0,0.45), 0 6px 22px rgba(0,0,0,0.35); }
+  .fill{ position:absolute; left:0; top:0; bottom:0; width:0%; border-radius:25px;
+    background:linear-gradient(90deg,var(--accent-dark),var(--accent) 65%,var(--accent2));
+    box-shadow:0 0 20px color-mix(in srgb,var(--accent) 55%,transparent);
+    transition:width 1.5s cubic-bezier(.22,1,.36,1); }
+  /* TR: ışık parıltısı ~2 dakikada bir TEK geçiş / EN: light shimmer, ONE pass every ~2 minutes */
+  .fill::after{ content:''; position:absolute; top:0; bottom:0; left:0; width:70px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);
+    animation:shimmer 120s linear infinite; }
+  @keyframes shimmer{
+    0%   { transform:translateX(-90px); opacity:0; }
+    0.4% { opacity:1; }
+    1.2% { transform:translateX(560px); opacity:1; }
+    1.5% { transform:translateX(560px); opacity:0; }
+    100% { transform:translateX(560px); opacity:0; }
+  }
+
+  .content{ position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between;
+    padding:0 20px; z-index:2; pointer-events:none; }
+  .cur,.goal{ font-weight:800; font-size:19px; color:#fff; text-shadow:var(--txt-shadow);
+    font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .goal{ opacity:.92; }
+  .label{ display:flex; align-items:baseline; gap:7px; text-shadow:var(--txt-shadow); white-space:nowrap; }
+  /* TR: TR ve EN aynı boyut + aynı renk / EN: TR and EN same size + same color */
+  .label .tr,.label .en{ font-weight:700; font-size:15px; color:#fff; letter-spacing:.2px; text-transform:none; }
+  .label .sep{ font-weight:400; font-size:15px; color:rgba(255,255,255,0.55); }
+
+  /* TR: yeni abone gelince barın kısa "parlama" tepkisi / EN: brief glow reaction on a new sub */
+  .bar.bump{ animation:bump .6s ease; }
+  @keyframes bump{ 0%{box-shadow:inset 0 1px 3px rgba(0,0,0,.45),0 0 0 rgba(245,176,20,0);}
+    40%{box-shadow:inset 0 1px 3px rgba(0,0,0,.45),0 0 26px color-mix(in srgb,var(--accent2) 80%,transparent);}
+    100%{box-shadow:inset 0 1px 3px rgba(0,0,0,.45),0 6px 22px rgba(0,0,0,.35);} }
+
+  body.style-glass .bar{ backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+  body.style-soft .bar{ height:54px; border-radius:27px; background:rgba(255,255,255,0.10); }
+  body.style-soft .fill{ border-radius:27px; }
+  body.style-cinema .bar{ background:rgba(0,0,0,0.45); border-color:rgba(255,255,255,0.10); }
+  body.style-vivid .fill{ box-shadow:0 0 30px color-mix(in srgb,var(--accent) 80%,transparent); }
+  body.style-vivid .bar{ border-color:color-mix(in srgb,var(--accent) 40%,transparent); }
+
+  /* TR: kanal ayarlanmamışsa kurulum ipucu / EN: setup hint when channel is unset */
+  #setup-hint{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.55); color:#fff; font-size:13px; text-align:center; padding:0 16px; border-radius:25px; }
+</style>
+</head>
+<body class="style-glass">
+<div class="wrap">
+  <div class="bar" id="bar">
+    <div class="fill" id="fill"></div>
+    <div class="content">
+      <span class="cur" id="cur">0</span>
+      <span class="label"><span class="tr">Abone</span><span class="sep">/</span><span class="en">Subscriber</span></span>
+      <span class="goal" id="goal">0</span>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+/* =================== TR: AYARLAR / EN: SETTINGS =================== */
+const A = (window.KICK_OVERLAY_AYARLAR || {});
+const CONFIG = {
+  CHANNEL: String(A.kanal || "").trim().toLowerCase(),
+  STYLE:   A.stil || "glass",
+  accent:  "#a855f7",                     // TR: abone barı kendi mor kimliğini korur (genel renk ayarından etkilenmez) / EN: sub bar keeps its own purple identity (not affected by the global color)
+  accent2: "#f5b014",
+  startCount: 0,                          // TR: 0'dan başla / EN: start at 0
+  goal:    +A.aboneHedefi || 100          // TR: abone hedefi / EN: subscriber goal
+};
+document.body.className = "style-" + CONFIG.STYLE;
+document.documentElement.style.setProperty('--accent', CONFIG.accent);
+document.documentElement.style.setProperty('--accent2', CONFIG.accent2);
+
+const CHANNEL = CONFIG.CHANNEL;
+const PUSHER_KEY = "32cbd69e4b950bf97679";
+const PUSHER_CLUSTER = "us2";
+const elBar  = document.getElementById('bar');
+const elFill = document.getElementById('fill');
+const elCur  = document.getElementById('cur');
+const elGoal = document.getElementById('goal');
+elGoal.textContent = CONFIG.goal.toLocaleString('en-US');
+
+let count = CONFIG.startCount;
+let displayed = 0;
+let raf = null;
+function paint(){
+  const pct = Math.max(0, Math.min(100, (count/CONFIG.goal)*100));
+  elFill.style.width = pct + '%';
+  cancelAnimationFrame(raf);                 // TR: önceki animasyonu durdur / EN: stop previous tween (avoid clash)
+  const from = displayed, to = count, start = performance.now();
+  (function step(now){
+    const p = Math.min(1,(now-start)/900), e = 1-Math.pow(1-p,3);
+    elCur.textContent = Math.round(from+(to-from)*e).toLocaleString('en-US');
+    if(p<1) raf = requestAnimationFrame(step);
+  })(start);
+  displayed = count;
+}
+function addSubs(n){
+  if(!(n>0)) n=1;
+  count += n;
+  paint();
+  elBar.classList.remove('bump'); void elBar.offsetWidth; elBar.classList.add('bump');
+  console.log(`[sub] +${n} -> total ${count}`);
+}
+
+/* =================== TR: KICK CANLI VERİ (Pusher) / EN: KICK LIVE DATA (Pusher) =================== */
+async function getChatroomId(){
+  const tryUrl = async (url)=>{ const r=await fetch(url,{headers:{Accept:"application/json"},cache:"no-store"}); if(!r.ok) throw 0; return r.json(); };
+  for(const v of ["v2","v1"]){
+    try{ const d=await tryUrl(`https://kick.com/api/${v}/channels/${encodeURIComponent(CHANNEL)}`);
+      const id=d?.chatroom?.id||d?.chatroom_id; if(id) return id; }catch(e){}
+  }
+  throw new Error("chatroom_id not found");
+}
+
+/* TR: abonelik olayını sayıya çevir. Hediye'yi ÖNCE kontrol et (çift saymamak için).
+   EN: turn a subscription event into a count. Check gifts FIRST (to avoid double counting). */
+function handleSubEvent(payload){
+  const ev = String(payload.event||"");
+  let data = payload.data;
+  if(typeof data === "string"){ try{ data = JSON.parse(data); }catch{ data = {}; } }
+  data = data || {};
+  // TR: Pusher'ın sistem mesajını (pusher_internal:subscription_succeeded) ELE -> gerçek abone değil.
+  //     Aksi halde bağlantıda her kanal için sahte +1 sayılıp sayaç 0 yerine 2'den başlardı.
+  // EN: Ignore Pusher's own system events (pusher_internal:subscription_succeeded) -> not real subs.
+  //     Otherwise each channel subscribe would falsely add +1 (counter starting at 2 instead of 0).
+  if(/^pusher/i.test(ev)) return;
+  if(/Gifted/i.test(ev) && /Sub/i.test(ev)){
+    const n = (Array.isArray(data.gifted_usernames) && data.gifted_usernames.length)
+           || (Array.isArray(data.usernames) && data.usernames.length)
+           || data.quantity || data.amount || 1;
+    addSubs(n);
+  } else if(/SubscriptionEvent/i.test(ev)){
+    // TR: SADECE gerçek App\Events\SubscriptionEvent -> tekil yeni/yenileme abone
+    // EN: ONLY the real App\Events\SubscriptionEvent -> single new/renewing sub
+    addSubs(1);
+  }
+}
+
+function connect(chatroomId){
+  const url = `wss://ws-${PUSHER_CLUSTER}.pusher.com/app/${PUSHER_KEY}?protocol=7&client=js&version=8.4.0&flash=false`;
+  let ws, pingTimer, retry=1000;
+  // TR: yalnızca chatroom kanalları (presence kanalını dinlemeyerek çift sayımı önle)
+  // EN: only chatroom channels (skip the presence channel to avoid double counting)
+  const open = ()=>{
+    ws = new WebSocket(url);
+    ws.onopen = ()=>{
+      [`chatrooms.${chatroomId}`,`chatrooms.${chatroomId}.v2`].forEach(c=>
+        ws.send(JSON.stringify({event:"pusher:subscribe",data:{auth:"",channel:c}})));
+      retry=1000; clearInterval(pingTimer);
+      pingTimer=setInterval(()=>{ if(ws.readyState===1) ws.send(JSON.stringify({event:"pusher:ping",data:{}})); },30000);
+      console.log("[sub] live connected:", CHANNEL);
+    };
+    ws.onmessage = (e)=>{ let p; try{ p=JSON.parse(e.data); }catch{ return; }
+      const ev=String(p.event||""); if(/^pusher/i.test(ev)) return;   // TR: sistem mesajını ele / EN: skip system events
+      if(/Sub/i.test(ev)) handleSubEvent(p); };
+    ws.onclose = ()=>{ clearInterval(pingTimer); setTimeout(open, retry); retry=Math.min(retry*1.8,15000); };
+    ws.onerror = ()=>{ try{ ws.close(); }catch{} };
+  };
+  open();
+}
+
+/* TR: kanal yazılmamışsa kurulum ipucu / EN: setup hint when channel is unset */
+function showSetupHint(){
+  const h = document.createElement('div');
+  h.id = 'setup-hint';
+  h.innerHTML = '⚙ AYARLAR.js → "kanal"<br>Set your channel name';
+  elBar.appendChild(h);
+}
+
+(async function init(){
+  paint(); // TR: 0'dan başla / EN: start at 0
+  if(!CHANNEL){ showSetupHint(); return; }
+  try{ const id = await getChatroomId(); connect(id); }
+  catch(e){ console.warn("[sub] could not connect live, manual only:", e.message); }
+})();
+
+/* TR: manuel / test araçları (konsoldan) / EN: manual / test tools (from console) */
+window.setSubs  = function(n){ count = Number(n)||0; paint(); };       // TR: sayacı ayarla / EN: set the counter
+window.addSubs  = addSubs;                                            // TR: n abone ekle / EN: add n subs
+window.testSub  = ()=> handleSubEvent({event:"App\\Events\\SubscriptionEvent", data:{}});
+window.testGift = (n=3)=> handleSubEvent({event:"App\\Events\\GiftedSubscriptionsEvent", data:{gifted_usernames:Array(n).fill("x")}});
+})();
+</script>
+</body>
+</html>

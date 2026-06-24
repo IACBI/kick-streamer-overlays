@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kick Viewer + Uptime Panel</title>
+<!-- TR: Tek ayar dosyası, inline script'ten ÖNCE. / EN: Single settings file, BEFORE the inline script. -->
+<script src="AYARLAR.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     İZLEYİCİ + YAYIN SÜRESİ PANELİ / VIEWER + UPTIME PANEL — YAZISIZ
+     ------------------------------------------------------------
+     TR: Göz ikonu + canlı izleyici sayısı, saat ikonu + yayın süresi.
+         Yayın KAPALIYKEN panel gizlenir (boş kutu durmaz). Göz ve saat
+         ikonlarında sakin animasyonlar vardır. OBS: 300 x 80.
+     EN: Eye icon + live viewer count, clock icon + uptime. The panel is
+         HIDDEN while offline (no empty box). The eye and clock icons have
+         calm animations. OBS: 300 x 80.
+
+     VERİ / DATA: kick.com/api/v2|v1/channels/{kanal} -> livestream:
+         viewer_count, is_live, start_time ("YYYY-MM-DD HH:MM:SS", UTC).
+         livestream null ise yayın kapalı. Resmi olmayan dahili API.
+         livestream null means offline. Unofficial internal API.
+     ============================================================ */
+  :root{
+    --accent:#53fc18;
+    --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --txt-shadow:0 1px 3px rgba(0,0,0,0.9),0 0 6px rgba(0,0,0,0.5);
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ background:transparent; overflow:hidden; font-family:var(--font); -webkit-font-smoothing:antialiased; }
+  body{ display:flex; align-items:center; justify-content:center; height:100vh; padding:14px; }
+
+  .panel{ display:inline-flex; align-items:center; gap:16px; padding:11px 17px; border-radius:16px;
+    background:rgba(16,16,20,0.45); border:1px solid rgba(255,255,255,0.08);
+    backdrop-filter:blur(14px) saturate(140%); -webkit-backdrop-filter:blur(14px) saturate(140%);
+    box-shadow:0 6px 22px rgba(0,0,0,0.35);
+    opacity:0; transform:translateY(-6px); transition:opacity .6s ease, transform .6s ease; }
+  .panel.live{ opacity:1; transform:translateY(0); }     /* TR: yayın açıkken / EN: when live */
+  .panel.offline{ opacity:0; transform:translateY(-6px); pointer-events:none; }  /* TR: kapalıyken gizli / EN: hidden when offline */
+
+  /* TR: canlı noktası — yumuşak nabız / EN: live dot — soft pulse */
+  .dot{ width:9px; height:9px; border-radius:50%; background:var(--accent);
+    box-shadow:0 0 8px var(--accent); animation:pulse 2s ease-in-out infinite; flex:0 0 auto; }
+  @keyframes pulse{ 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.35; transform:scale(.82); } }
+
+  .stat{ display:inline-flex; align-items:center; gap:7px; }
+  .stat svg{ width:17px; height:17px; stroke:rgba(255,255,255,0.78); stroke-width:1.75;
+    fill:none; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
+  .val{ font-size:17px; font-weight:700; color:#fff; text-shadow:var(--txt-shadow);
+    font-variant-numeric:tabular-nums; letter-spacing:.2px; line-height:1; white-space:nowrap; }
+  .sep{ width:1px; height:18px; background:rgba(255,255,255,0.14); }
+
+  /* ============================================================
+     TR: SAKİN İKON ANİMASYONLARI (göz yormayan)
+     EN: CALM ICON ANIMATIONS (easy on the eyes)
+     • TR: GÖZ irisi yavaşça sağa-sola/yukarı-aşağı bakar, arada kırpar.
+       EN: the EYE iris slowly looks around, blinks occasionally.
+     • TR: SAAT ibresi 12'den başlar, ~5sn'de bir akıcı 90° döner (20sn tam tur).
+       EN: the CLOCK hand starts at 12 and smoothly turns 90° every ~5s (20s full turn).
+     ============================================================ */
+  .eye-iris{ animation: eyeLook 14s ease-in-out infinite; }
+  @keyframes eyeLook{
+    0%,16%   { transform: translate(0,0); }
+    22%,34%  { transform: translate(-1.7px,0); }   /* TR: sola / EN: left */
+    40%,52%  { transform: translate(1.7px,0); }    /* TR: sağa / EN: right */
+    58%,68%  { transform: translate(0,-1.3px); }   /* TR: yukarı / EN: up */
+    74%,84%  { transform: translate(0,1.3px); }    /* TR: aşağı / EN: down */
+    90%,100% { transform: translate(0,0); }        /* TR: merkez / EN: center */
+  }
+  .eye{ transform-origin:50% 50%; animation: eyeBlink 6.5s ease-in-out infinite; }
+  @keyframes eyeBlink{
+    0%,90%,100% { transform: scaleY(1); }
+    93%         { transform: scaleY(.08); }   /* TR: kapan / EN: close */
+    96%         { transform: scaleY(1); }      /* TR: aç / EN: open */
+  }
+  .clock-hands{ transform-box: view-box; transform-origin:12px 12px;
+    animation: clockTurn 20s ease-in-out infinite; }
+  @keyframes clockTurn{
+    0%   { transform: rotate(0deg);   }
+    6%   { transform: rotate(90deg);  }   /* TR: ~1.2sn'de çeyrek tur / EN: smooth quarter turn in ~1.2s */
+    25%  { transform: rotate(90deg);  }
+    31%  { transform: rotate(180deg); }
+    50%  { transform: rotate(180deg); }
+    56%  { transform: rotate(270deg); }
+    75%  { transform: rotate(270deg); }
+    81%  { transform: rotate(360deg); }
+    100% { transform: rotate(360deg); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .eye-iris,.eye,.clock-hands{ animation:none; }
+  }
+
+  /* TR: stil varyantları / EN: style variants */
+  body.style-soft .panel{ border-radius:20px; background:rgba(255,255,255,0.10); }
+  body.style-cinema .panel{ background:rgba(0,0,0,0.5); backdrop-filter:none; -webkit-backdrop-filter:none; }
+  body.style-vivid .panel{ border-color:color-mix(in srgb,var(--accent) 38%,transparent);
+    box-shadow:0 0 22px color-mix(in srgb,var(--accent) 22%,transparent); }
+  body.style-vivid .stat svg{ stroke:color-mix(in srgb,var(--accent) 80%,#fff); }
+
+  /* TR: kanal ayarlanmamışsa kurulum ipucu / EN: setup hint when channel is unset */
+  #setup-hint{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    background:rgba(0,0,0,0.6); color:#fff; font-size:12px; text-align:center; padding:8px 14px; border-radius:12px; }
+</style>
+</head>
+<body class="style-glass">
+<div class="panel" id="panel">
+  <span class="dot" id="dot"></span>
+  <!-- TR: İZLEYİCİ — göz ikonu / EN: VIEWERS — eye icon -->
+  <span class="stat">
+    <svg class="eye" viewBox="0 0 24 24" aria-hidden="true"><path d="M1.6 12S5.5 4.8 12 4.8 22.4 12 22.4 12 18.5 19.2 12 19.2 1.6 12 1.6 12Z"/><circle class="eye-iris" cx="12" cy="12" r="3.2"/></svg>
+    <span class="val" id="viewers">0</span>
+  </span>
+  <span class="sep"></span>
+  <!-- TR: SÜRE — saat ikonu / EN: UPTIME — clock icon -->
+  <span class="stat">
+    <svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/><path class="clock-hands" d="M12 7.2V12l3.4 2"/></svg>
+    <span class="val" id="uptime">0:00:00</span>
+  </span>
+</div>
+<script>
+(function(){
+/* =================== TR: AYARLAR / EN: SETTINGS =================== */
+const A = (window.KICK_OVERLAY_AYARLAR || {});
+const CONFIG = {
+  CHANNEL: String(A.kanal || "").trim().toLowerCase(),
+  STYLE:   A.stil || "glass",            // glass | vivid | soft | cinema
+  accent:  A.renk || "#53fc18",
+  refreshSec: +A.yenilemeSn || 20        // TR: izleyici yenileme / EN: viewer refresh (uptime ticks every second)
+};
+document.body.className = "style-" + CONFIG.STYLE;
+document.documentElement.style.setProperty('--accent', CONFIG.accent);
+
+const CHANNEL = CONFIG.CHANNEL;
+const panel = document.getElementById('panel');
+const elViewers = document.getElementById('viewers');
+const elUptime  = document.getElementById('uptime');
+
+let startMs = null;        // TR: yayın başlangıcı (ms) / EN: stream start (ms)
+let isLive = false;
+let dispViewers = 0;       // TR: ekranda gösterilen / EN: currently displayed (for animation)
+let viewerRaf = null;
+
+/* TR: izleyici sayısını yumuşak say (ani zıplama yok) / EN: smoothly count viewers (no jump) */
+function setViewers(target){
+  cancelAnimationFrame(viewerRaf);
+  const from = dispViewers, start = performance.now();
+  (function step(now){
+    const p = Math.min(1,(now-start)/700), e = 1-Math.pow(1-p,3);
+    const v = Math.round(from + (target-from)*e);
+    elViewers.textContent = v.toLocaleString('en-US');
+    if(p<1) viewerRaf = requestAnimationFrame(step);
+  })(start);
+  dispViewers = target;
+}
+
+/* TR: süreyi her saniye güncelle / EN: update uptime every second */
+function pad(n){ return String(n).padStart(2,'0'); }
+function tickUptime(){
+  if(!isLive || startMs===null) return;
+  let s = Math.max(0, Math.floor((Date.now()-startMs)/1000));
+  const h = Math.floor(s/3600); s-=h*3600;
+  const m = Math.floor(s/60);   s-=m*60;
+  elUptime.textContent = h + ':' + pad(m) + ':' + pad(s);
+}
+setInterval(tickUptime, 1000);
+
+/* TR: GERÇEK veri: v2 (v1 yedek). livestream null ise yayın kapalı.
+   EN: REAL data: v2 (v1 fallback). livestream null means offline. */
+async function fetchInfo(){
+  const tryUrl = async (url) => {
+    const res = await fetch(url, { headers:{Accept:"application/json"}, cache:"no-store" });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return res.json();
+  };
+  let d=null;
+  try{ d = await tryUrl(`https://kick.com/api/v2/channels/${encodeURIComponent(CHANNEL)}`); }
+  catch(e){ try{ d = await tryUrl(`https://kick.com/api/v1/channels/${encodeURIComponent(CHANNEL)}`); }catch(e2){ return null; } }
+  const ls = d && d.livestream;
+  if(!ls || ls.is_live === false) return { live:false };
+  // TR: start_time "YYYY-MM-DD HH:MM:SS" (UTC, sonek yok) -> ISO + 'Z'
+  // EN: start_time "YYYY-MM-DD HH:MM:SS" (UTC, no suffix) -> ISO + 'Z'
+  const st = (ls.start_time || ls.created_at || "").replace(' ','T');
+  const ms = st ? Date.parse(st.endsWith('Z')||/[+\-]\d\d:?\d\d$/.test(st) ? st : st+'Z') : NaN;
+  return { live:true, viewers: ls.viewer_count ?? 0, startMs: isNaN(ms)? null : ms };
+}
+
+function applyOffline(){
+  isLive = false; startMs = null;
+  panel.classList.remove('live'); panel.classList.add('offline');
+}
+function applyLive(info){
+  isLive = true; startMs = info.startMs;
+  panel.classList.remove('offline'); panel.classList.add('live');
+  setViewers(info.viewers);
+  tickUptime();
+}
+
+async function refresh(){
+  const info = await fetchInfo();
+  if(!info || !info.live) applyOffline();
+  else applyLive(info);
+}
+
+/* TR: kanal yazılmamışsa kurulum ipucu / EN: setup hint when channel is unset */
+function showSetupHint(){
+  const h = document.createElement('div');
+  h.id = 'setup-hint';
+  h.innerHTML = '⚙ AYARLAR.js → "kanal"<br>Set your channel name';
+  document.body.appendChild(h);
+}
+
+(async function init(){
+  if(!CHANNEL){ showSetupHint(); return; }   // TR/EN: kanal yok / no channel
+  await refresh();
+  setInterval(refresh, CONFIG.refreshSec*1000);
+})();
+
+/* TR: test/elle: konsolda forceLive(1234, "2026-01-01T12:00:00Z") / EN: test/manual: forceLive(...) in console */
+window.forceLive = function(v, startIso){ applyLive({ viewers:v, startMs: Date.parse(startIso) }); };
+window.forceOffline = applyOffline;
+})();
+</script>
+</body>
+</html>
