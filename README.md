@@ -22,6 +22,21 @@ Live chat · follower & subscriber goal bars · viewer + uptime panel.
 
 <sub>Style shown: <code>glass</code> · accent <code>#53fc18</code>. Numbers are examples. / Gösterilen stil: <code>glass</code>. Sayılar örnektir.</sub>
 
+### 🎨 4 built-in styles / 4 hazır stil
+
+<table>
+<tr>
+<td align="center"><code>glass</code><br><img src="screenshots/style-glass.png" width="250" alt="glass style — frosted translucent bubbles" /></td>
+<td align="center"><code>vivid</code><br><img src="screenshots/style-vivid.png" width="250" alt="vivid style — neon glowing bubbles" /></td>
+</tr>
+<tr>
+<td align="center"><code>soft</code><br><img src="screenshots/style-soft.png" width="250" alt="soft style — light rounded bubbles" /></td>
+<td align="center"><code>cinema</code><br><img src="screenshots/style-cinema.png" width="250" alt="cinema style — minimal with divider lines" /></td>
+</tr>
+</table>
+
+<sub>Pick one via <code>stil</code> in <code>AYARLAR.js</code>. Works across all overlays. / Stili <code>AYARLAR.js</code> içindeki <code>stil</code> ile seç; tüm overlay'lerde geçerli.</sub>
+
 **🌐 Read in your language / Kendi dilinde oku:**
 
 [🇬🇧 English](#english) · [🇹🇷 Türkçe](#turkce) · [🇯🇵 日本語](#japanese) · [🇪🇸 Español](#espanol) · [🇧🇷 Português](#portugues) · [🇫🇷 Français](#francais) · [🇩🇪 Deutsch](#deutsch) · [🇷🇺 Русский](#russian) · [🇸🇦 العربية](#arabic) · [🇰🇷 한국어](#korean) · [🇨🇳 中文](#chinese) · [🇮🇩 Indonesia](#indonesia)
