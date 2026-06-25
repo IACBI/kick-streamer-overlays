@@ -160,6 +160,25 @@ async function getChatroomId(){
   for(const v of ["v2","v1"]){ try{ const d=await tryUrl(`https://kick.com/api/${v}/channels/${encodeURIComponent(CHANNEL)}`); const id=d?.chatroom?.id||d?.chatroom_id; if(id) return id; }catch(e){} }
   throw new Error("chatroom_id not found");
 }
+/* TR: çift sayma koruması — aynı abone/hediye olayı iki kanaldan gelebilir; gerçek aboneyi kaybetmeden 2. kopyayı eler.
+   EN: double-count guard — the same sub/gift event can arrive on both channels; drops the 2nd copy without losing a real sub. */
+const recentSubEvents = new Map();   // imza -> zaman(ms) / signature -> time(ms)
+function subEventSeen(ev, data){
+  let key;
+  if(data && data.id != null) key = 'id:'+data.id;
+  else {
+    const who = (Array.isArray(data.gifted_usernames) && data.gifted_usernames.join(','))
+             || (Array.isArray(data.usernames) && data.usernames.join(','))
+             || (data.user && (data.user.username || data.user.id)) || '';
+    if(!who) return false;           // kimlik yok -> dedup etme / no identity -> don't dedup
+    key = ev + '|' + who;
+  }
+  const now = Date.now();
+  for(const [k,t] of recentSubEvents){ if(now - t > 6000) recentSubEvents.delete(k); }
+  if(recentSubEvents.has(key)) return true;
+  recentSubEvents.set(key, now);
+  return false;
+}
 function handleSubEvent(payload){
   const ev = String(payload.event||""); let data = payload.data;
   if(typeof data==="string"){ try{ data=JSON.parse(data); }catch{ data={}; } } data=data||{};
@@ -168,6 +187,7 @@ function handleSubEvent(payload){
   // EN: Ignore Pusher system events (pusher_internal:subscription_succeeded) -> not real subs
   //     (otherwise the counter would start at 2: 2 channel subscriptions = fake 2).
   if(/^pusher/i.test(ev)) return;
+  if(subEventSeen(ev, data)) return;   // TR: çift kopya -> atla / EN: duplicate copy -> skip
   if(/Gifted/i.test(ev) && /Sub/i.test(ev)){   // TR: hediye'yi ÖNCE / EN: gifts FIRST -> no double count
     const n=(Array.isArray(data.gifted_usernames)&&data.gifted_usernames.length)||(Array.isArray(data.usernames)&&data.usernames.length)||data.quantity||data.amount||1;
     addSubs(n);
@@ -201,7 +221,9 @@ function showSetupHint(){
   if(!CHANNEL){ setFollow(CONFIG.followCurrent); showSetupHint(); return; }
   const n = await fetchFollowers();
   setFollow(n !== null ? n : CONFIG.followCurrent);
-  if(n !== null) setInterval(async ()=>{ const m=await fetchFollowers(); if(m!==null) setFollow(m); }, CONFIG.refreshSec*1000);
+  // TR: yenilemeyi HER ZAMAN kur (ilk istek patlasa bile sonra canlıya geçsin)
+  // EN: ALWAYS start the refresh (even if the first request fails, go live later)
+  setInterval(async ()=>{ const m=await fetchFollowers(); if(m!==null) setFollow(m); }, CONFIG.refreshSec*1000);
   try{ const id = await getChatroomId(); connectSubs(id); }catch(e){ console.warn("[sub] could not connect live:", e.message); }
 })();
 

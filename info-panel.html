@@ -194,7 +194,11 @@ function applyOffline(){
   panel.classList.remove('live'); panel.classList.add('offline');
 }
 function applyLive(info){
-  isLive = true; startMs = info.startMs;
+  isLive = true;
+  // TR: start_time'ı yalnızca geçerliyse güncelle; hiç değer yoksa donmamak için şimdiden başlat
+  // EN: update start_time only if valid; if none yet, start from now so uptime doesn't freeze
+  if(info.startMs != null && !isNaN(info.startMs)) startMs = info.startMs;
+  else if(startMs == null) startMs = Date.now();
   panel.classList.remove('offline'); panel.classList.add('live');
   setViewers(info.viewers);
   tickUptime();

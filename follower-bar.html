@@ -158,7 +158,9 @@ function showSetupHint(){
   if(!CHANNEL){ paint(CONFIG.current); showSetupHint(); return; }   // TR/EN: kanal yok / no channel
   const n = await fetchFollowers();
   paint(n !== null ? n : CONFIG.current);   // TR: gelirse canlı, gelmezse yedek / EN: live if available, else fallback
-  if(n !== null) setInterval(async ()=>{ const m = await fetchFollowers(); if(m!==null) paint(m); }, CONFIG.refreshSec*1000);
+  // TR: yenilemeyi HER ZAMAN kur: ilk istek patlasa bile sonraki turda canlıya geçer (m===null görüntüyü bozmaz)
+  // EN: ALWAYS start the refresh: even if the first request fails, it goes live next tick (m===null won't break the view)
+  setInterval(async ()=>{ const m = await fetchFollowers(); if(m!==null) paint(m); }, CONFIG.refreshSec*1000);
 })();
 
 /* TR: istersen elle: konsolda updateFollowers(123) / EN: manual if needed: updateFollowers(123) in console */

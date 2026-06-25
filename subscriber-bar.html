@@ -154,6 +154,28 @@ async function getChatroomId(){
   throw new Error("chatroom_id not found");
 }
 
+/* TR: çift sayma koruması — aynı abone/hediye olayı iki kanaldan (chatrooms.X + .v2) gelebilir.
+       Gerçek aboneyi ASLA kaybetmez; yalnızca aynı olayın 2. kopyasını eler, kimlik yoksa dedup etmez.
+   EN: double-count guard — the same sub/gift event can arrive on both channels (chatrooms.X + .v2).
+       NEVER loses a real sub; only drops the 2nd copy of the same event, and skips dedup if no identity. */
+const recentSubEvents = new Map();   // TR: imza -> zaman(ms) / EN: signature -> time(ms)
+function subEventSeen(ev, data){
+  let key;
+  if(data && data.id != null) key = 'id:'+data.id;
+  else {
+    const who = (Array.isArray(data.gifted_usernames) && data.gifted_usernames.join(','))
+             || (Array.isArray(data.usernames) && data.usernames.join(','))
+             || (data.user && (data.user.username || data.user.id)) || '';
+    if(!who) return false;           // TR: kimlik yok -> dedup etme / EN: no identity -> don't dedup
+    key = ev + '|' + who;
+  }
+  const now = Date.now();
+  for(const [k,t] of recentSubEvents){ if(now - t > 6000) recentSubEvents.delete(k); }
+  if(recentSubEvents.has(key)) return true;   // TR: ~6sn içinde aynı olay -> çift / EN: same event within ~6s -> dup
+  recentSubEvents.set(key, now);
+  return false;
+}
+
 /* TR: abonelik olayını sayıya çevir. Hediye'yi ÖNCE kontrol et (çift saymamak için).
    EN: turn a subscription event into a count. Check gifts FIRST (to avoid double counting). */
 function handleSubEvent(payload){
@@ -166,6 +188,7 @@ function handleSubEvent(payload){
   // EN: Ignore Pusher's own system events (pusher_internal:subscription_succeeded) -> not real subs.
   //     Otherwise each channel subscribe would falsely add +1 (counter starting at 2 instead of 0).
   if(/^pusher/i.test(ev)) return;
+  if(subEventSeen(ev, data)) return;   // TR: çift kopya -> atla / EN: duplicate copy -> skip
   if(/Gifted/i.test(ev) && /Sub/i.test(ev)){
     const n = (Array.isArray(data.gifted_usernames) && data.gifted_usernames.length)
            || (Array.isArray(data.usernames) && data.usernames.length)

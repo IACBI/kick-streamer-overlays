@@ -269,7 +269,7 @@ function renderBadges(badges, isVerified){
   return inner ? `<span class="badges">${inner}</span>` : '';
 }
 
-function addMessage({ id, username, color, message, badges, isVerified, createdAt }){
+function addMessage({ id, senderId, username, color, message, badges, isVerified, createdAt }){
   const safeName = String(username||'?');
   const safeMsg = String(message||'');
   const key = id || `${safeName}|${safeMsg}|${createdAt||''}`;
@@ -279,6 +279,10 @@ function addMessage({ id, username, color, message, badges, isVerified, createdA
 
   const el = document.createElement('div');
   el.className = 'msg';
+  // TR: silme/ban eşlemesi için kimlikler / EN: identifiers for delete/ban matching
+  if(id) el.dataset.id = String(id);
+  if(senderId) el.dataset.uid = String(senderId);
+  el.dataset.uname = safeName.toLowerCase();
   const nameColor = color && String(color).trim() ? `style="color:${escapeHtml(color)}"` : '';
   el.innerHTML = renderBadges(badges, isVerified) +
     `<span class="uname" ${nameColor}>${escapeHtml(safeName)}</span>` +
@@ -308,6 +312,36 @@ function addMessage({ id, username, color, message, badges, isVerified, createdA
     setTimeout(()=>old.remove(), 400);
     break;
   }
+}
+
+/* TR: mesajı yumuşak çıkış animasyonuyla kaldır (.leaving zaten CSS'te)
+   EN: remove a message with the soft leave animation (.leaving already in CSS) */
+function fadeRemove(el){
+  if(!el || el.classList.contains('leaving')) return;
+  el.classList.add('leaving');
+  setTimeout(()=>el.remove(), 400);
+}
+
+/* TR: MODERASYON — Kick sitesiyle aynı şekilde mesajları kaldır
+   EN: MODERATION — remove messages the same way Kick's site does */
+function removeMessageById(messageId){
+  if(!messageId) return;
+  const el = feed.querySelector(`.msg[data-id="${CSS.escape(messageId)}"]`);
+  if(el){ fadeRemove(el); seen.delete(messageId); }   // TR: tekrar gelebilsin / EN: allow re-add if it comes again
+}
+function removeMessagesByUser(userId, username){
+  const uname = String(username||'').toLowerCase();
+  feed.querySelectorAll('.msg').forEach(el=>{
+    const matchId   = userId && el.dataset.uid === String(userId);
+    const matchName = !userId && uname && el.dataset.uname === uname;   // TR: uid yoksa isimle / EN: by name if no uid
+    if(matchId || matchName){
+      if(el.dataset.id) seen.delete(el.dataset.id);
+      fadeRemove(el);
+    }
+  });
+}
+function clearAllMessages(){
+  feed.querySelectorAll('.msg').forEach(fadeRemove);
 }
 
 /* =================== TR: VERİ MOTORU (Kick API + Pusher) / EN: DATA ENGINE (Kick API + Pusher) =================== */
@@ -344,16 +378,42 @@ async function loadChannel(){
 function parsePayload(payload){
   if(!payload) return null;
   const eventName = String(payload.event||"");
-  if(!/ChatMessage/i.test(eventName)) return null;
+  // TR: Pusher sistem mesajlarını ele / EN: ignore Pusher system events
+  if(/^pusher/i.test(eventName)) return null;
   let data = payload.data;
   if(typeof data === "string"){ try{ data = JSON.parse(data); }catch{ return null; } }
   if(!data) return null;
+
+  // TR: MODERASYON OLAYLARI — Kick sitesinde mesajı kaldıran event'ler. Bu kanala
+  //     (chatrooms.{id}) zaten abone olduğumuz için ek abonelik gerekmez.
+  // EN: MODERATION EVENTS — events that remove a message on Kick's site. We're already
+  //     subscribed to this channel (chatrooms.{id}), so no extra subscription is needed.
+  if(/MessageDeleted/i.test(eventName)){
+    const mid = (data.message && data.message.id) || data.message_id || data.id;
+    return mid ? { kind:'delete', messageId:String(mid) } : null;
+  }
+  if(/UserBanned/i.test(eventName)){
+    // TR: ban/timeout -> Kick o kullanıcının TÜM mesajlarını gizler
+    // EN: ban/timeout -> Kick hides ALL of that user's messages
+    const u = data.user || {};
+    return { kind:'ban',
+      userId: u.id != null ? String(u.id) : "",
+      username: String(u.username || u.slug || "").toLowerCase() };
+  }
+  if(/ChatroomClear/i.test(eventName)){
+    return { kind:'clear' };
+  }
+
+  // TR: NORMAL SOHBET MESAJI / EN: NORMAL CHAT MESSAGE
+  if(!/ChatMessage/i.test(eventName)) return null;
   const sender = data.sender || data.user || {};
   const ident = sender.identity || data.identity || {};
   // TR: GERÇEK yapı: sender.identity = { color, badges:[{type,text,count?}] }. İsim rengi "color" alanında.
   // EN: REAL shape: sender.identity = { color, badges:[{type,text,count?}] }. Name color is the "color" field.
   return {
+    kind: 'chat',
     id: data.id || data.message_id || data.uuid,
+    senderId: sender.id != null ? String(sender.id) : (sender.user_id != null ? String(sender.user_id) : ""),
     username: sender.username || sender.slug || data.username || "?",
     color: ident.color || ident.username_color || sender.color || "",
     message: data.content || data.message || "",
@@ -380,7 +440,13 @@ function connectChat(chatroomId){
     ws.onmessage = (event)=>{
       let payload; try{ payload=JSON.parse(event.data); }catch{ return; }
       const msg = parsePayload(payload);
-      if(msg && msg.message) addMessage(msg);
+      if(!msg) return;
+      switch(msg.kind){
+        case 'chat':   if(msg.message) addMessage(msg); break;
+        case 'delete': removeMessageById(msg.messageId); break;                // TR: tek mesaj silindi / EN: one message deleted
+        case 'ban':    removeMessagesByUser(msg.userId, msg.username); break;   // TR: kullanıcı banlandı / EN: user banned/timed out
+        case 'clear':  clearAllMessages(); break;                              // TR: sohbet temizlendi / EN: chat cleared
+      }
     };
     ws.onerror = ()=> setStatus("connection error");
     ws.onclose = ()=>{ clearInterval(pingTimer); setStatus("reconnecting…"); setTimeout(open, retryDelay); retryDelay=Math.min(retryDelay*1.8,15000); };
@@ -423,6 +489,17 @@ async function init(){
   }
 }
 init();
+
+/* TR: test/elle (konsoldan): moderasyonu gerçek mod aksiyonu olmadan dene.
+   EN: test/manual (console): try moderation without a real mod action.
+   _testDelete() -> son mesajı sil / delete last message
+   _testDelete(id) / _testBan("username") / _testClear() */
+window._testDelete = function(id){
+  if(!id){ const last = feed.lastElementChild; id = last && last.dataset.id; }
+  removeMessageById(id);
+};
+window._testBan   = function(username){ removeMessagesByUser("", username); };
+window._testClear = clearAllMessages;
 })();
 </script>
 </body>
