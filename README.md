@@ -16,6 +16,8 @@ Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime p
 
 ![Thirteen themes with live follower data from kick.com/iacbi](screenshots/themes.gif)
 
+<sub>Each theme in turn, with the live follower count of kick.com/iacbi. The bar fills, the count rises, and a light sweep crosses the fill.</sub>
+
 Pick a look in `studio.html`, enter your channel name, and add the files to OBS as Browser sources. The overlays read Kick's public channel data directly.
 
 | Feature | Status (checked 2026-10-16) |
@@ -61,9 +63,22 @@ Pick a look in `studio.html`, enter your channel name, and add the files to OBS 
 
 The animations below use sample numbers (`?onizleme=1`) so they show the design. The follower count in the theme animation is live data from kick.com/iacbi.
 
-| Chat preview | Info panel | Combined panel |
-|---|---|---|
-| ![Chat preview with sample messages](screenshots/chat-preview.gif) | ![Info panel with sample viewers and uptime](screenshots/info-panel.gif) | ![Combined panel with sample subscribers](screenshots/combined.gif) |
+<p align="center">
+  <img src="screenshots/chat-preview.gif" width="500" alt="Chat preview: sample messages arrive one by one, with badge art"><br>
+  <sub><b>Chat preview.</b> Messages arrive one by one and the feed keeps a fixed number. The crown is badge art from <code>badges/</code>.</sub>
+</p>
+
+<p align="center">
+  <img src="screenshots/info-panel.gif" width="360" alt="Info panel: the viewer count rises and the uptime counts each second"><br>
+  <sub><b>Info panel.</b> The viewer count eases up and the uptime counts every second while the channel is live.</sub>
+</p>
+
+<p align="center">
+  <img src="screenshots/combined.gif" width="560" alt="Combined panel: both goal bars fill and the subscriber chip shows +3"><br>
+  <sub><b>Combined panel.</b> Both goal bars fill smoothly. The chip shows how many subscribers were gained during this stream.</sub>
+</p>
+
+<sub>The chat, info panel and combined animations use sample numbers (<code>?onizleme=1</code>), so they show the design, not a live channel.</sub>
 
 Troubleshooting:
 
@@ -139,6 +154,8 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 
 ![Kick verisiyle on üç tema, kick.com/iacbi takipçi sayısı](screenshots/themes.gif)
 
+<sub>Her tema sırayla, kick.com/iacbi kanalının canlı takipçi sayısıyla. Çubuk dolar, sayı artar ve dolgunun üzerinden bir ışık geçer.</sub>
+
 `studio.html` içinde bir görünüm seç, kanal adını yaz ve dosyaları OBS'ye Tarayıcı kaynağı olarak ekle. Overlay'ler Kick'in herkese açık kanal verisini doğrudan okur.
 
 | Özellik | Durum (2026-10-16 kontrolü) |
@@ -184,9 +201,22 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 
 Aşağıdaki animasyonlar tasarımı göstermek için örnek sayılar kullanır (`?onizleme=1`). Tema animasyonundaki takipçi sayısı kick.com/iacbi kanalının canlı verisidir.
 
-| Sohbet önizlemesi | Yayın paneli | Birleşik panel |
-|---|---|---|
-| ![Örnek mesajlı sohbet önizlemesi](screenshots/chat-preview.gif) | ![Örnek izleyici ve süreli yayın paneli](screenshots/info-panel.gif) | ![Örnek abonelerli birleşik panel](screenshots/combined.gif) |
+<p align="center">
+  <img src="screenshots/chat-preview.gif" width="500" alt="Sohbet önizlemesi: örnek mesajlar teker teker gelir, rozet görselleriyle"><br>
+  <sub><b>Sohbet önizlemesi.</b> Mesajlar teker teker gelir ve akış sabit sayıda mesaj tutar. Taç, <code>badges/</code> klasöründeki rozet görselidir.</sub>
+</p>
+
+<p align="center">
+  <img src="screenshots/info-panel.gif" width="360" alt="Yayın paneli: izleyici sayısı artar, süre her saniye ilerler"><br>
+  <sub><b>Yayın paneli.</b> İzleyici sayısı yumuşakça artar, kanal yayındayken süre her saniye ilerler.</sub>
+</p>
+
+<p align="center">
+  <img src="screenshots/combined.gif" width="560" alt="Birleşik panel: iki hedef çubuğu dolar, abone rozeti +3 gösterir"><br>
+  <sub><b>Birleşik panel.</b> İki hedef çubuğu yumuşakça dolar. Rozet, bu yayında kazanılan abone sayısını gösterir.</sub>
+</p>
+
+<sub>Sohbet, yayın paneli ve birleşik panel animasyonları örnek sayılar kullanır (<code>?onizleme=1</code>); yani canlı bir kanalı değil tasarımı gösterir.</sub>
 
 Sorun giderme:
 
