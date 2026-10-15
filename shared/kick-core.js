@@ -14,7 +14,7 @@
   var PUSHER = { key: '32cbd69e4b950bf97679', cluster: 'us2' };
 
   var ENUMS = {
-    stil: ['glass', 'vivid', 'soft', 'cinema', 'neon', 'minimal', 'pastel', 'terminal'],
+    stil: ['glass', 'vivid', 'soft', 'cinema', 'neon', 'minimal', 'pastel', 'terminal', 'aurora', 'holo', 'ember', 'paper', 'retro'],
     sekil: ['pill', 'rounded', 'square'],
     yaziTipi: ['inter', 'poppins', 'nunito', 'mono'],
     dil: ['tr', 'en', 'both'],
@@ -137,6 +137,20 @@
   function hasCredentials(s) {
     return !!(s.kickClientId && s.kickClientSecret);
   }
+
+  // Preview mode (?onizleme=1) shows sample numbers without any network call.
+  // Used by the studio and the README. Never affects a live OBS source.
+  function isPreview() {
+    return !!(global.location && /(?:^|[?&])onizleme=1(?:&|$)/.test(global.location.search));
+  }
+
+  var SAMPLE = {
+    followers: 1234,
+    subs: 42,
+    delta: 3,
+    viewers: 2048,
+    startMs: 3723000
+  };
 
   // ---- Labels, numbers, look ---------------------------------------------
 
@@ -477,6 +491,8 @@
     normalizeLocal: normalizeLocal,
     readSettings: readSettings,
     hasCredentials: hasCredentials,
+    isPreview: isPreview,
+    sample: SAMPLE,
     label: label,
     fmt: fmt,
     pct: pct,

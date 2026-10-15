@@ -942,8 +942,8 @@ async function testThemesAndPages() {
   const { K, ctx } = loadCore();
   const SELECTOR_PREFIX = { stil: 'theme-', sekil: 'shape-', yaziTipi: 'font-', animasyon: 'motion-' };
 
-  await check('enum lists match SPEC.md', () => {
-    eq(K.enums('stil'), ['glass', 'vivid', 'soft', 'cinema', 'neon', 'minimal', 'pastel', 'terminal'], 'stil');
+  await check('enum lists match the documented values', () => {
+    eq(K.enums('stil'), ['glass', 'vivid', 'soft', 'cinema', 'neon', 'minimal', 'pastel', 'terminal', 'aurora', 'holo', 'ember', 'paper', 'retro'], 'stil');
     eq(K.enums('sekil'), ['pill', 'rounded', 'square'], 'sekil');
     eq(K.enums('yaziTipi'), ['inter', 'poppins', 'nunito', 'mono'], 'yaziTipi');
     eq(K.enums('dil'), ['tr', 'en', 'both'], 'dil');
@@ -979,7 +979,7 @@ async function testThemesAndPages() {
     }));
   });
 
-  await check('themes.css: every component named in SPEC.md is defined', () => {
+  await check('themes.css: every overlay component class is defined', () => {
     const components = ['ko-bar', 'ko-fill', 'ko-row', 'ko-cur', 'ko-label', 'ko-sep', 'ko-goal', 'ko-chip', 'is-neg',
       'ko-bump', 'ko-panel', 'is-off', 'ko-dot', 'ko-stat', 'ko-val', 'ko-sep-v', 'ko-feed', 'ko-msg', 'is-leaving',
       'ko-badges', 'ko-badge', 'ko-user', 'ko-text', 'ko-emote', 'ko-bcast', 'ko-note', 'is-hidden', 'ko-hint'];

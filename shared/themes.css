@@ -139,7 +139,151 @@ body.theme-terminal {
 body.theme-terminal .ko-fill::after { display: none; }
 body.theme-terminal .ko-bar,
 body.theme-terminal .ko-panel,
-body.theme-terminal .ko-msg { border-width: 1px; }
+body.theme-terminal .ko-msg { border-width: 1px; backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+/* Aurora: navy glass and a teal-to-violet fill, with a light sweep that runs across the fill. */
+body.theme-aurora {
+  --surface: linear-gradient(180deg, rgb(255 255 255 / 12%), rgb(255 255 255 / 0%) 55%), rgb(8 14 40 / 62%);
+  --surface-border: rgb(94 234 212 / 22%);
+  --shadow: 0 8px 28px rgb(2 6 23 / 45%);
+  --fill-bg: linear-gradient(90deg,
+    color-mix(in srgb, var(--accent) 40%, #0d9488) 0%,
+    color-mix(in srgb, var(--accent) 35%, #2dd4bf) 50%,
+    color-mix(in oklch, var(--accent) 45%, #8b5cf6) 100%);
+  --fill-glow: 0 0 22px rgb(45 212 191 / 35%);
+  --text: #f0f9ff;
+  --muted: rgb(203 213 225 / 80%);
+  --msg-bg: rgb(8 14 40 / 62%);
+  --msg-border: transparent;
+  --msg-shadow: 0 4px 16px rgb(2 6 23 / 35%);
+}
+/* Gradient edge: the gradient shows through the transparent border; the navy fills the padding box. */
+body.theme-aurora .ko-msg {
+  background:
+    linear-gradient(var(--msg-bg), var(--msg-bg)) padding-box,
+    linear-gradient(135deg, rgb(45 212 191 / 60%), rgb(124 58 237 / 50%)) border-box;
+}
+body.theme-aurora .ko-fill { overflow: hidden; }
+/* The sweep rests off the left edge of the fill, so it is invisible when animation is off. */
+body.theme-aurora .ko-fill::after {
+  inset: 0; width: auto;
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 30%) 50%, transparent 65%);
+  transform: translate3d(-100%, 0, 0);
+  will-change: transform;
+  animation: ko-aurora-sweep 7s ease-in-out infinite;
+}
+@keyframes ko-aurora-sweep {
+  0%   { transform: translate3d(-100%, 0, 0); }
+  55%  { transform: translate3d(100%, 0, 0); }
+  100% { transform: translate3d(100%, 0, 0); }
+}
+
+/* Holo: the fill and the edge use fixed iridescent colours on purpose; renk only sets the text accent. */
+body.theme-holo {
+  --surface: linear-gradient(160deg, rgb(255 255 255 / 9%), rgb(255 255 255 / 0%) 60%), rgb(16 14 26 / 66%);
+  --surface-border: transparent;
+  /* Mid-tone stops so the white value and label keep contrast on the fill. */
+  --fill-bg: linear-gradient(90deg, #2563eb, #7c3aed, #db2777, #d97706, #059669, #2563eb,
+    #7c3aed, #db2777, #d97706, #059669, #2563eb);
+  --fill-glow: 0 0 16px rgb(196 181 253 / 40%);
+  --text-shadow: 0 1px 2px rgb(0 0 0 / 85%), 0 0 8px rgb(0 0 0 / 55%);
+  --msg-bg: rgb(16 14 26 / 62%);
+  --msg-border: rgb(196 181 253 / 30%);
+  --msg-shadow: 0 0 14px rgb(125 211 252 / 18%);
+}
+/* One colour period per half of the 200% fill, so the drift loops without a seam. */
+body.theme-holo .ko-fill {
+  background-size: 200% 100%;
+  animation: ko-holo-drift 16s linear infinite;
+}
+@keyframes ko-holo-drift {
+  from { background-position: 0% 50%; }
+  to   { background-position: 100% 50%; }
+}
+body.theme-holo .ko-fill::after { display: none; }
+/* Thin iridescent edge: a masked ring drawn over the 1px transparent border. */
+body.theme-holo .ko-bar { border-color: transparent; }
+body.theme-holo .ko-bar::before {
+  content: ''; position: absolute; inset: 0; z-index: 3; padding: 1px; border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(135deg, #7dd3fc, #c4b5fd, #f9a8d4, #fde68a, #86efac);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+/* Ember: warm near-black with fixed ember colours; like holo, renk only sets the text accent. */
+body.theme-ember {
+  --surface: rgb(20 10 6 / 88%);
+  --surface-border: rgb(255 110 40 / 55%);
+  --shadow: 0 8px 24px rgb(0 0 0 / 50%);
+  --fill-bg: linear-gradient(90deg, #7f1d1d 0%, #b91c1c 30%, #ea580c 68%, #facc15 100%);
+  --fill-glow: 0 0 18px rgb(234 88 12 / 45%);
+  --text: #fff7ed;
+  --muted: rgb(254 215 170 / 80%);
+  --msg-bg: rgb(20 10 6 / 85%);
+  --msg-border: rgb(255 110 40 / 35%);
+  --msg-text: #ffedd5;
+  --msg-shadow: 0 0 14px rgb(234 88 12 / 20%);
+}
+/* The glowing tip sits on the fill's right edge and breathes by opacity only. */
+body.theme-ember .ko-fill::after {
+  inset: 0 -12px 0 auto; width: 36px;
+  background: radial-gradient(closest-side, rgb(255 244 200 / 95%), rgb(255 150 40 / 55%) 50%, transparent);
+  animation: ko-ember-breathe 2.4s ease-in-out infinite;
+}
+@keyframes ko-ember-breathe {
+  0%, 100% { opacity: .55; }
+  50%      { opacity: 1; }
+}
+body.theme-ember .ko-dot { background: #fb923c; box-shadow: 0 0 8px #fb923c; }
+
+/* Paper: cream editorial surface. The fill is a multiply highlighter, so it tints the paper like a marker. */
+body.theme-paper {
+  --surface: #fbf6ea;
+  --surface-border: rgb(92 64 38 / 22%);
+  --blur: 0px;
+  --shadow: 0 1px 2px rgb(90 60 30 / 12%), 0 6px 18px rgb(90 60 30 / 12%);
+  --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent));
+  --fill-glow: none;
+  --text: #2b2118;
+  --muted: #6b5844;
+  --text-shadow: none;
+  --msg-bg: #fffdf7;
+  --msg-border: rgb(92 64 38 / 20%);
+  --msg-text: #2b2118;
+  --msg-shadow: 0 1px 2px rgb(90 60 30 / 12%), 0 4px 12px rgb(90 60 30 / 10%);
+}
+body.theme-paper .ko-bar,
+body.theme-paper .ko-panel,
+body.theme-paper .ko-msg { backdrop-filter: none; -webkit-backdrop-filter: none; }
+/* Isolation keeps the multiply blend inside the bar, so it blends with the cream and not the page behind. */
+body.theme-paper .ko-bar { isolation: isolate; }
+body.theme-paper .ko-fill { mix-blend-mode: multiply; }
+body.theme-paper .ko-fill::after { display: none; }
+body.theme-paper .ko-user { color: var(--name-color, color-mix(in srgb, var(--accent) 40%, var(--text))); }
+
+/* Retro: arcade pixels. Square corners, hard shadows, a dotted fill and a hard text shadow. */
+body.theme-retro {
+  --r-bar: 0; --r-card: 0; --r-msg: 0;
+  --surface: #0d0d1a;
+  --surface-border: var(--accent);
+  --blur: 0px;
+  --shadow: 4px 4px 0 #000;
+  --fill-bg: radial-gradient(circle, rgb(0 0 0 / 35%) 1.2px, transparent 1.6px) 0 0 / 6px 6px,
+    linear-gradient(var(--accent), var(--accent));
+  --fill-glow: none;
+  --text-shadow: 2px 2px 0 #000;
+  --msg-bg: #0d0d1a;
+  --msg-border: var(--accent);
+  --msg-shadow: 3px 3px 0 #000;
+}
+body.theme-retro .ko-bar,
+body.theme-retro .ko-panel,
+body.theme-retro .ko-msg { border-width: 2px; backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.theme-retro .ko-chip,
+body.theme-retro .ko-badge { border-radius: 0; }
+body.theme-retro .ko-fill::after { display: none; }
 
 /* ---- motion ---- */
 body.motion-off *,
@@ -148,11 +292,13 @@ body.motion-off *::after { animation: none !important; transition: none !importa
 body.motion-off .ko-msg { opacity: 1; transform: none; }
 body.motion-off .ko-msg.is-leaving { opacity: 0; }
 
+body.motion-low .ko-fill,
 body.motion-low .ko-fill::after,
 body.motion-low .ko-bcast { animation: none; }
 body.motion-low .ko-msg { animation-duration: .2s; }
 
 @media (prefers-reduced-motion: reduce) {
+  body.motion-normal .ko-fill,
   body.motion-normal .ko-fill::after,
   body.motion-normal .ko-bcast { animation: none; }
   body.motion-normal .ko-msg { animation-duration: .2s; }
@@ -169,6 +315,7 @@ body.motion-low .ko-msg { animation-duration: .2s; }
   background: var(--surface); border: 1px solid var(--surface-border);
   backdrop-filter: blur(var(--blur)) saturate(140%); -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
   box-shadow: var(--shadow);
+  animation: ko-rise-in .6s cubic-bezier(.2, .8, .2, 1) both;
 }
 .ko-fill {
   position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit;
@@ -206,12 +353,11 @@ body.motion-low .ko-msg { animation-duration: .2s; }
   font-variant-numeric: tabular-nums; vertical-align: middle;
 }
 .ko-chip.is-neg { background: #ef4444; color: #fff; }
-.ko-bump { animation: ko-bump .6s ease; }
-@keyframes ko-bump {
-  0%   { box-shadow: var(--shadow); }
-  40%  { box-shadow: 0 0 26px var(--accent); }
-  100% { box-shadow: var(--shadow); }
-}
+/* One-time entrance on page load. The bump keeps the entrance name in its list, so adding or
+   removing .ko-bump never restarts the entrance. */
+@keyframes ko-rise-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.ko-bump { animation: ko-rise-in .6s cubic-bezier(.2, .8, .2, 1) both, ko-bump .5s ease-out; }
+@keyframes ko-bump { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
 
 /* ---- info panel ---- */
 .ko-panel {
@@ -220,6 +366,8 @@ body.motion-low .ko-msg { animation-duration: .2s; }
   backdrop-filter: blur(var(--blur)) saturate(140%); -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
   box-shadow: var(--shadow);
   opacity: 1; transform: translateY(0); transition: opacity .6s ease, transform .6s ease;
+  /* backwards, not both: a forwards fill would pin opacity 1 and block .is-off. */
+  animation: ko-rise-in .6s cubic-bezier(.2, .8, .2, 1) backwards;
 }
 .ko-panel.is-off { opacity: 0; transform: translateY(-6px); pointer-events: none; }
 .ko-stat { display: inline-flex; align-items: center; gap: 7px; }

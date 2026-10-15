@@ -37,6 +37,7 @@
 (function(){
   const K = window.KickOverlay;
   const S = K.readSettings();
+  const PREVIEW = K.isPreview();
   K.applyLook(S);
 
   const $ = (id) => document.getElementById(id);
@@ -52,12 +53,7 @@
 
   $('lbl').textContent = K.label(S, 'Abone', 'Subscriber');
   $('goal').textContent = K.fmt(GOAL);
-  if (!S.kanal) {
-    hint.textContent = '⚙ AYARLAR.js → kanal / set your channel';
-    hint.hidden = false;
-  }
 
-  const src = K.createSubscriberSource(S);
   let shown = 0, lastTotal = null, cancelAnim = null, busy = false;
 
   function bump() {
@@ -93,20 +89,35 @@
     note.classList.toggle('is-hidden', !text);
   }
 
+  // Preview (?onizleme=1): sample values, no source and no timer.
+  if (PREVIEW) { show({ total: K.sample.subs, delta: K.sample.delta, status: 'manual' }); return; }
+
+  if (!S.kanal) {
+    hint.textContent = '⚙ AYARLAR.js → kanal / set your channel';
+    hint.hidden = false;
+  }
+
+  const src = K.createSubscriberSource(S);
+
   async function poll() {
     if (busy) return;
     busy = true;
     try { show(await src.poll()); } finally { busy = false; }
   }
 
+  let timer = null;
   if (src.mode === 'manual') {
     poll();
   } else if (S.kanal) {
     poll();
-    setInterval(poll, S.yenilemeSn * 1000);
+    timer = setInterval(poll, S.yenilemeSn * 1000);
   } else {
     show({ total: null, delta: 0, status: 'no-channel' });
   }
+  window.addEventListener('pagehide', function () {
+    if (timer !== null) clearInterval(timer);
+    if (cancelAnim) cancelAnim();
+  });
 })();
 </script>
 </body>

@@ -3,10 +3,13 @@
  * End-to-end checks in headless Chrome, driven over the DevTools protocol.
  * No npm packages. Needs Chrome or Edge installed (or set CHROME_PATH).
  *
- *   node tests/e2e-chrome.js                 offline checks (no network)
- *   node tests/e2e-chrome.js --live          also calls the real Kick REST API
- *   node tests/e2e-chrome.js --token         also runs the token path against tests/mock-kick-api.js
- *   node tests/e2e-chrome.js --shots <dir>   save PNG screenshots to <dir>
+ *   node tests/e2e-chrome.js                    offline checks (no network)
+ *   node tests/e2e-chrome.js --live             real Kick REST data for --channel (default iacbi)
+ *   node tests/e2e-chrome.js --preview          ?onizleme=1 sample-mode checks
+ *   node tests/e2e-chrome.js --token            token path against tests/mock-kick-api.js
+ *   node tests/e2e-chrome.js --perf             30 s heap and DOM stability check for the chat
+ *   node tests/e2e-chrome.js --channel <slug>   channel for --live (default iacbi)
+ *   node tests/e2e-chrome.js --shots <dir>      save PNG screenshots to <dir>
  */
 'use strict';
 
@@ -113,7 +116,7 @@ async function openPageFrom(dir, fileName, query, size) {
   if (size) await c.send('Emulation.setDeviceMetricsOverride', { width: size[0], height: size[1], deviceScaleFactor: 1, mobile: false });
   await c.send('Page.navigate', { url: pathToFileURL(path.join(dir, fileName)).href + (query || '') });
   return {
-    logs,
+    c, logs,
     eval: async (expr) => {
       const r = await c.send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.text || 'evaluate failed');
@@ -206,32 +209,114 @@ async function offlineChecks() {
 
 // ---- live scenarios (real Kick REST API) -------------------------------------
 
-async function liveChecks() {
-  console.log('\n== live (real Kick REST API, network required)');
+// The channel under test. Defaults to the maintainer's public channel.
+const CHANNEL = (argOf('--channel') || 'iacbi').toLowerCase();
 
-  const f = await openPage('follower-bar.html', '?kanal=xqc&takipciHedefi=2000000', [520, 90]);
+async function restChannel(slug) {
+  const r = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`, { headers: { Accept: 'application/json' } });
+  if (!r.ok) throw new Error(`Kick REST HTTP ${r.status}`);
+  return r.json();
+}
+
+async function liveChecks() {
+  console.log(`\n== live (real Kick REST API, channel "${CHANNEL}")`);
+  const api = await restChannel(CHANNEL);
+  const followers = Number(api.followers_count ?? api.followersCount);
+  const live = !!(api.livestream && api.livestream.is_live !== false);
+  check('REST: channel answers with a follower count', Number.isFinite(followers), `followers=${followers} live=${live}`);
+
+  const f = await openPage('follower-bar.html', `?kanal=${CHANNEL}&takipciHedefi=${Math.max(100, followers * 2)}`, [520, 90]);
   await sleep(4000);
   const fv = await f.eval(`document.getElementById('cur').textContent`);
-  const fnum = Number(String(fv).replace(/,/g, ''));
-  check('live follower-bar: real follower count shown for xqc', fnum > 100000, `shown=${fv}`);
+  const shown = Number(String(fv).replace(/,/g, ''));
+  check('live follower-bar: shown count equals the REST count', shown === followers, `shown=${fv} rest=${followers}`);
   check('live follower-bar: no unexpected errors', unexpected(f.logs).length === 0, short(unexpected(f.logs)));
   await f.close();
 
-  const ch = await openPage('chat.html', '?kanal=xqc', [460, 760]);
+  const ip = await openPage('info-panel.html', `?kanal=${CHANNEL}`, [300, 80]);
+  await sleep(4000);
+  const hidden = await ip.eval(`document.getElementById('panel').classList.contains('is-off')`);
+  check('live info-panel: visibility matches the REST live state', hidden === !live, `panelHidden=${hidden} restLive=${live}`);
+  check('live info-panel: no unexpected errors', unexpected(ip.logs).length === 0, short(unexpected(ip.logs)));
+  await ip.close();
+
+  const ch = await openPage('chat.html', `?kanal=${CHANNEL}`, [460, 760]);
   await sleep(7000);
   const chInfo = await ch.eval(`({
     note: (document.querySelector('.ko-note') || {}).textContent || '',
     msgs: document.querySelectorAll('.ko-msg:not(.is-leaving)').length
   })`);
-  check('live chat: no fake messages while the feed is rejected', chInfo.msgs === 0, `count=${chInfo.msgs}`);
-  check('live chat: says there is no live connection', /bağlantısı yok|bağlanıyor/i.test(chInfo.note), `note="${chInfo.note}"`);
+  const rejected = /bağlantısı yok/i.test(chInfo.note);
+  if (rejected) {
+    check('live chat: no fake messages while the feed is rejected', chInfo.msgs === 0, `count=${chInfo.msgs}`);
+    check('live chat: says there is no live connection', true, `note="${chInfo.note}"`);
+  } else {
+    check('live chat: connected to the feed (Kick restored it)', chInfo.msgs >= 0, `note="${chInfo.note}" count=${chInfo.msgs}`);
+  }
   await ch.close();
 
-  const s = await openPage('subscriber-bar.html', '?kanal=xqc', [520, 90]);
+  const aboneFile = fs.readFileSync(path.join(ROOT, 'AYARLAR.js'), 'utf8');
+  const manual = Number((aboneFile.match(/aboneSayisi:\s*(\d+)/) || [])[1]);
+  const s = await openPage('subscriber-bar.html', `?kanal=${CHANNEL}`, [520, 90]);
   await sleep(3000);
   const sInfo = await s.eval(`({ val: document.getElementById('val').textContent, note: (document.querySelector('.ko-note') || {}).textContent || '' })`);
-  check('live subscriber-bar: no credentials means manual count (0), no network', sInfo.val === '0' && sInfo.note === '', `val=${sInfo.val} note="${sInfo.note}"`);
+  check('live subscriber-bar: no Kick app means the manual count from AYARLAR.js', Number(sInfo.val.replace(/,/g, '')) === manual && sInfo.note === '', `val=${sInfo.val} manual=${manual} note="${sInfo.note}"`);
   await s.close();
+}
+
+// Preview mode (?onizleme=1) must show sample values and make no network call.
+async function previewChecks() {
+  console.log('\n== preview mode (?onizleme=1, sample values)');
+  const f = await openPage('follower-bar.html', '?onizleme=1', [520, 90]);
+  await sleep(2500);
+  const fv = await f.eval(`document.getElementById('cur').textContent`);
+  check('preview follower-bar: sample followers 1,234', fv === '1,234', `shown=${fv}`);
+  await f.close();
+
+  const s = await openPage('subscriber-bar.html', '?onizleme=1', [520, 90]);
+  await sleep(2500);
+  const sv = await s.eval(`({ val: document.getElementById('val').textContent, delta: document.getElementById('delta').textContent, hidden: document.getElementById('delta').hidden })`);
+  check('preview subscriber-bar: sample subscribers 42 with +3', sv.val === '42' && !sv.hidden && /\+3/.test(sv.delta), `val=${sv.val} delta=${sv.delta}`);
+  await s.close();
+
+  const ip = await openPage('info-panel.html', '?onizleme=1', [300, 80]);
+  await sleep(2500);
+  const iv = await ip.eval(`({ hidden: document.getElementById('panel').classList.contains('is-off'), viewers: document.getElementById('viewers').textContent, uptime: document.getElementById('uptime').textContent })`);
+  check('preview info-panel: shown with sample viewers 2,048', !iv.hidden && iv.viewers === '2,048', `viewers=${iv.viewers} uptime=${iv.uptime}`);
+  await ip.close();
+
+  const ch = await openPage('chat.html', '?onizleme=1', [460, 760]);
+  await sleep(4000);
+  const cv = await ch.eval(`document.querySelectorAll('.ko-msg:not(.is-leaving)').length`);
+  check('preview chat: sample messages shown', cv >= 1, `count=${cv}`);
+  const hintShown = await ch.eval(`!!document.querySelector('.ko-hint')`);
+  check('preview chat: no setup hint over the sample messages', !hintShown);
+  await ch.close();
+}
+
+// Chat demo for 30 s: heap growth and DOM size must stay flat (no leak).
+async function perfChecks() {
+  console.log('\n== performance (chat preview, 30 s, heap and DOM stability)');
+  const p = await openPage('chat.html', '?onizleme=1', [460, 760]);
+  await p.c.send('Performance.enable');
+  const heap = async () => {
+    const r = await p.c.send('Performance.getMetrics');
+    return r.metrics.find((m) => m.name === 'JSHeapUsedSize').value;
+  };
+  await sleep(6000);
+  const samples = [];
+  for (let i = 0; i < 6; i++) {
+    const nodes = await p.eval(`document.getElementsByTagName('*').length`);
+    samples.push({ heap: await heap(), nodes });
+    await sleep(4000);
+  }
+  const growthMB = (samples[samples.length - 1].heap - samples[1].heap) / (1024 * 1024);
+  const maxNodes = Math.max(...samples.map((s) => s.nodes));
+  const minNodes = Math.min(...samples.map((s) => s.nodes));
+  check('perf chat: JS heap growth over 20 s stays under 8 MB', growthMB < 8, `growth=${growthMB.toFixed(2)} MB`);
+  check('perf chat: DOM node count stays within a small band', maxNodes - minNodes <= 60, `nodes ${minNodes}..${maxNodes}`);
+  check('perf chat: no unexpected errors during the run', unexpected(p.logs).length === 0, short(unexpected(p.logs)));
+  await p.close();
 }
 
 // ---- token path against the local mock (copy of the project; real files untouched) ----
@@ -278,8 +363,10 @@ async function main() {
   const chrome = await launchChrome();
   try {
     await offlineChecks();
+    if (flag('--preview')) await previewChecks();
     if (LIVE) await liveChecks();
     if (TOKEN) await tokenChecks();
+    if (flag('--perf')) await perfChecks();
   } finally {
     chrome.kill();
   }

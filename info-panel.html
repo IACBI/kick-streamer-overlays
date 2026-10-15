@@ -74,6 +74,7 @@
 (function(){
   const K = window.KickOverlay;
   const S = K.readSettings();
+  const PREVIEW = K.isPreview();
   K.applyLook(S);
 
   const elPanel = document.getElementById('panel');
@@ -85,6 +86,8 @@
   let startMs = null;
   let shownViewers = 0;
   let cancelViewers = null;
+  let ticker = null;      // runs only while the channel is live
+  let busy = false;
 
   function setViewers(target){
     if (cancelViewers) cancelViewers();
@@ -103,10 +106,18 @@
     elUptime.textContent = h + ':' + pad(m) + ':' + pad(s);
   }
 
+  function startTicker(){
+    if (ticker === null) ticker = setInterval(tickUptime, 1000);
+  }
+  function stopTicker(){
+    if (ticker !== null) { clearInterval(ticker); ticker = null; }
+  }
+
   function apply(info){
     if (!info.live) {
       live = false;
       startMs = null;
+      stopTicker();
       if (cancelViewers) cancelViewers();
       shownViewers = 0;
       elPanel.classList.add('is-off');
@@ -118,12 +129,17 @@
     elPanel.classList.remove('is-off');
     setViewers(info.viewers);
     tickUptime();
+    startTicker();
   }
 
   async function poll(){
-    const r = await K.kick.channel(S.kanal);
-    if (!r.ok) return;   // failed poll: keep the current state
-    apply(K.parse.live(r.data));
+    if (busy) return;
+    busy = true;
+    try {
+      const r = await K.kick.channel(S.kanal);
+      if (!r.ok) return;   // failed poll: keep the current state
+      apply(K.parse.live(r.data));
+    } finally { busy = false; }
   }
 
   function showHint(){
@@ -133,10 +149,20 @@
     document.body.appendChild(h);
   }
 
-  setInterval(tickUptime, 1000);
+  // Preview (?onizleme=1): live state from the sample values. The uptime counts from the sample offset.
+  if (PREVIEW) {
+    apply({ live: true, viewers: K.sample.viewers, startMs: Date.now() - K.sample.startMs });
+    return;
+  }
+
   if (!S.kanal) { showHint(); return; }
   poll();
-  setInterval(poll, S.yenilemeSn * 1000);
+  const pollTimer = setInterval(poll, S.yenilemeSn * 1000);
+  window.addEventListener('pagehide', function(){
+    clearInterval(pollTimer);
+    stopTicker();
+    if (cancelViewers) cancelViewers();
+  });
 })();
 </script>
 </body>

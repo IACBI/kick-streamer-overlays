@@ -26,6 +26,7 @@
 (function(){
   const K = window.KickOverlay;
   const S = K.readSettings();
+  const PREVIEW = K.isPreview();
   K.applyLook(S);
 
   const feed = document.getElementById('feed');
@@ -34,8 +35,11 @@
   // Matches the .ko-msg.is-leaving animation duration in themes.css (.4s).
   const LEAVE_MS = 400;
   const SEEN_CAP = 500;
-  // Only hex or a plain color name: free text must not reach the CSS.
-  const NAME_RE = /^#[0-9a-f]{3,8}$|^[a-z]{3,20}$/i;
+  // Only hex (#rgb or #rrggbb, as in kick-core) or a plain colour name reaches the CSS.
+  const HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+  const NAME_RE = /^[a-z]{3,20}$/i;
+  // Badge art only from Kick's own hosts; anything else falls back to the drawn badge.
+  const BADGE_SRC_RE = /^https:\/\/(?:files\.|api\.|id\.)?kick\.com\/[A-Za-z0-9._~\/%?=&+-]+$/;
   const EMOTE_RE = /\[emote:(\d+):([^\]]+)\]/g;
   const BROADCASTER = new Set(['broadcaster', 'owner', 'host']);
   const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -61,6 +65,9 @@
   const seen = new Set();   // dedupe guard by message id
   const byId = new Map();   // message id -> live .ko-msg element
   let subBadges = [];       // [{months, src}] sorted high -> low, from K.parse.subBadges
+  let stopChat = null;      // from K.connectChat
+  let previewTimer = null;
+  let closing = false;
 
   function own(map, key){ return Object.hasOwn(map, key) ? map[key] : null; }
 
@@ -100,14 +107,14 @@
   // Real channel badge for the highest tier <= months; drawn star if none fits or the image fails.
   function subscriberBadge(months){
     const tier = subBadges.find(b => months >= b.months);
-    if(!tier || !/^https:\/\//.test(tier.src)) return pill('subscriber', months);
+    if(!tier || !BADGE_SRC_RE.test(tier.src)) return pill('subscriber', months);
     const wrap = document.createElement('span');
     wrap.className = 'ko-badge';
+    wrap.dataset.months = String(months);
     const img = document.createElement('img');
     img.setAttribute('src', tier.src);
     img.setAttribute('alt', 'subscriber');
     img.setAttribute('title', months > 0 ? 'Sub · ' + months + 'm' : 'Sub');
-    img.addEventListener('error', () => wrap.replaceWith(pill('subscriber', months)));
     wrap.appendChild(img);
     return wrap;
   }
@@ -157,11 +164,39 @@
       img.setAttribute('src', 'https://files.kick.com/emotes/' + m[1] + '/fullsize');
       img.setAttribute('alt', m[2]);
       img.setAttribute('title', m[2]);
-      img.addEventListener('error', () => img.replaceWith(document.createTextNode(m[2])));
       parent.appendChild(img);
       last = m.index + m[0].length;
     }
     if(last < raw.length) parent.appendChild(document.createTextNode(raw.slice(last)));
+  }
+
+  // One capture listener on the feed handles every image error, so no per-image listeners exist to leak.
+  feed.addEventListener('error', function(e){
+    const img = e.target;
+    if(!(img instanceof HTMLImageElement)) return;
+    if(img.classList.contains('ko-emote')){ img.replaceWith(document.createTextNode(img.alt)); return; }
+    const wrap = img.parentElement;
+    if(wrap && wrap.classList.contains('ko-badge')) wrap.replaceWith(pill('subscriber', Number(wrap.dataset.months) || 0));
+  }, true);
+
+  // Removes a message node at once and forgets its id.
+  function dropNode(el){
+    if(el.dataset.id && byId.get(el.dataset.id) === el) byId.delete(el.dataset.id);
+    el.remove();
+  }
+
+  // Deletes, bans and clears fade out before they are removed.
+  function fadeRemove(el){
+    if(!el || el.classList.contains('is-leaving')) return;
+    if(el.dataset.id && byId.get(el.dataset.id) === el) byId.delete(el.dataset.id);
+    el.classList.add('is-leaving');
+    setTimeout(() => dropNode(el), LEAVE_MS);
+  }
+
+  // Keeps the feed at MAX nodes before a new one is added. The oldest message sits under the
+  // top mask fade, so it is removed without animation.
+  function makeRoom(){
+    while(feed.childElementCount >= MAX) dropNode(feed.firstElementChild);
   }
 
   function addMessage(ev){
@@ -185,7 +220,7 @@
     user.className = 'ko-user';
     user.textContent = username;
     const color = String(ev.color || '').trim();
-    if(NAME_RE.test(color)) user.style.color = color;
+    if(HEX_RE.test(color) || NAME_RE.test(color)) user.style.color = color;
     el.appendChild(user);
 
     const text = document.createElement('span');
@@ -194,21 +229,8 @@
     appendBody(text, String(ev.message || ''));
     el.appendChild(text);
 
+    makeRoom();
     feed.appendChild(el);
-    trimOverflow();
-  }
-
-  function fadeRemove(el){
-    if(!el || el.classList.contains('is-leaving')) return;
-    if(el.dataset.id && byId.get(el.dataset.id) === el) byId.delete(el.dataset.id);
-    el.classList.add('is-leaving');
-    setTimeout(() => el.remove(), LEAVE_MS);
-  }
-
-  // Leaving messages are not counted; the oldest live ones fade out.
-  function trimOverflow(){
-    const live = feed.querySelectorAll('.ko-msg:not(.is-leaving)');
-    for(let i = 0; i < live.length - MAX; i++) fadeRemove(live[i]);
   }
 
   function removeMessageById(id){
@@ -260,19 +282,21 @@
     let delay = 15000;
     for(;;){
       const ch = await K.kick.channel(S.kanal);
+      if(closing) return;
       const id = ch.ok ? K.parse.chatroomId(ch.data) : null;
       if(typeof id === 'number'){
         subBadges = K.parse.subBadges(ch.data);
-        K.connectChat(id, { onMessage: onEvent, onStatus: onStatus });
+        stopChat = K.connectChat(id, { onMessage: onEvent, onStatus: onStatus });
         return;
       }
       setNote('Kanal bilgisi alınamadı, yeniden deneniyor');
       await sleep(delay);
+      if(closing) return;
       delay = Math.min(delay * 2, 120000);
     }
   }
 
-  // Preview only: used when kanal is empty. Makes no network calls.
+  // Sample messages, used when kanal is empty and in preview. Makes no network calls.
   const SAMPLES = [
     { username:'StreamerName', color:'#53fc18', message:'Hey chat! 👋 / Selam!', badges:[{type:'broadcaster'}] },
     { username:'Mia', color:'#7bdcff', message:'This overlay looks clean', badges:[{type:'vip'}] },
@@ -280,18 +304,20 @@
     { username:'Kenji', color:'#ffd166', message:'GG! ranked when?', badges:[{type:'subscriber', count:3}] },
     { username:'Alex', color:'#a78bfa', message:'thanks for the gifts', badges:[{type:'og'}, {type:'sub_gifter', count:5}] }
   ];
-  function startPreview(){
-    const hint = document.createElement('div');
-    hint.className = 'ko-hint';
-    hint.textContent = '⚙ AYARLAR.js → kanal / set your channel';
-    document.body.appendChild(hint);
+  function startPreview(withHint){
+    if(withHint){
+      const hint = document.createElement('div');
+      hint.className = 'ko-hint';
+      hint.textContent = '⚙ AYARLAR.js → kanal / set your channel';
+      document.body.appendChild(hint);
+    }
     let i = 0;
     const tick = () => {
       addMessage(Object.assign({}, SAMPLES[i % SAMPLES.length], { id: 'demo-' + i }));
       i++;
     };
     tick();
-    setInterval(tick, 2500);
+    previewTimer = setInterval(tick, 2500);
   }
 
   // Console helpers for manual moderation tests (no real mod action needed).
@@ -306,8 +332,16 @@
   window._testBan = function(username){ removeMessagesByUser('', username); };
   window._testClear = clearAll;
 
-  if(S.kanal) startLive();
-  else startPreview();
+  window.addEventListener('pagehide', function(){
+    closing = true;
+    if(previewTimer !== null) clearInterval(previewTimer);
+    if(stopChat) stopChat();
+  });
+
+  // Preview (?onizleme=1) never connects and never shows the setup hint.
+  // The hint only appears when there is no channel and this is not a preview.
+  if(PREVIEW || !S.kanal) startPreview(!S.kanal && !PREVIEW);
+  else startLive();
 })();
 </script>
 </body>

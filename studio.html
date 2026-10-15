@@ -207,9 +207,11 @@
   /* ---- Choice cards and segmented options (native radios, visually hidden) ---- */
   .st-themes {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
   }
+
+  .st-themes > .st-opt { min-width: 0; }
 
   .st-seg-group { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -286,6 +288,16 @@
   .st-swatch[data-stil="pastel"] i { background: color-mix(in srgb, var(--st-accent) 60%, #fff); }
   .st-swatch[data-stil="terminal"] { background: #050a07; border: 1px dashed color-mix(in srgb, var(--st-accent) 60%, transparent); }
   .st-swatch[data-stil="terminal"] i { border-radius: 0; background: repeating-linear-gradient(90deg, var(--st-accent) 0 6px, transparent 6px 9px); }
+  .st-swatch[data-stil="aurora"] { background: linear-gradient(120deg, #0b1d2e, #1b2a4a 55%, #173b3a); border-color: #2a4a5c; }
+  .st-swatch[data-stil="aurora"] i { background: linear-gradient(90deg, #5eead4, #a78bfa); }
+  .st-swatch[data-stil="holo"] { background: linear-gradient(120deg, #1a1d2e, #2b1d3d 50%, #1d2e33); border-color: #3a3550; }
+  .st-swatch[data-stil="holo"] i { background: linear-gradient(90deg, #ff7ae0, #7ae7ff, #c6ff7a); }
+  .st-swatch[data-stil="ember"] { background: #160b06; border-color: #4a2414; }
+  .st-swatch[data-stil="ember"] i { background: linear-gradient(90deg, #ff9a1a, #ff3b1a); box-shadow: 0 0 8px rgba(255, 92, 26, .5); }
+  .st-swatch[data-stil="paper"] { background: #f4ecdc; border-color: #d9cdb4; }
+  .st-swatch[data-stil="paper"] i { background: #b45309; }
+  .st-swatch[data-stil="retro"] { background: #0a0a0a; border-color: #2a2a2a; }
+  .st-swatch[data-stil="retro"] i { height: 8px; margin-top: -4px; border-radius: 0; background: repeating-linear-gradient(90deg, #ffb000 0 4px, transparent 4px 8px); }
 
   /* ---- Buttons ---- */
   .st-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
@@ -336,6 +348,8 @@
 
   .st-pv figcaption span:last-child { color: var(--st-muted); font-weight: 500; font-variant-numeric: tabular-nums; }
 
+  .st-pv-note { margin-top: 6px; font-size: 12px; color: var(--st-muted); }
+
   .st-stage {
     padding: 12px;
     overflow: hidden;
@@ -363,12 +377,19 @@
   .st-notes dt { font-weight: 700; }
   .st-notes dd { margin: 2px 0 0; color: var(--st-muted); }
 
+  /* ---- Responsive card grid: 4 columns wide, 3 medium, 2 on phones ---- */
+  @media (max-width: 1199px) {
+    .st-themes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+
   /* ---- Small screens ---- */
   @media (max-width: 560px) {
     .st-app { padding: 16px 16px 40px; }
     .st-section { padding: 16px; }
     .st-btn { flex: 1 1 100%; }
-    .st-presets .st-btn { flex: 1 1 0; }
+    .st-themes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .st-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .st-presets .st-btn { flex: none; padding: 0 8px; }
     .st-color-row input[type="text"] { max-width: none; }
   }
 
@@ -408,6 +429,8 @@
               <button type="button" class="st-btn" data-preset="minimal">Minimal</button>
               <button type="button" class="st-btn" data-preset="neon">Neon</button>
               <button type="button" class="st-btn" data-preset="pastel">Pastel</button>
+              <button type="button" class="st-btn" data-preset="gece">Gece</button>
+              <button type="button" class="st-btn" data-preset="kagit">Kâğıt</button>
             </div>
             <p class="st-hint">Tema, şekil, yazı tipi, hareket ve vurgu rengini birlikte değiştirir.</p>
           </div>
@@ -636,7 +659,11 @@
 
   // UI labels. Values not listed here fall back to the raw enum value.
   var LABELS = {
-    stil: { glass: 'Cam', vivid: 'Canlı', soft: 'Yumuşak', cinema: 'Sinema', neon: 'Neon', minimal: 'Minimal', pastel: 'Pastel', terminal: 'Terminal' },
+    stil: {
+      glass: 'Cam', vivid: 'Canlı', soft: 'Yumuşak', cinema: 'Sinema', neon: 'Neon', minimal: 'Minimal',
+      pastel: 'Pastel', terminal: 'Terminal', aurora: 'Kuzey Işığı', holo: 'Holografik', ember: 'Kor',
+      paper: 'Kağıt', retro: 'Piksel'
+    },
     sekil: { pill: 'Hap', rounded: 'Yuvarlak', square: 'Kare' },
     yaziTipi: { inter: 'Inter', poppins: 'Poppins', nunito: 'Nunito', mono: 'Mono' },
     dil: { tr: 'Türkçe', en: 'İngilizce', both: 'İkisi birden' },
@@ -647,13 +674,16 @@
   var PRESETS = {
     minimal: { stil: 'minimal', sekil: 'square', yaziTipi: 'inter', animasyon: 'low', renk: '#ffffff' },
     neon: { stil: 'neon', sekil: 'rounded', yaziTipi: 'mono', animasyon: 'normal', renk: '#39ff14' },
-    pastel: { stil: 'pastel', sekil: 'pill', yaziTipi: 'nunito', animasyon: 'normal', renk: '#c4a7ff' }
+    pastel: { stil: 'pastel', sekil: 'pill', yaziTipi: 'nunito', animasyon: 'normal', renk: '#c4a7ff' },
+    gece: { stil: 'aurora', sekil: 'rounded', yaziTipi: 'poppins', animasyon: 'low', renk: '#5eead4' },
+    kagit: { stil: 'paper', sekil: 'rounded', yaziTipi: 'nunito', animasyon: 'normal', renk: '#c2410c' }
   };
 
   // Output file layout, mirroring AYARLAR.js. Order and comments match the shipped file.
-  var AYAR_DOC = [
+  // A function so the theme list comes from the core enums, not a copy.
+  function ayarDoc() { return [
     { key: 'kanal', note: 'Kick channel name, as in kick.com/NAME' },
-    { key: 'stil', note: 'Theme: glass | vivid | soft | cinema | neon | minimal | pastel | terminal' },
+    { key: 'stil', note: 'Theme: ' + K.enums('stil').join(' | ') },
     { key: 'sekil', note: 'Corner shape: pill | rounded | square' },
     { key: 'yaziTipi', note: 'Font: inter | poppins | nunito | mono' },
     { key: 'dil', note: 'Labels: tr | en | both  (both = "Takipçi / Follower")' },
@@ -668,7 +698,7 @@
     { key: 'yuzdeGoster', note: 'Show the percentage of the goal' },
     { key: 'yenilemeSn', note: 'Refresh interval in seconds (10–600)' },
     { key: 'sohbetMaksMesaj', note: 'Maximum chat messages on screen (3–20)' }
-  ];
+  ]; }
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -683,13 +713,18 @@
   var kickStatus = $('kick-durum');
   var kickTestBtn = $('kickTest');
   var previews = Array.prototype.map.call(document.querySelectorAll('[data-overlay]'), function (fig) {
+    var note = document.createElement('p');
+    note.className = 'st-pv-note';
+    note.setAttribute('aria-live', 'polite');
+    fig.appendChild(note);
     return {
       file: fig.getAttribute('data-overlay'),
       w: Number(fig.getAttribute('data-w')),
       h: Number(fig.getAttribute('data-h')),
       stage: fig.querySelector('.st-stage'),
       fit: fig.querySelector('.st-fit'),
-      frame: fig.querySelector('iframe')
+      frame: fig.querySelector('iframe'),
+      note: note
     };
   });
 
@@ -808,11 +843,12 @@
       ''
     ];
 
-    AYAR_DOC.forEach(function (item, i) {
+    var doc = ayarDoc();
+    doc.forEach(function (item, i) {
       if (item.note) {
         item.note.split('\n').forEach(function (l) { lines.push('  // ' + l); });
       }
-      var last = i === AYAR_DOC.length - 1;
+      var last = i === doc.length - 1;
       lines.push('  ' + item.key + ': ' + JSON.stringify(s[item.key]) + (last ? '' : ','));
       if (!last) lines.push('');
     });
@@ -930,12 +966,21 @@
     frameTimer = setTimeout(renderFrames, DEBOUNCE_MS);
   }
 
+  // Without a channel the overlays show sample data (onizleme=1). Public settings only in the URL.
   function renderFrames() {
     var s = currentSettings();
     var query = toQuery(s);
+    if (!s.kanal) query += '&onizleme=1';
     previews.forEach(function (p) {
       var url = p.file + '?' + query;
       if (p.frame.getAttribute('src') !== url) p.frame.setAttribute('src', url);
+    });
+  }
+
+  function syncCaptions(s) {
+    var text = s.kanal ? 'canlı veri' : 'örnek veri';
+    previews.forEach(function (p) {
+      if (p.note.textContent !== text) p.note.textContent = text;
     });
   }
 
@@ -972,6 +1017,7 @@
     document.documentElement.style.setProperty('--st-accent', s.renk);
     paintChoices();
     out.value = buildAyarlar(s);
+    syncCaptions(s);
     saveDraft();
     scheduleFrames();
   }

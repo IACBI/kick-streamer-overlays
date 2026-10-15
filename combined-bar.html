@@ -46,6 +46,7 @@
 (function(){
   const K = window.KickOverlay;
   const S = K.readSettings();
+  const PREVIEW = K.isPreview();
   K.applyLook(S);
 
   const $ = (id) => document.getElementById(id);
@@ -73,11 +74,6 @@
   followRow.lbl.textContent = K.label(S, 'Takipçi', 'Follower');
   subRow.lbl.textContent = K.label(S, 'Abone', 'Subscriber');
 
-  if (!S.kanal) {
-    hint.textContent = '⚙ AYARLAR.js → kanal / set your channel';
-    hint.hidden = false;
-  }
-
   function setValue(r, total) {
     r.fill.style.width = K.pct(total, r.goal) + '%';
     if (r.cancel) r.cancel();
@@ -94,23 +90,6 @@
     void r.root.offsetWidth;
     r.root.classList.add('ko-bump');
   }
-
-  // ---- followers: public Kick endpoint, no token ----
-  let lastFollowers = null, fBusy = false;
-  async function pollFollowers() {
-    if (fBusy) return;
-    fBusy = true;
-    try {
-      const res = await K.kick.channel(S.kanal);
-      const n = res.ok ? K.parse.followers(res.data) : null;
-      if (n !== null) lastFollowers = n;
-      setValue(followRow, lastFollowers !== null ? lastFollowers : S.takipciYedek);
-    } finally { fBusy = false; }
-  }
-
-  // ---- subscribers: source decides token vs manual ----
-  const src = K.createSubscriberSource(S);
-  let sBusy = false;
 
   function showSubs(r) {
     const total = r.total === null ? 0 : r.total;
@@ -130,25 +109,61 @@
     note.classList.toggle('is-hidden', !text);
   }
 
+  // Preview (?onizleme=1): sample values for both rows, no source and no timer.
+  if (PREVIEW) {
+    setValue(followRow, K.sample.followers);
+    showSubs({ total: K.sample.subs, delta: K.sample.delta, status: 'manual' });
+    return;
+  }
+
+  if (!S.kanal) {
+    hint.textContent = '⚙ AYARLAR.js → kanal / set your channel';
+    hint.hidden = false;
+  }
+
+  // ---- followers: public Kick endpoint, no token ----
+  let lastFollowers = null, fBusy = false;
+  async function pollFollowers() {
+    if (fBusy) return;
+    fBusy = true;
+    try {
+      const res = await K.kick.channel(S.kanal);
+      const n = res.ok ? K.parse.followers(res.data) : null;
+      if (n !== null) lastFollowers = n;
+      setValue(followRow, lastFollowers !== null ? lastFollowers : S.takipciYedek);
+    } finally { fBusy = false; }
+  }
+
+  // ---- subscribers: source decides token vs manual ----
+  const src = K.createSubscriberSource(S);
+  let sBusy = false;
+
   async function pollSubs() {
     if (sBusy) return;
     sBusy = true;
     try { showSubs(await src.poll()); } finally { sBusy = false; }
   }
 
+  // One interval drives both sources.
   function refresh() {
     pollFollowers();
     if (src.mode === 'token') pollSubs();
   }
 
+  let timer = null;
   if (S.kanal) {
     refresh();
-    setInterval(refresh, TICK);
+    timer = setInterval(refresh, TICK);
     if (src.mode === 'manual') pollSubs();
   } else {
     setValue(followRow, S.takipciYedek);
     pollSubs();
   }
+  window.addEventListener('pagehide', function () {
+    if (timer !== null) clearInterval(timer);
+    if (followRow.cancel) followRow.cancel();
+    if (subRow.cancel) subRow.cancel();
+  });
 })();
 </script>
 </body>
