@@ -8,11 +8,6 @@
 (function (global) {
   'use strict';
 
-  // Kick's public Pusher app. Since 2026-10 both known keys are rejected with
-  // error 4001 on every cluster, so live chat and subscription events do not
-  // arrive. Kept here so the chat overlay can recover if Kick restores it.
-  var PUSHER = { key: '32cbd69e4b950bf97679', cluster: 'us2' };
-
   var ENUMS = {
     stil: ['glass', 'vivid', 'soft', 'cinema', 'neon', 'minimal', 'pastel', 'terminal', 'aurora', 'holo', 'ember', 'paper', 'retro'],
     sekil: ['pill', 'rounded', 'square'],
@@ -46,7 +41,8 @@
     kickClientId:     { t: 'str', d: '', max: 200 },
     kickClientSecret: { t: 'str', d: '', max: 400 },
     apiBase:          { t: 'url', d: 'https://api.kick.com' },
-    tokenBase:        { t: 'url', d: 'https://id.kick.com' }
+    tokenBase:        { t: 'url', d: 'https://id.kick.com' },
+    relayAdresi:      { t: 'url', d: 'http://127.0.0.1:8790' }
   };
 
   var HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -302,37 +298,6 @@
     };
   }
 
-  // Parses a chat payload from the Pusher feed. Returns null for anything else.
-  function parseChatEvent(payload) {
-    if (!payload) return null;
-    var name = String(payload.event || '');
-    if (/^pusher/i.test(name)) return null;
-    var data = payload.data;
-    if (typeof data === 'string') { try { data = JSON.parse(data); } catch (e) { return null; } }
-    if (!data) return null;
-    if (/MessageDeleted/i.test(name)) {
-      var mid = (data.message && data.message.id) || data.message_id || data.id;
-      return mid ? { kind: 'delete', messageId: String(mid) } : null;
-    }
-    if (/UserBanned/i.test(name)) {
-      var u = data.user || {};
-      return { kind: 'ban', userId: u.id != null ? String(u.id) : '', username: String(u.username || u.slug || '').toLowerCase() };
-    }
-    if (/ChatroomClear/i.test(name)) return { kind: 'clear' };
-    if (!/ChatMessage/i.test(name)) return null;
-    var sender = data.sender || data.user || {};
-    var ident = sender.identity || data.identity || {};
-    return {
-      kind: 'chat',
-      id: data.id || data.message_id || data.uuid,
-      senderId: sender.id != null ? String(sender.id) : '',
-      username: sender.username || sender.slug || data.username || '?',
-      color: ident.color || ident.username_color || sender.color || '',
-      message: data.content || data.message || '',
-      badges: ident.badges || sender.badges || [],
-      createdAt: data.created_at || data.createdAt || ''
-    };
-  }
 
   // ---- Kick REST (public, no token) ----------------------------------------
 
@@ -426,57 +391,25 @@
     };
   }
 
-  // ---- Chat feed (Pusher). Currently rejected by Kick; see PUSHER above. ----
+  // ---- Live chat from the local relay (relay/server.js). ----
 
-  // h = { onMessage(parsedEvent), onStatus(statusString) }. Status is one of
-  // 'connecting', 'open', 'rejected', 'reconnecting'. Stops retrying after a rejection.
-  function connectChat(chatroomId, h) {
-    var url = 'wss://ws-' + PUSHER.cluster + '.pusher.com/app/' + PUSHER.key +
-      '?protocol=7&client=js&version=8.4.0&flash=false';
-    var ws = null, ping = null, retry = 1000, stopped = false;
-    function send(event, data) { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ event: event, data: data })); }
-    function subscribe() {
-      ['chatrooms.' + chatroomId, 'chatrooms.' + chatroomId + '.v2'].forEach(function (c) {
-        send('pusher:subscribe', { auth: '', channel: c });
+  // Server-Sent Events: the relay sends "chat" and "ban" frames already in the overlay's shape.
+  // h = { onMessage(event), onStatus(status) }. Status: 'connecting', 'open', 'reconnecting'.
+  // EventSource reconnects by itself, so a missing relay shows 'reconnecting' until it starts.
+  function connectRelay(url, h) {
+    h.onStatus && h.onStatus('connecting');
+    var es = new global.EventSource(url);
+    function forward(name) {
+      es.addEventListener(name, function (e) {
+        var ev; try { ev = JSON.parse(e.data); } catch (err) { return; }
+        if (ev && typeof ev === 'object') { ev.kind = name; h.onMessage && h.onMessage(ev); }
       });
     }
-    function open() {
-      if (stopped) return;
-      h.onStatus && h.onStatus('connecting');
-      ws = new global.WebSocket(url);
-      ws.onmessage = function (e) {
-        var p; try { p = JSON.parse(e.data); } catch (err) { return; }
-        var name = String(p.event || '');
-        if (name === 'pusher:connection_established') {
-          retry = 1000; subscribe();
-          clearInterval(ping);
-          ping = setInterval(function () { send('pusher:ping', {}); }, 30000);
-          h.onStatus && h.onStatus('open');
-          return;
-        }
-        if (name === 'pusher:error') {
-          var code = p.data && p.data.code;
-          if (code === 4001 || code === 4009) {
-            stopped = true;
-            h.onStatus && h.onStatus('rejected');
-            try { ws.close(); } catch (err) { /* already closing */ }
-          }
-          return;
-        }
-        var ev = parseChatEvent(p);
-        if (ev) h.onMessage && h.onMessage(ev);
-      };
-      ws.onclose = function () {
-        clearInterval(ping);
-        if (stopped) return;
-        h.onStatus && h.onStatus('reconnecting');
-        setTimeout(open, retry);
-        retry = Math.min(retry * 1.8, 15000);
-      };
-      ws.onerror = function () { try { ws.close(); } catch (err) { /* already closing */ } };
-    }
-    open();
-    return function stop() { stopped = true; clearInterval(ping); try { ws && ws.close(); } catch (err) { /* ignore */ } };
+    forward('chat');
+    forward('ban');
+    es.onopen = function () { h.onStatus && h.onStatus('open'); };
+    es.onerror = function () { h.onStatus && h.onStatus('reconnecting'); };
+    return function stop() { es.close(); };
   }
 
   // Schema-level assertion helper for tests and the studio.
@@ -505,13 +438,11 @@
       live: parseLive,
       subBadges: parseSubBadges,
       official: parseOfficialChannel,
-      time: parseTime,
-      chatEvent: parseChatEvent
+      time: parseTime
     },
     kick: { channel: kickChannel },
     official: { token: appToken, channel: officialChannel, clearToken: clearToken },
     createSubscriberSource: createSubscriberSource,
-    connectChat: connectChat,
-    PUSHER: PUSHER
+    connectRelay: connectRelay
   };
 })(typeof window !== 'undefined' ? window : globalThis);

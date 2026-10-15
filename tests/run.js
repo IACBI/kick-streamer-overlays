@@ -106,6 +106,7 @@ function loadCore(opts = {}) {
     clearInterval,
     fetch: opts.fetch || (async () => { throw new TypeError('no fetch in this check'); }),
     WebSocket: opts.WebSocket,
+    EventSource: opts.EventSource,
     document: opts.document,
     location: { search: opts.search || '' },
     performance: { now: () => env.now },
@@ -261,8 +262,8 @@ async function testCoreApi() {
   const { K } = loadCore();
   await check('kick-core.js loads and exposes the documented API', () => {
     ['readSettings', 'normalize', 'schemaKeys', 'enums', 'label', 'fmt', 'pct', 'applyLook', 'tween',
-      'getJson', 'createSubscriberSource', 'connectChat'].forEach((n) => ok(typeof K[n] === 'function', 'missing ' + n));
-    ['followers', 'chatroomId', 'live', 'subBadges', 'time', 'chatEvent', 'official'].forEach((n) =>
+      'getJson', 'createSubscriberSource', 'connectRelay'].forEach((n) => ok(typeof K[n] === 'function', 'missing ' + n));
+    ['followers', 'chatroomId', 'live', 'subBadges', 'time', 'official'].forEach((n) =>
       ok(typeof K.parse[n] === 'function', 'missing parse.' + n));
     ok(typeof K.kick.channel === 'function', 'missing kick.channel');
     ['token', 'channel', 'clearToken'].forEach((n) => ok(typeof K.official[n] === 'function', 'missing official.' + n));
@@ -549,32 +550,6 @@ async function testParsers() {
     eq(r.viewers, null, 'viewers');
   });
 
-  await check('chatEvent: chat message from a JSON string payload', () => {
-    const ev = K.parse.chatEvent({
-      event: 'App\\Events\\ChatMessageEvent',
-      data: JSON.stringify({
-        id: 'm-1', content: 'hello',
-        sender: { id: 5, username: 'viewer_one', identity: { color: '#ff0000', badges: [{ type: 'moderator' }] } }
-      })
-    });
-    eqFields(ev, { kind: 'chat', id: 'm-1', username: 'viewer_one', color: '#ff0000', message: 'hello', senderId: '5' }, '');
-  });
-
-  await check('chatEvent: delete, ban and clear events', () => {
-    eqFields(K.parse.chatEvent({ event: 'App\\Events\\MessageDeletedEvent', data: { message: { id: 'm-1' } } }),
-      { kind: 'delete', messageId: 'm-1' }, 'delete ');
-    eqFields(K.parse.chatEvent({ event: 'App\\Events\\UserBannedEvent', data: { user: { id: 9, username: 'Spammer' } } }),
-      { kind: 'ban', userId: '9', username: 'spammer' }, 'ban ');
-    eq(K.parse.chatEvent({ event: 'App\\Events\\ChatroomClearEvent', data: {} }).kind, 'clear', 'clear');
-  });
-
-  await check('chatEvent: pusher internal, unknown and broken payloads give null', () => {
-    eq(K.parse.chatEvent({ event: 'pusher:ping', data: {} }), null, 'pusher:ping');
-    eq(K.parse.chatEvent({ event: 'pusher_internal:subscription_succeeded', data: {} }), null, 'internal');
-    eq(K.parse.chatEvent({ event: 'App\\Events\\SomethingElse', data: {} }), null, 'unknown');
-    eq(K.parse.chatEvent({ event: 'App\\Events\\ChatMessageEvent', data: '{not json' }), null, 'bad JSON');
-    eq(K.parse.chatEvent(null), null, 'null');
-  });
 }
 
 // ---- Section: Kick public REST, getJson -----------------------------------------
@@ -804,38 +779,51 @@ async function testSubscriberSource() {
 
 // ---- Section: chat feed ----------------------------------------------------------
 
-async function testChatFeed() {
-  section('Chat feed (Pusher)');
+// Stand-in for the browser's EventSource: records the URL and lets the test emit frames.
+function fakeEventSource(list) {
+  return class FakeEventSource {
+    constructor(url) { this.url = url; this.listeners = {}; this.closed = false; list.push(this); }
+    addEventListener(name, fn) { (this.listeners[name] = this.listeners[name] || []).push(fn); }
+    emit(name, data) { (this.listeners[name] || []).forEach((fn) => fn({ data })); }
+    close() { this.closed = true; }
+  };
+}
 
-  await check('connectChat: subscribes to both chatroom channels once connected', () => {
-    const sockets = [];
+async function testChatFeed() {
+  section('Live chat (local relay)');
+
+  await check('connectRelay: opens the relay stream and forwards chat and ban frames in the overlay shape', () => {
+    const sources = [];
     const statuses = [];
-    const { K } = loadCore({ WebSocket: fakeWebSocket(sockets) });
-    const stop = K.connectChat(2002, { onMessage() {}, onStatus: (st) => statuses.push(st) });
+    const messages = [];
+    const { K } = loadCore({ EventSource: fakeEventSource(sources) });
+    const stop = K.connectRelay('http://127.0.0.1:8790/events', { onMessage: (ev) => messages.push(ev), onStatus: (st) => statuses.push(st) });
     try {
-      ok(sockets.length === 1, 'expected one socket, got ' + sockets.length);
-      const sock = sockets[0];
-      sock.readyState = 1;
-      sock.onmessage({ data: JSON.stringify({ event: 'pusher:connection_established', data: '{"socket_id":"1.1"}' }) });
-      const subs = sock.sent.filter((m) => m.event === 'pusher:subscribe').map((m) => m.data.channel);
-      eq(subs, ['chatrooms.2002', 'chatrooms.2002.v2'], 'subscribed channels');
+      eq(sources.length, 1, 'one stream');
+      eq(sources[0].url, 'http://127.0.0.1:8790/events', 'stream url');
+      sources[0].onopen();
+      sources[0].emit('chat', JSON.stringify({ kind: 'chat', id: 'm-1', username: 'viewer_one', message: 'hello', badges: [] }));
+      sources[0].emit('ban', JSON.stringify({ userId: '9', username: 'spammer' }));
+      eq(messages.map((m) => m.kind), ['chat', 'ban'], 'kinds');
+      eq(messages[0].message, 'hello', 'chat text');
       eq(statuses, ['connecting', 'open'], 'statuses');
     } finally {
       stop();
     }
+    eq(sources[0].closed, true, 'stop closes the stream');
   });
 
-  await check('connectChat: pusher:error 4001 gives rejected and does not reconnect', () => {
-    const sockets = [];
+  await check('connectRelay: a dropped relay reports reconnecting, and a broken frame is ignored', () => {
+    const sources = [];
     const statuses = [];
-    const { K } = loadCore({ WebSocket: fakeWebSocket(sockets) });
-    const stop = K.connectChat(2002, { onMessage() {}, onStatus: (st) => statuses.push(st) });
+    const messages = [];
+    const { K } = loadCore({ EventSource: fakeEventSource(sources) });
+    const stop = K.connectRelay('http://127.0.0.1:8790/events', { onMessage: (ev) => messages.push(ev), onStatus: (st) => statuses.push(st) });
     try {
-      const sock = sockets[0];
-      sock.readyState = 1;
-      sock.onmessage({ data: JSON.stringify({ event: 'pusher:error', data: { code: 4001, message: 'not in this cluster' } }) });
-      eq(statuses, ['connecting', 'rejected'], 'statuses');
-      eq(sockets.length, 1, 'sockets opened');
+      sources[0].emit('chat', '{not json');
+      sources[0].onerror();
+      eq(statuses, ['connecting', 'reconnecting'], 'statuses');
+      eq(messages.length, 0, 'no message from a broken frame');
     } finally {
       stop();
     }

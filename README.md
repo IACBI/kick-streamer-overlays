@@ -3,7 +3,7 @@
 
 Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime panel, a chat overlay, and a studio that writes your settings file. The basic setup needs no server and no account.
 
-![License](https://img.shields.io/badge/license-free-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Tests](https://img.shields.io/badge/tests-99%20unit%20%2B%20browser-2563eb)
+![License](https://img.shields.io/badge/license-free-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Tests](https://img.shields.io/badge/tests-134%20unit%20checks-2563eb)
 
 **Read this in:** [English](#english) · [Türkçe](#turkce)
 
@@ -25,7 +25,7 @@ Pick a look in `studio.html`, enter your channel name, and add the files to OBS 
 | Follower goal | Works. The number on screen matches Kick's public count for kick.com/iacbi. |
 | Viewers and uptime | Works from Kick's public data. Not yet checked on a live broadcast. |
 | Subscriber total | Needs a free Kick developer app (see [Configuration](#configuration-en)). Tested against a local copy of Kick's API, not yet with a real app. Without an app, enter the count by hand. |
-| Live chat | Not available yet. Kick rejects the public chat feed the overlay used (Pusher error 4001), so `chat.html` shows an empty feed instead of fake messages. Live chat and subscription events come from Kick's webhook API, which needs a public HTTPS endpoint. |
+| Live chat | Works through the optional relay (see [Live chat](#live-chat-en)). Needs a Kick app and a public tunnel. Tested with signed test events in a real browser; not yet with live Kick delivery. Without the relay, `chat.html` stays empty instead of showing fake messages. |
 
 ### Features
 
@@ -41,7 +41,8 @@ Pick a look in `studio.html`, enter your channel name, and add the files to OBS 
 - OBS Studio with Browser sources
 - A Kick channel name
 - Optional: a Kick developer app (client ID and secret) for the subscriber total
-- Node.js 18 or newer, only to run the tests
+- Node.js 18 or newer, for the relay and the tests
+- Optional, for live chat: a tunnel tool such as `cloudflared` or `ngrok`
 
 ### Installation
 
@@ -58,7 +59,7 @@ Pick a look in `studio.html`, enter your channel name, and add the files to OBS 
 | `subscriber-bar.html` | Subscriber goal | 520 × 90 |
 | `combined-bar.html` | Followers and subscribers in one panel | 520 × 180 |
 | `info-panel.html` | Viewers and uptime, shown only while live | 300 × 80 |
-| `chat.html` | Live chat (not available yet, see Status) | 460 × 760 |
+| `chat.html` | Live chat (needs the relay, see Live chat) | 460 × 760 |
 | `studio.html` | Configurator. Open it in a browser, not in OBS | — |
 
 The animations below use sample numbers (`?onizleme=1`) so they show the design. The follower count in the theme animation is live data from kick.com/iacbi.
@@ -86,6 +87,36 @@ Troubleshooting:
 - **"Kick uygulama bilgisi hatalı"** (Kick rejected your app credentials): check `kickClientId` and `kickClientSecret` in `AYARLAR.local.js`. The studio's connection test shows the same error.
 - **"Kick'e ulaşılamadı"** (Kick did not answer): the last value stays on screen and the overlay tries again.
 - **Subscriber count is 0**: no Kick app is set up, so the value comes from `aboneSayisi`.
+
+<a id="live-chat-en"></a>
+#### Live chat (optional)
+
+Kick sends chat messages and bans to a web address you register in your Kick app. The relay in `relay/` receives them, checks Kick's signature, and passes them to `chat.html`.
+
+1. Create a Kick developer app and put its client ID and secret in `AYARLAR.local.js` (see [Configuration](#configuration-en)).
+2. Start the relay and leave it running while you stream:
+
+   ```bash
+   node relay/server.js
+   ```
+
+   Set `RELAY_BROADCASTER_ID` to your channel's user ID to accept events for your channel only.
+3. Make the relay's webhook port reachable from the internet with a tunnel, for example:
+
+   ```bash
+   cloudflared tunnel --url http://127.0.0.1:8788
+   ```
+
+   Use the HTTPS address the tunnel prints, with `/kick/webhook` added at the end.
+4. In your Kick app settings, set that address as the webhook URL. The public Kick documentation does not say where this setting lives, so check your app's page in the developer area.
+5. Subscribe to chat and bans:
+
+   ```bash
+   node relay/subscribe.js
+   ```
+6. Add `chat.html` in OBS as usual. Messages appear as soon as Kick delivers them.
+
+The relay accepts only events with a valid Kick signature and shows each event once. Its overlay port listens on `127.0.0.1` only, so the tunnel exposes just the webhook path. Kick limits subscriptions per app: 10,000 per event type, and 1,000 for chat messages while the app is unverified.
 
 <a id="configuration-en"></a>
 ### Configuration
@@ -129,12 +160,12 @@ Every setting lives in `AYARLAR.js`. An invalid value falls back to its default,
 
 The overlay requests and renews its own access token from `id.kick.com`. Kick documents `active_subscribers_count` for a channel but does not describe it, so use the studio's **Test connection** button to confirm the number is your subscriber total.
 
-**Secrets and privacy.** Your client secret is read only from `AYARLAR.local.js` or the studio's memory. It is never placed in a URL, a saved draft, or the generated settings file. The overlays contact only `kick.com`, `api.kick.com`, `id.kick.com`, `files.kick.com`, the Pusher chat socket (`ws-us2.pusher.com`), and Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) for the typefaces.
+**Secrets and privacy.** Your client secret is read only from `AYARLAR.local.js` or the studio's memory. It is never placed in a URL, a saved draft, or the generated settings file. The overlays contact only `kick.com`, `api.kick.com`, `id.kick.com`, `files.kick.com`, and Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) for the typefaces. Live chat reaches the overlay from the relay on `127.0.0.1`. The relay talks only to Kick's API and its public key endpoint, and checks every webhook signature before it accepts an event.
 
 ### Contributing
 
-- Unit tests: `node tests/run.js` (Node.js 18 or newer, no packages).
-- Browser tests: `node tests/e2e-chrome.js`. They need Chrome or Edge. Add `--live --channel <name>` for real Kick data, `--token` for the local mock, `--preview` for sample mode, and `--perf` for a 30-second heap and DOM check.
+- Unit tests: `node tests/run.js`, and relay tests: `node tests/relay-test.js` (Node.js 18 or newer, no packages).
+- Browser tests: `node tests/e2e-chrome.js`. They need Chrome or Edge. Add `--live --channel <name>` for real Kick data, `--token` for the local mock, `--preview` for sample mode, `--perf` for a 30-second heap and DOM check, and `--relay` for live chat through the relay with signed test events.
 - Pages must stay classic scripts so they work from `file://`. Use the shared `.ko-*` components and tokens in `shared/themes.css`, and prefer `transform` and `opacity` for new animations.
 
 ### License
@@ -163,7 +194,7 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 | Takipçi hedefi | Çalışıyor. Ekrandaki sayı kick.com/iacbi için Kick'in herkese açık sayısıyla eşleşiyor. |
 | İzleyici ve yayın süresi | Kick'in herkese açık verisinden çalışıyor. Canlı yayında henüz kontrol edilmedi. |
 | Abone toplamı | Ücretsiz bir Kick geliştirici uygulaması gerektirir (bkz. [Yapılandırma](#yapilandirma-tr)). Kick API'sinin yerel bir kopyasıyla test edildi, gerçek uygulamayla henüz değil. Uygulaman yoksa sayıyı elle gir. |
-| Canlı sohbet | Henüz çalışmıyor. Overlay'in kullandığı genel sohbet akışını Kick reddediyor (Pusher hata 4001), bu yüzden `chat.html` sahte mesaj yerine boş kalır. Canlı sohbet ve abonelik olayları Kick'in webhook API'sinden gelir ve herkese açık bir HTTPS adresi gerektirir. |
+| Canlı sohbet | Opsiyonel relay ile çalışıyor (bkz. [Canlı sohbet](#canli-sohbet-tr)). Bir Kick uygulaması ve herkese açık bir tünel gerektirir. Gerçek bir Kick teslimatıyla değil, imzalı test olaylarıyla gerçek bir tarayıcıda test edildi. Relay yoksa `chat.html` sahte mesaj yerine boş kalır. |
 
 ### Özellikler
 
@@ -179,7 +210,8 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 - Tarayıcı kaynağı destekleyen OBS Studio
 - Bir Kick kanal adı
 - İsteğe bağlı: abone toplamı için bir Kick geliştirici uygulaması (client ID ve client secret)
-- Yalnızca testleri çalıştırmak için Node.js 18 veya üstü
+- Relay ve testler için Node.js 18 veya üstü
+- Opsiyonel, canlı sohbet için: `cloudflared` veya `ngrok` gibi bir tünel aracı
 
 ### Kurulum
 
@@ -196,7 +228,7 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 | `subscriber-bar.html` | Abone hedefi | 520 × 90 |
 | `combined-bar.html` | Takipçi ve aboneler tek panelde | 520 × 180 |
 | `info-panel.html` | İzleyici ve yayın süresi, yalnızca yayındayken | 300 × 80 |
-| `chat.html` | Canlı sohbet (henüz çalışmıyor, bkz. Durum) | 460 × 760 |
+| `chat.html` | Canlı sohbet (relay gerektirir, bkz. Canlı sohbet) | 460 × 760 |
 | `studio.html` | Yapılandırıcı. OBS'de değil, tarayıcıda aç | — |
 
 Aşağıdaki animasyonlar tasarımı göstermek için örnek sayılar kullanır (`?onizleme=1`). Tema animasyonundaki takipçi sayısı kick.com/iacbi kanalının canlı verisidir.
@@ -224,6 +256,36 @@ Sorun giderme:
 - **"Kick uygulama bilgisi hatalı"**: Kick uygulama bilgilerini reddetti. `AYARLAR.local.js` içindeki `kickClientId` ve `kickClientSecret` değerlerini kontrol et. Stüdyonun bağlantı testi aynı hatayı gösterir.
 - **"Kick'e ulaşılamadı"**: Kick yanıt vermedi. Ekranda son değer kalır ve overlay yeniden dener.
 - **Abone sayısı 0**: Kick uygulaması kurulu değil, değer `aboneSayisi` alanından gelir.
+
+<a id="canli-sohbet-tr"></a>
+#### Canlı sohbet (opsiyonel)
+
+Kick, sohbet mesajlarını ve yasakları, Kick uygulamanda kayıtlı bir web adresine gönderir. `relay/` klasöründeki relay bunları alır, Kick'in imzasını doğrular ve `chat.html`'e iletir.
+
+1. Bir Kick geliştirici uygulaması oluştur ve client ID ile secret değerlerini `AYARLAR.local.js` dosyasına ekle (bkz. [Yapılandırma](#yapilandirma-tr)).
+2. Relay'i başlat ve yayın sırasında açık bırak:
+
+   ```bash
+   node relay/server.js
+   ```
+
+   Yalnızca kendi kanalının olaylarını kabul etmek için `RELAY_BROADCASTER_ID` değerine kanalının kullanıcı kimliğini yaz.
+3. Relay'in webhook portunu bir tünelle internete aç, örneğin:
+
+   ```bash
+   cloudflared tunnel --url http://127.0.0.1:8788
+   ```
+
+   Tünelin verdiği HTTPS adresinin sonuna `/kick/webhook` ekle.
+4. Kick uygulama ayarlarında bu adresi webhook URL'si olarak gir. Kick'in herkese açık dokümantasyonu bu ayarın yerini belirtmiyor; geliştirici alanındaki uygulama sayfanda kontrol et.
+5. Sohbet ve yasak olaylarına abone ol:
+
+   ```bash
+   node relay/subscribe.js
+   ```
+6. `chat.html` dosyasını OBS'ye her zamanki gibi ekle. Mesajlar Kick teslim eder etmez görünür.
+
+Relay yalnızca geçerli Kick imzası taşıyan olayları kabul eder ve her olayı bir kez gösterir. Overlay portu yalnızca `127.0.0.1`'de dinler; tünel sadece webhook yolunu dışarı açar. Kick, uygulama başına abonelikleri sınırlar: olay türü başına 10.000, doğrulanmamış uygulamada sohbet mesajları için 1.000.
 
 <a id="yapilandirma-tr"></a>
 ### Yapılandırma
@@ -267,12 +329,12 @@ Tüm ayarlar `AYARLAR.js` içindedir. Geçersiz bir değer varsayılanına döne
 
 Overlay, erişim anahtarını `id.kick.com` üzerinden kendisi alır ve yeniler. Kick, kanal için `active_subscribers_count` alanını belgeler ama açıklamaz. Sayının gerçekten abone toplamın olduğunu stüdyodaki **Bağlantıyı test et** düğmesiyle doğrula.
 
-**Gizli bilgiler ve gizlilik.** Client secret yalnızca `AYARLAR.local.js` dosyasından ya da stüdyonun belleğinden okunur. Hiçbir zaman bir URL'ye, kaydedilmiş taslağa ya da üretilen ayar dosyasına konmaz. Overlay'ler yalnızca `kick.com`, `api.kick.com`, `id.kick.com`, `files.kick.com`, Pusher sohbet soketi (`ws-us2.pusher.com`) ve yazı tipleri için Google Fonts'a (`fonts.googleapis.com`, `fonts.gstatic.com`) bağlanır.
+**Gizli bilgiler ve gizlilik.** Client secret yalnızca `AYARLAR.local.js` dosyasından ya da stüdyonun belleğinden okunur. Hiçbir zaman bir URL'ye, kaydedilmiş taslağa ya da üretilen ayar dosyasına konmaz. Overlay'ler yalnızca `kick.com`, `api.kick.com`, `id.kick.com`, `files.kick.com` ve yazı tipleri için Google Fonts'a (`fonts.googleapis.com`, `fonts.gstatic.com`) bağlanır. Canlı sohbet, relay üzerinden `127.0.0.1`'den gelir. Relay yalnızca Kick'in API'sine ve açık anahtar uç noktasına bağlanır ve her webhook imzasını kabul etmeden önce doğrular.
 
 ### Katkı
 
-- Birim testleri: `node tests/run.js` (Node.js 18 veya üstü, paket gerekmez).
-- Tarayıcı testleri: `node tests/e2e-chrome.js`. Chrome veya Edge gerekir. Gerçek Kick verisi için `--live --channel <ad>`, yerel sahte sunucu için `--token`, önizleme modu için `--preview`, 30 saniyelik bellek ve DOM kontrolü için `--perf` ekle.
+- Birim testleri: `node tests/run.js`, relay testleri: `node tests/relay-test.js` (Node.js 18 veya üstü, paket gerekmez).
+- Tarayıcı testleri: `node tests/e2e-chrome.js`. Chrome veya Edge gerekir. Gerçek Kick verisi için `--live --channel <ad>`, yerel sahte sunucu için `--token`, önizleme modu için `--preview`, 30 saniyelik bellek ve DOM kontrolü için `--perf`, imzalı test olaylarıyla relay üzerinden canlı sohbet için `--relay` ekle.
 - Sayfalar `file://` üzerinden çalışabilmek için klasik script olarak kalmalı. Ortak `.ko-*` bileşenlerini ve `shared/themes.css` içindeki değişkenleri kullan, yeni animasyonlar için `transform` ve `opacity` tercih et.
 
 ### Lisans

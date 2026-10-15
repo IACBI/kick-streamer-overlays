@@ -68,7 +68,7 @@
   const seen = new Set();   // dedupe guard by message id
   const byId = new Map();   // message id -> live .ko-msg element
   let subBadges = [];       // [{months, src}] sorted high -> low, from K.parse.subBadges
-  let stopChat = null;      // from K.connectChat
+  let stopChat = null;      // from K.connectRelay
   let previewTimer = null;
   let closing = false;
 
@@ -306,33 +306,18 @@
   function setNote(text){ noteEl.textContent = text; noteEl.classList.remove('is-hidden'); }
   function clearNote(){ noteEl.classList.add('is-hidden'); }
 
-  // K.connectChat parses each frame with K.parse.chatEvent before calling onEvent.
+  // The relay (relay/server.js) sends chat and ban events already in this shape.
   function onStatus(s){
     if(s === 'open') clearNote();
-    else if(s === 'rejected') setNote('Canlı sohbet bağlantısı yok (Kick akışı kapalı)');
+    else if(s === 'reconnecting') setNote('Canlı sohbet köprüsüne bağlanılamadı (relay çalışıyor mu?) · yeniden deneniyor');
     else setNote('bağlanıyor…');
   }
 
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-  // Retries the channel lookup with backoff (15 s doubling, capped at 120 s). Never shows demo messages.
-  async function startLive(){
+  // Chat comes from the local relay. Subscriber badge images come from Kick's public channel data.
+  function startLive(){
     setNote('bağlanıyor…');
-    let delay = 15000;
-    for(;;){
-      const ch = await K.kick.channel(S.kanal);
-      if(closing) return;
-      const id = ch.ok ? K.parse.chatroomId(ch.data) : null;
-      if(typeof id === 'number'){
-        subBadges = K.parse.subBadges(ch.data);
-        stopChat = K.connectChat(id, { onMessage: onEvent, onStatus: onStatus });
-        return;
-      }
-      setNote('Kanal bilgisi alınamadı, yeniden deneniyor');
-      await sleep(delay);
-      if(closing) return;
-      delay = Math.min(delay * 2, 120000);
-    }
+    K.kick.channel(S.kanal).then((ch) => { if(ch.ok && !closing) subBadges = K.parse.subBadges(ch.data); }).catch(() => {});
+    stopChat = K.connectRelay(S.relayAdresi + '/events', { onMessage: onEvent, onStatus: onStatus });
   }
 
   // Sample messages, used when kanal is empty and in preview. Makes no network calls.

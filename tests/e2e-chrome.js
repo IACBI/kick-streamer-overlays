@@ -37,7 +37,8 @@ const CHROME = process.env.CHROME_PATH || [
 ].find((p) => fs.existsSync(p));
 
 // Errors caused by the sandbox, not by the pack: the optional local file and offline fonts.
-const BENIGN = [/AYARLAR\.local\.js/, /fonts\.(googleapis|gstatic)\.com/];
+// Optional badge art in badges/ is requested first and falls back to a drawn symbol when missing.
+const BENIGN = [/AYARLAR\.local\.js/, /fonts\.(googleapis|gstatic)\.com/, /badges\/[\w.-]+\.(svg|png|webp|gif|jpe?g)/];
 
 const results = [];
 function check(name, ok, detail) {
@@ -364,6 +365,98 @@ async function tokenChecks() {
   }
 }
 
+// ---- live chat through the local relay (signed events, real sockets) ----------------
+
+const crypto = require('crypto');
+
+function relaySign(id, ts, body, privateKey) {
+  const s = crypto.createSign('RSA-SHA256');
+  s.update(Buffer.from(`${id}.${ts}.`, 'utf8'));
+  s.update(Buffer.from(body, 'utf8'));
+  return s.sign(privateKey, 'base64');
+}
+
+function relayPost(port, id, body, privateKey, type) {
+  const ts = String(Math.floor(Date.now() / 1000));
+  return fetch(`http://127.0.0.1:${port}/kick/webhook`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Kick-Event-Type': type || 'chat.message.sent',
+      'Kick-Event-Version': '1',
+      'Kick-Event-Message-Id': id,
+      'Kick-Event-Message-Timestamp': ts,
+      'Kick-Event-Signature': relaySign(id, ts, body, privateKey)
+    },
+    body
+  }).then((r) => r.status);
+}
+
+async function relayChecks() {
+  console.log('\n== live chat through the relay (signed webhook events, real sockets)');
+  const { createRelay } = require(path.join(ROOT, 'relay', 'server.js'));
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+  });
+  const relay = createRelay({ publicKeyPem: publicKey, webhookPort: 0, eventsPort: 0, broadcasterUserId: '113812015' });
+  const { webhookPort, eventsPort } = await relay.start();
+
+  // A copy of the overlay that points at this relay and at the test channel.
+  const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'kick-relay-'));
+  for (const f of ['AYARLAR.js', 'chat.html']) fs.copyFileSync(path.join(ROOT, f), path.join(copy, f));
+  fs.cpSync(path.join(ROOT, 'shared'), path.join(copy, 'shared'), { recursive: true });
+  fs.writeFileSync(path.join(copy, 'AYARLAR.local.js'),
+    'window.KICK_OVERLAY_YEREL = {\n' +
+    `  kanal: "${CHANNEL}",\n` +
+    `  relayAdresi: "http://127.0.0.1:${eventsPort}"\n` +
+    '};\n');
+
+  const chat = await openPageFrom(copy, 'chat.html', '', [460, 760]);
+  try {
+    await sleep(2500);
+    const noteHidden = await chat.eval(`document.querySelector('.ko-note') ? document.querySelector('.ko-note').classList.contains('is-hidden') : true`);
+    check('relay chat: the overlay connects to the relay (no status note)', noteHidden === true);
+
+    const chatBody = JSON.stringify({
+      message_id: 'e2e-1',
+      broadcaster: { user_id: 113812015, username: CHANNEL, channel_slug: CHANNEL },
+      sender: { user_id: 777, username: 'relay_viewer', channel_slug: 'relay_viewer', identity: { username_color: '#7bdcff', badges: [{ type: 'vip', text: 'VIP' }] } },
+      content: 'Relay canli mesaj',
+      emotes: [],
+      created_at: '2026-10-16T10:00:00Z'
+    });
+    check('relay chat: a signed chat event is accepted (200)', (await relayPost(webhookPort, 'e2e-1', chatBody, privateKey)) === 200);
+    await sleep(1200);
+    const shown = await chat.eval(`Array.from(document.querySelectorAll('.ko-msg')).some((m) => m.textContent.includes('Relay canli mesaj') && m.textContent.includes('relay_viewer'))`);
+    check('relay chat: the message appears on the overlay', shown === true);
+
+    const forged = await relayPost(webhookPort, 'e2e-2', chatBody.replace('canli', 'sahte'), crypto.generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } }).privateKey);
+    check('relay chat: a forged event is refused (401)', forged === 401, `status=${forged}`);
+
+    const banBody = JSON.stringify({
+      broadcaster: { user_id: 113812015 },
+      moderator: { user_id: 1 },
+      banned_user: { user_id: 777, username: 'relay_viewer' },
+      metadata: { reason: 'e2e', created_at: '2026-10-16T10:00:00Z', expires_at: null }
+    });
+    await relayPost(webhookPort, 'e2e-ban', banBody, privateKey, 'moderation.banned');
+    await sleep(900);
+    const stillThere = await chat.eval(`Array.from(document.querySelectorAll('.ko-msg:not(.is-leaving)')).some((m) => m.textContent.includes('Relay canli mesaj'))`);
+    check('relay chat: a ban removes that user\'s messages', stillThere === false);
+
+    relay.stop();
+    await sleep(3500);
+    const note = await chat.eval(`(document.querySelector('.ko-note') || {}).textContent || ''`);
+    check('relay chat: when the relay stops, the overlay says so and keeps trying', /yeniden deneniyor|bağlanılamadı/.test(note), `note="${note}"`);
+  } finally {
+    await chat.close();
+    try { relay.stop(); } catch (e) { /* already stopped */ }
+    fs.rmSync(copy, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   const chrome = await launchChrome();
@@ -373,6 +466,7 @@ async function main() {
     if (LIVE) await liveChecks();
     if (TOKEN) await tokenChecks();
     if (flag('--perf')) await perfChecks();
+    if (flag('--relay')) await relayChecks();
   } finally {
     chrome.kill();
   }
