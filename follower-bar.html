@@ -1,170 +1,89 @@
 <!DOCTYPE html>
+<!-- OBS: Browser source, Local file. Size 520 x 90. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Kick Follower Bar</title>
-<!-- TR: Tek ayar dosyası, inline script'ten ÖNCE. / EN: Single settings file, BEFORE the inline script. -->
-<script src="AYARLAR.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/themes.css">
+<script src="AYARLAR.js"></script>
+<script src="AYARLAR.local.js"></script>
+<script src="shared/kick-core.js"></script>
 <style>
-  /* ============================================================
-     TAKİPÇİ BARI  /  FOLLOWER BAR  — TEK BAR, HER ŞEY İÇERİDE
-     ------------------------------------------------------------
-     TR: SOL = güncel takipçi · ORTA = "Takipçi / Follower" · SAĞ = hedef.
-         Ayarlar AYARLAR.js'ten gelir. OBS: Browser > Local file. 520 x 90.
-     EN: LEFT = current followers · CENTER = "Takipçi / Follower" · RIGHT = goal.
-         Settings come from AYARLAR.js. OBS: Browser > Local file. 520 x 90.
-     VERİ / DATA: kick.com/api/v2|v1/channels/{kanal} -> followers_count.
-         Resmi olmayan dahili API; çekilemezse "takipciYedek" değerine düşer.
-         Unofficial internal API; falls back to "takipciYedek" if unavailable.
-     ============================================================ */
-  :root{
-    --accent:#53fc18;             /* TR: takipçi = Kick yeşili / EN: follower = Kick green */
-    --accent-dark:#1f7a0c;
-    --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
-    --txt-shadow:0 1px 3px rgba(0,0,0,0.95),0 0 8px rgba(0,0,0,0.6);
+  html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
+  body {
+    position: relative; box-sizing: border-box; padding: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font); -webkit-font-smoothing: antialiased;
   }
-  *{ margin:0; padding:0; box-sizing:border-box; }
-  html,body{ background:transparent; overflow:hidden; font-family:var(--font); -webkit-font-smoothing:antialiased; }
-  body{ display:flex; align-items:center; justify-content:center; height:100vh; padding:16px; }
-  .wrap{ width:100%; max-width:488px; }
-
-  /* ----- TR: BAR / EN: BAR ----- */
-  .bar{ position:relative; width:100%; height:50px; border-radius:25px; overflow:hidden;
-    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.14);
-    box-shadow:inset 0 1px 3px rgba(0,0,0,0.45), 0 6px 22px rgba(0,0,0,0.35); }
-
-  .fill{ position:absolute; left:0; top:0; bottom:0; width:0%; border-radius:25px;
-    background:linear-gradient(90deg,var(--accent-dark),var(--accent));
-    box-shadow:0 0 20px color-mix(in srgb,var(--accent) 55%,transparent);
-    transition:width 1.5s cubic-bezier(.22,1,.36,1); }
-  /* TR: barın içinden soldan sağa geçen ışık parıltısı; ~2.5 dakikada bir TEK hızlı geçiş.
-     EN: light shimmer crossing the bar left-to-right; ONE quick pass every ~2.5 minutes. */
-  .fill::after{ content:''; position:absolute; top:0; bottom:0; left:0; width:70px;
-    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent);
-    animation:shimmer 150s linear infinite; }
-  @keyframes shimmer{
-    0%   { transform:translateX(-90px); opacity:0; }
-    0.4% { opacity:1; }
-    1.2% { transform:translateX(560px); opacity:1; }
-    1.5% { transform:translateX(560px); opacity:0; }
-    100% { transform:translateX(560px); opacity:0; }
-  }
-
-  /* ----- TR: İÇERİK (dolumun üstünde) / EN: CONTENT (above the fill) ----- */
-  .content{ position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between;
-    padding:0 20px; z-index:2; pointer-events:none; }
-  .cur,.goal{ font-weight:800; font-size:19px; color:#fff; text-shadow:var(--txt-shadow);
-    font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .goal{ opacity:.92; }
-  .label{ display:flex; align-items:baseline; gap:7px; text-shadow:var(--txt-shadow); white-space:nowrap; }
-  /* TR: TR ve EN aynı boyut + aynı renk / EN: TR and EN same size + same color */
-  .label .tr,.label .en{ font-weight:700; font-size:15px; color:#fff; letter-spacing:.2px; text-transform:none; }
-  .label .sep{ font-weight:400; font-size:15px; color:rgba(255,255,255,0.55); }
-
-  /* ----- TR: STİL VARYANTLARI / EN: STYLE VARIANTS ----- */
-  body.style-glass .bar{ backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
-  body.style-soft .bar{ height:54px; border-radius:27px; background:rgba(255,255,255,0.10); }
-  body.style-soft .fill{ border-radius:27px; }
-  body.style-cinema .bar{ background:rgba(0,0,0,0.45); border-color:rgba(255,255,255,0.10); }
-  body.style-vivid .fill{ box-shadow:0 0 30px color-mix(in srgb,var(--accent) 80%,transparent); }
-  body.style-vivid .bar{ border-color:color-mix(in srgb,var(--accent) 40%,transparent); }
-
-  /* TR: kanal ayarlanmamışsa nazik kurulum ipucu / EN: gentle setup hint when channel is unset */
-  #setup-hint{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
-    background:rgba(0,0,0,0.55); color:#fff; font-size:13px; text-align:center; padding:0 16px; border-radius:25px; }
+  .ko-bar { width: 100%; }
+  [hidden] { display: none !important; }
 </style>
 </head>
-<body class="style-glass">
-<div class="wrap">
-  <div class="bar">
-    <div class="fill" id="fill"></div>
-    <div class="content">
-      <span class="cur" id="cur">0</span>
-      <span class="label"><span class="tr">Takipçi</span><span class="sep">/</span><span class="en">Follower</span></span>
-      <span class="goal" id="goal">0</span>
-    </div>
+<body>
+<div class="ko-bar" id="bar">
+  <div class="ko-fill" id="fill"></div>
+  <div class="ko-row">
+    <span class="ko-cur"><span id="cur">0</span><span class="ko-chip" id="pct" hidden></span></span>
+    <span class="ko-label"><span id="lbl"></span></span>
+    <span class="ko-goal" id="goal"></span>
   </div>
 </div>
 <script>
 (function(){
-/* =================== TR: AYARLAR / EN: SETTINGS ===================
-   TR: AYARLAR.js'ten okunur; eksikse güvenli varsayılan. / EN: read from AYARLAR.js; safe defaults if missing. */
-const A = (window.KICK_OVERLAY_AYARLAR || {});
-const CONFIG = {
-  CHANNEL: String(A.kanal || "").trim().toLowerCase(),
-  STYLE:   A.stil || "glass",            // glass | vivid | soft | cinema
-  accent:  A.renk || "#53fc18",
-  goal:    +A.takipciHedefi || 1000,     // TR: hedef takipçi / EN: follower goal
-  current: +A.takipciYedek || 0,         // TR: çekilemezse yedek / EN: fallback if fetch fails
-  refreshSec: +A.yenilemeSn || 30        // TR: yenileme sıklığı / EN: refresh interval
-};
-document.body.className = "style-" + CONFIG.STYLE;
-document.documentElement.style.setProperty('--accent', CONFIG.accent);
+  const K = window.KickOverlay;
+  const S = K.readSettings();
+  K.applyLook(S);
 
-const CHANNEL = CONFIG.CHANNEL;
-const elFill = document.getElementById('fill');
-const elCur  = document.getElementById('cur');
-const elGoal = document.getElementById('goal');
-elGoal.textContent = CONFIG.goal.toLocaleString('en-US');
+  const elBar = document.getElementById('bar');
+  const elFill = document.getElementById('fill');
+  const elCur = document.getElementById('cur');
+  const elPct = document.getElementById('pct');
+  const elLbl = document.getElementById('lbl');
+  const elGoal = document.getElementById('goal');
 
-let displayed = 0;
-function paint(current){
-  const pct = Math.max(0, Math.min(100, (current/CONFIG.goal)*100));
-  elFill.style.width = pct + '%';
-  // TR: sayaç yumuşak animasyon (ease-out) / EN: smooth counter tween (ease-out cubic)
-  const from = displayed, to = current, start = performance.now();
-  (function step(now){
-    const p = Math.min(1,(now-start)/1300), e = 1-Math.pow(1-p,3);
-    elCur.textContent = Math.round(from+(to-from)*e).toLocaleString('en-US');
-    if(p<1) requestAnimationFrame(step);
-  })(start);
-  displayed = current;
-}
+  elLbl.textContent = K.label(S, 'Takipçi', 'Follower');
+  elGoal.textContent = K.fmt(S.takipciHedefi);
 
-/* TR: Kick'ten GERÇEK takipçi sayısı (v2=followers_count, v1=followersCount).
-   EN: REAL follower count from Kick (v2=followers_count, v1=followersCount). */
-async function fetchFollowers(){
-  const tryUrl = async (url) => {
-    const res = await fetch(url, { headers:{Accept:"application/json"}, cache:"no-store" });
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    return res.json();
-  };
-  try{
-    const d = await tryUrl(`https://kick.com/api/v2/channels/${encodeURIComponent(CHANNEL)}`);
-    const n = d.followers_count ?? d.followersCount ?? d.followers ?? null;
-    if(typeof n === "number") return n;
-  }catch(e){ console.debug("v2 follower fetch failed:", e); }
-  try{
-    const d = await tryUrl(`https://kick.com/api/v1/channels/${encodeURIComponent(CHANNEL)}`);
-    const n = d.followersCount ?? d.followers_count ?? d.followers ?? null;
-    if(typeof n === "number") return n;
-  }catch(e){ console.debug("v1 follower fetch failed:", e); }
-  return null;
-}
+  let displayed = 0;      // number currently on screen (mid-tween safe)
+  let target = null;      // last value painted
+  let lastGood = null;    // last value Kick returned; kept when a poll fails
+  let cancelTween = null;
 
-/* TR: kanal yazılmamışsa kurulum ipucu göster / EN: show setup hint if channel is unset */
-function showSetupHint(){
-  const h = document.createElement('div');
-  h.id = 'setup-hint';
-  h.innerHTML = '⚙ AYARLAR.js → "kanal"<br>Set your channel name';
-  document.querySelector('.bar').appendChild(h);
-}
+  function paint(v){
+    if (v === target) return;
+    target = v;
+    const pct = K.pct(v, S.takipciHedefi);
+    elFill.style.width = pct + '%';
+    elPct.hidden = !S.yuzdeGoster;
+    elPct.textContent = Math.round(pct) + '%';
+    if (cancelTween) cancelTween();
+    cancelTween = K.tween(displayed, v, S.animasyon === 'off' ? 0 : 1300, function(x){
+      displayed = x;
+      elCur.textContent = K.fmt(x);
+    });
+  }
 
-(async function init(){
-  if(!CHANNEL){ paint(CONFIG.current); showSetupHint(); return; }   // TR/EN: kanal yok / no channel
-  const n = await fetchFollowers();
-  paint(n !== null ? n : CONFIG.current);   // TR: gelirse canlı, gelmezse yedek / EN: live if available, else fallback
-  // TR: yenilemeyi HER ZAMAN kur: ilk istek patlasa bile sonraki turda canlıya geçer (m===null görüntüyü bozmaz)
-  // EN: ALWAYS start the refresh: even if the first request fails, it goes live next tick (m===null won't break the view)
-  setInterval(async ()=>{ const m = await fetchFollowers(); if(m!==null) paint(m); }, CONFIG.refreshSec*1000);
-})();
+  async function poll(){
+    const r = await K.kick.channel(S.kanal);
+    const n = r.ok ? K.parse.followers(r.data) : null;
+    if (n !== null) lastGood = n;
+    paint(lastGood !== null ? lastGood : S.takipciYedek);
+  }
 
-/* TR: istersen elle: konsolda updateFollowers(123) / EN: manual if needed: updateFollowers(123) in console */
-window.updateFollowers = paint;
+  function showHint(){
+    const h = document.createElement('div');
+    h.className = 'ko-hint';
+    h.textContent = '⚙ AYARLAR.js → kanal / set your channel';
+    elBar.appendChild(h);
+  }
+
+  if (!S.kanal) { paint(S.takipciYedek); showHint(); return; }
+  poll();
+  setInterval(poll, S.yenilemeSn * 1000);
 })();
 </script>
 </body>

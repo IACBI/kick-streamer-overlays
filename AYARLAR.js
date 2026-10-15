@@ -1,50 +1,57 @@
 /* ============================================================
-   KICK YAYINCI OVERLAY PAKETİ — TEK AYAR DOSYASI
-   KICK STREAMER OVERLAY PACK  — SINGLE SETTINGS FILE
+   KICK OVERLAY PACK — AYARLAR / SETTINGS
    ------------------------------------------------------------
-   TR: SADECE BU DOSYAYI düzenlemen yeterli. Kanal adını yaz,
-       kaydet, bitti. Diğer .html dosyalarını açman/düzenlemen
-       GEREKMEZ. Değişiklikten sonra OBS'de kaynağa sağ tık >
-       "Refresh" (Yenile) demeyi unutma.
-   EN: You only need to edit THIS file. Type your channel name,
-       save, done. You do NOT need to open/edit the .html files.
-       After changing it, right-click the source in OBS > "Refresh".
+   Edit only the values in this file, save, then right-click the
+   source in OBS and choose Refresh.
+   Secrets (Kick app credentials) do NOT go here: use AYARLAR.local.js.
    ============================================================ */
 window.KICK_OVERLAY_AYARLAR = {
 
-  // TR: Kick kanal adın — yayın adresindeki ad.  Örnek: kick.com/xqc  ->  "xqc"
-  // EN: Your Kick channel name — as it appears in your URL.  Example: kick.com/xqc -> "xqc"
+  // Kick channel name, as in kick.com/NAME
   kanal: "",
 
-  // TR: Görünüm stili / EN: Visual style:  "glass" | "vivid" | "soft" | "cinema"
+  // Theme: glass | vivid | soft | cinema | neon | minimal | pastel | terminal
   stil: "glass",
 
-  // TR: Vurgu rengi (hex). Varsayılan: Kick yeşili.
-  // EN: Accent color (hex). Default: Kick green.
+  // Corner shape: pill | rounded | square
+  sekil: "pill",
+
+  // Font: inter | poppins | nunito | mono
+  yaziTipi: "inter",
+
+  // Labels: tr | en | both  (both = "Takipçi / Follower")
+  dil: "both",
+
+  // Motion: normal | low | off
+  animasyon: "normal",
+
+  // Accent color (hex). Used by every theme except pastel's fills.
   renk: "#53fc18",
 
-  // TR: Chat'te SENİN (kanal sahibi) isminin yanında görünecek gökkuşağı yazı.
-  //     Dilediğin kelimeyi yaz: "Yayıncı", "Streamer", "Host" vb.
-  // EN: The rainbow label shown next to YOUR (channel owner) name in chat.
-  //     Use any word you like: "Streamer", "Host", "Broadcaster", etc.
+  // Label shown next to YOUR name in chat
   yayinciYazisi: "Streamer",
 
-  // TR: Takipçi hedefi (takipçi barında sağda görünen sayı).
-  // EN: Follower goal (the number shown on the right of the follower bar).
+  // Follower goal and fallback count (used when Kick can't be reached)
   takipciHedefi: 1000,
-
-  // TR: Kick'ten takipçi sayısı çekilemezse gösterilecek yedek değer.
-  // EN: Fallback value shown if the follower count cannot be fetched from Kick.
   takipciYedek: 0,
 
-  // TR: Abone hedefi. NOT: Abone sayacı CANLIDIR ve 0'dan başlar
-  //     (Kick "toplam abone sayısı" vermediği için yayın boyunca sayar).
-  // EN: Subscriber goal. NOTE: the subscriber counter is LIVE and starts at 0
-  //     (Kick provides no "total subscriber count", so it counts during the stream).
+  // Subscriber goal
   aboneHedefi: 100,
 
-  // TR: Takipçi/izleyici bilgisi kaç saniyede bir yenilensin.
-  // EN: How often (in seconds) to refresh follower/viewer info.
-  yenilemeSn: 30
+  // Subscriber count used when no Kick app is set in AYARLAR.local.js.
+  // With the app set, the live total from Kick is used instead.
+  aboneSayisi: 0,
+
+  // Show "+N this stream" next to the subscriber count
+  oturumFarkiGoster: true,
+
+  // Show the percentage of the goal
+  yuzdeGoster: false,
+
+  // Refresh interval in seconds (10–600)
+  yenilemeSn: 30,
+
+  // Maximum chat messages on screen (3–20)
+  sohbetMaksMesaj: 8
 
 };

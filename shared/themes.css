@@ -1,0 +1,288 @@
+/* ==========================================================================
+   Kick Overlay Pack — design system
+   Every overlay uses the same .ko-* components. The look comes from
+   body classes set by kick-core.js: theme-*, shape-*, font-*, motion-*.
+   ========================================================================== */
+
+:root {
+  --accent: #53fc18;
+  --accent-rgb: 83 252 24;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.6);
+  --text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.6);
+  --surface: rgba(255, 255, 255, 0.07);
+  --surface-border: rgba(255, 255, 255, 0.14);
+  --blur: 10px;
+  --shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+  --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 45%, #000), var(--accent));
+  --fill-glow: 0 0 20px rgb(var(--accent-rgb) / 55%);
+  --bar-h: 50px;
+  --r-bar: 25px;
+  --r-card: 16px;
+  --r-msg: 12px;
+  --msg-bg: rgba(20, 20, 24, 0.5);
+  --msg-border: rgba(255, 255, 255, 0.08);
+  --msg-shadow: none;
+  --msg-text: rgba(255, 255, 255, 0.95);
+  --size-val: 19px;
+  --size-lbl: 15px;
+}
+
+/* ---- shapes ---- */
+body.shape-pill    { --r-bar: 999px; --r-card: 999px; --r-msg: 18px; }
+body.shape-rounded { --r-bar: 14px;  --r-card: 12px;  --r-msg: 10px; }
+body.shape-square  { --r-bar: 0;     --r-card: 0;     --r-msg: 0; }
+
+/* ---- fonts (loaded by each page from Google Fonts) ---- */
+body.font-inter   { --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+body.font-poppins { --font: 'Poppins', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+body.font-nunito  { --font: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+body.font-mono    { --font: 'Roboto Mono', ui-monospace, Consolas, monospace; }
+
+/* ---- themes ---- */
+body.theme-glass {
+  /* default: frosted glass, accent fill */
+}
+
+body.theme-vivid {
+  --surface: color-mix(in srgb, var(--accent) 12%, rgba(0, 0, 0, 0.35));
+  --surface-border: rgb(var(--accent-rgb) / 45%);
+  --fill-glow: 0 0 30px rgb(var(--accent-rgb) / 80%);
+  --msg-bg: linear-gradient(135deg, rgb(var(--accent-rgb) / 22%), rgb(var(--accent-rgb) / 8%));
+  --msg-border: rgb(var(--accent-rgb) / 55%);
+  --msg-shadow: 0 0 18px rgb(var(--accent-rgb) / 25%);
+}
+
+body.theme-soft {
+  --surface: rgba(255, 255, 255, 0.1);
+  --surface-border: rgba(255, 255, 255, 0.06);
+  --shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
+  --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 60%, #fff), var(--accent));
+  --bar-h: 54px;
+  --msg-bg: rgba(255, 255, 255, 0.1);
+  --msg-border: rgba(255, 255, 255, 0.06);
+  --size-val: 20px;
+}
+
+body.theme-cinema {
+  --surface: rgba(0, 0, 0, 0.45);
+  --surface-border: rgba(255, 255, 255, 0.1);
+  --blur: 0px;
+  --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, #000), var(--accent));
+  --msg-bg: transparent;
+  --msg-border: transparent;
+  --msg-text: rgba(255, 255, 255, 0.88);
+  --text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+body.theme-neon {
+  --surface: rgba(4, 6, 10, 0.85);
+  --surface-border: var(--accent);
+  --blur: 0px;
+  --shadow: 0 0 18px rgb(var(--accent-rgb) / 45%);
+  --fill-bg: var(--accent);
+  --fill-glow: 0 0 22px var(--accent), inset 0 0 12px rgb(255 255 255 / 25%);
+  --text: #f4fff0;
+  --msg-bg: rgba(4, 6, 10, 0.85);
+  --msg-border: var(--accent);
+  --msg-shadow: 0 0 14px rgb(var(--accent-rgb) / 40%);
+}
+
+body.theme-minimal {
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-border: transparent;
+  --blur: 0px;
+  --shadow: none;
+  --fill-bg: var(--accent);
+  --fill-glow: none;
+  --bar-h: 34px;
+  --text-shadow: none;
+  --muted: rgba(255, 255, 255, 0.55);
+  --size-val: 16px;
+  --size-lbl: 13px;
+  --msg-bg: rgba(0, 0, 0, 0.35);
+  --msg-border: transparent;
+}
+
+body.theme-pastel {
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-border: rgba(255, 255, 255, 0.9);
+  --shadow: 0 6px 20px rgba(60, 40, 90, 0.18);
+  --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 35%, #fff), color-mix(in srgb, var(--accent) 75%, #fff));
+  --fill-glow: none;
+  --text: #1f2937;
+  --muted: #4b5563;
+  --text-shadow: none;
+  --msg-bg: rgba(255, 255, 255, 0.88);
+  --msg-border: rgba(255, 255, 255, 0.95);
+  --msg-text: #1f2937;
+  --msg-shadow: 0 4px 14px rgba(60, 40, 90, 0.15);
+}
+
+body.theme-terminal {
+  --surface: rgba(6, 12, 8, 0.9);
+  --surface-border: rgb(var(--accent-rgb) / 60%);
+  --blur: 0px;
+  --shadow: none;
+  --fill-bg: repeating-linear-gradient(90deg, rgb(var(--accent-rgb) / 42%) 0 8px, rgb(var(--accent-rgb) / 18%) 8px 11px);
+  --fill-glow: none;
+  --text: #e6ffe0;
+  --muted: rgb(var(--accent-rgb) / 70%);
+  --text-shadow: none;
+  --msg-bg: rgba(6, 12, 8, 0.9);
+  --msg-border: rgb(var(--accent-rgb) / 60%);
+  --msg-text: #d7ffd0;
+  --size-val: 17px;
+  --size-lbl: 13px;
+}
+body.theme-terminal .ko-fill::after { display: none; }
+body.theme-terminal .ko-bar,
+body.theme-terminal .ko-panel,
+body.theme-terminal .ko-msg { border-width: 1px; }
+
+/* ---- motion ---- */
+body.motion-off *,
+body.motion-off *::before,
+body.motion-off *::after { animation: none !important; transition: none !important; }
+body.motion-off .ko-msg { opacity: 1; transform: none; }
+body.motion-off .ko-msg.is-leaving { opacity: 0; }
+
+body.motion-low .ko-fill::after,
+body.motion-low .ko-bcast { animation: none; }
+body.motion-low .ko-msg { animation-duration: .2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  body.motion-normal .ko-fill::after,
+  body.motion-normal .ko-bcast { animation: none; }
+  body.motion-normal .ko-msg { animation-duration: .2s; }
+}
+
+/* ==========================================================================
+   Components
+   ========================================================================== */
+
+/* ---- goal bar ---- */
+.ko-bar {
+  position: relative; width: 100%; height: var(--bar-h); overflow: hidden;
+  border-radius: var(--r-bar);
+  background: var(--surface); border: 1px solid var(--surface-border);
+  backdrop-filter: blur(var(--blur)) saturate(140%); -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+  box-shadow: var(--shadow);
+}
+.ko-fill {
+  position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit;
+  background: var(--fill-bg); box-shadow: var(--fill-glow);
+  transition: width 1.5s cubic-bezier(.22, 1, .36, 1);
+}
+.ko-fill::after {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 70px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .5), transparent);
+  animation: ko-shimmer 150s linear infinite;
+}
+@keyframes ko-shimmer {
+  0%   { transform: translateX(-90px); opacity: 0; }
+  0.4% { opacity: 1; }
+  1.2% { transform: translateX(560px); opacity: 1; }
+  1.5%, 100% { transform: translateX(560px); opacity: 0; }
+}
+.ko-row {
+  position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; pointer-events: none;
+}
+.ko-cur, .ko-goal {
+  font-weight: 800; font-size: var(--size-val); color: var(--text); text-shadow: var(--text-shadow);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.ko-goal { opacity: .92; }
+.ko-label {
+  display: flex; align-items: baseline; gap: 7px; white-space: nowrap; text-shadow: var(--text-shadow);
+}
+.ko-label span { font-weight: 700; font-size: var(--size-lbl); color: var(--text); }
+.ko-label .ko-sep { font-weight: 400; color: var(--muted); }
+.ko-chip {
+  display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 800; color: #0b0b0d; background: var(--accent);
+  font-variant-numeric: tabular-nums; vertical-align: middle;
+}
+.ko-chip.is-neg { background: #ef4444; color: #fff; }
+.ko-bump { animation: ko-bump .6s ease; }
+@keyframes ko-bump {
+  0%   { box-shadow: var(--shadow); }
+  40%  { box-shadow: 0 0 26px var(--accent); }
+  100% { box-shadow: var(--shadow); }
+}
+
+/* ---- info panel ---- */
+.ko-panel {
+  display: inline-flex; align-items: center; gap: 16px; padding: 11px 17px; border-radius: var(--r-card);
+  background: var(--surface); border: 1px solid var(--surface-border);
+  backdrop-filter: blur(var(--blur)) saturate(140%); -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+  box-shadow: var(--shadow);
+  opacity: 1; transform: translateY(0); transition: opacity .6s ease, transform .6s ease;
+}
+.ko-panel.is-off { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+.ko-stat { display: inline-flex; align-items: center; gap: 7px; }
+.ko-stat svg {
+  width: 17px; height: 17px; flex: 0 0 auto; fill: none; stroke: var(--text); opacity: .85;
+  stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
+}
+.ko-val {
+  font-size: 17px; font-weight: 700; color: var(--text); text-shadow: var(--text-shadow); line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: .2px; white-space: nowrap;
+}
+.ko-sep-v { width: 1px; height: 18px; background: var(--surface-border); }
+.ko-dot {
+  width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: var(--accent);
+  box-shadow: 0 0 8px var(--accent); animation: ko-pulse 2s ease-in-out infinite;
+}
+@keyframes ko-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.82); } }
+
+/* ---- chat ---- */
+.ko-feed {
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 9px; height: 100%; width: 100%;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 56px);
+  mask-image: linear-gradient(180deg, transparent 0, #000 56px);
+}
+.ko-msg {
+  width: fit-content; max-width: 100%; line-height: 1.45; overflow-wrap: anywhere;
+  padding: 8px 13px; border-radius: var(--r-msg);
+  background: var(--msg-bg); border: 1px solid var(--msg-border); box-shadow: var(--msg-shadow);
+  backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
+  opacity: 0; transform: translateY(14px);
+  animation: ko-enter .45s cubic-bezier(.2, .8, .2, 1) forwards;
+}
+.ko-msg.is-leaving { animation: ko-leave .4s ease forwards; }
+@keyframes ko-enter { to { opacity: 1; transform: none; } }
+@keyframes ko-leave { to { opacity: 0; transform: translateY(-12px); height: 0; margin: 0; padding: 0; border-width: 0; } }
+.ko-user { font-weight: 700; font-size: 16px; color: var(--name-color, var(--accent)); margin-right: 4px; }
+.ko-text { font-size: 18px; color: var(--msg-text); }
+.ko-emote { height: 1.4em; vertical-align: middle; margin: 0 1px; }
+.ko-badges { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; margin-right: 6px; }
+.ko-badge {
+  display: inline-flex; align-items: center; justify-content: center; height: 18px; min-width: 18px; padding: 0 3px;
+  border-radius: 5px; color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+}
+.ko-badge svg { width: 13px; height: 13px; display: block; }
+.ko-badge img { height: 18px; width: auto; display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .45)); }
+.ko-badge .ko-count { font-size: 10px; font-weight: 800; margin: 0 1px 0 2px; line-height: 1; }
+.ko-bcast {
+  font-weight: 800; font-size: 13px; letter-spacing: .2px;
+  background-image: linear-gradient(90deg, #ff5e5e, #ff9d3c, #ffe14d, #5ee08a, #4fd0ff, #7c8bff, #c06bff, #ff5e8a, #ff5e5e);
+  background-size: 220% 100%; -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent; text-shadow: 0 1px 1px rgba(0, 0, 0, .65);
+  animation: ko-flow 9s linear infinite;
+}
+@keyframes ko-flow { to { background-position: 220% 0; } }
+
+/* ---- status / hints ---- */
+.ko-note {
+  position: fixed; top: 6px; right: 8px; max-width: 90%; padding: 2px 8px; border-radius: 6px;
+  font-size: 11px; color: var(--muted); background: rgba(0, 0, 0, .4); transition: opacity .4s;
+}
+.ko-note.is-hidden { opacity: 0; }
+.ko-hint {
+  position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
+  padding: 0 16px; text-align: center; font-size: 13px; color: #fff;
+  background: rgba(0, 0, 0, .6); border-radius: inherit;
+}

@@ -1,0 +1,6 @@
+# Kick app credentials (client id and secret). Never commit.
+AYARLAR.local.js
+
+# Local tooling output
+node_modules/
+*.log

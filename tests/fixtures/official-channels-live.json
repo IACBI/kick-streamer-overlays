@@ -1,0 +1,19 @@
+{
+  "_note": "Shaped after the documented GET /public/v1/channels response (fields named in SPEC.md). Hand-written example values, not a captured response.",
+  "data": [
+    {
+      "broadcaster_user_id": 1002,
+      "slug": "example-channel",
+      "stream_title": "Example stream",
+      "active_subscribers_count": 42,
+      "active_gifted_subscribers_count": 3,
+      "canceled_subscribers_count": 1,
+      "stream": {
+        "is_live": true,
+        "viewer_count": 12,
+        "start_time": "2026-10-15T20:00:00Z"
+      }
+    }
+  ],
+  "message": "ok"
+}

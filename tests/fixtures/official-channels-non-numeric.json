@@ -1,0 +1,15 @@
+{
+  "_note": "Documented shape where the count fields hold non-numeric values. Hand-written example.",
+  "data": [
+    {
+      "broadcaster_user_id": 1002,
+      "slug": "example-channel",
+      "stream_title": "",
+      "active_subscribers_count": "many",
+      "active_gifted_subscribers_count": null,
+      "canceled_subscribers_count": "x",
+      "stream": { "is_live": false, "viewer_count": null, "start_time": null }
+    }
+  ],
+  "message": "ok"
+}

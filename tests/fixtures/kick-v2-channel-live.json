@@ -1,0 +1,31 @@
+{
+  "_note": "Shaped after the documented kick.com v2 channel response with a running stream. start_time uses the 'YYYY-MM-DD HH:MM:SS' UTC form. Hand-written example values, not a captured response.",
+  "id": 1001,
+  "user_id": 1002,
+  "slug": "example-channel",
+  "is_banned": false,
+  "playback_url": "https://stream.example/live/playlist.m3u8",
+  "vod_enabled": true,
+  "subscription_enabled": true,
+  "followers_count": "12345",
+  "chatroom": {
+    "id": 2002,
+    "chatable_type": "App\\Models\\Channel",
+    "slow_mode": { "enabled": false, "message_interval": 0 }
+  },
+  "subscriber_badges": [
+    { "id": 11, "months": 1, "badge_image": { "src": "https://files.example/badges/sub-1.webp", "srcset": "" } },
+    { "id": 12, "months": 12, "badge_image": { "src": "https://files.example/badges/sub-12.webp", "srcset": "" } },
+    { "id": 13, "months": 6, "badge_image": { "src": "https://files.example/badges/sub-6.webp", "srcset": "" } }
+  ],
+  "livestream": {
+    "id": 3003,
+    "slug": "example-channel",
+    "channel_id": 1001,
+    "is_live": true,
+    "viewer_count": 12,
+    "start_time": "2026-10-15 20:00:00",
+    "created_at": "2026-10-15 19:58:30",
+    "session_title": "Example stream"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "_note": "Shaped after the documented kick.com v1 channel response (followersCount is a number). Hand-written example values, not a captured response.",
+  "id": 1001,
+  "user_id": 1002,
+  "slug": "example-channel",
+  "followersCount": 678,
+  "subscriber_badges": []
+}

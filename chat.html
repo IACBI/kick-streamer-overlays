@@ -1,505 +1,313 @@
 <!DOCTYPE html>
+<!-- OBS Browser source (Local file): 460 x 760. Chat overlay. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Kick Chat Overlay</title>
-<!-- TR: Tek ayar dosyası. Inline script'ten ÖNCE yüklenmeli. / EN: Single settings file. Must load BEFORE the inline script. -->
-<script src="AYARLAR.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/themes.css">
+<script src="AYARLAR.js"></script>
+<script src="AYARLAR.local.js"></script>
+<script src="shared/kick-core.js"></script>
 <style>
-  /* ============================================================
-     KICK CANLI CHAT OVERLAY  /  KICK LIVE CHAT OVERLAY
-     ------------------------------------------------------------
-     TR: Ayarları AYARLAR.js'ten alır (kanal, stil, renk). OBS'de
-         Browser > "Local file" olarak ekle.  Önerilen: 460 x 760.
-         Veri: Kick API + Pusher WebSocket (sunucu gerekmez).
-         Rozet ve emote'lar otomatik gösterilir.
-     EN: Reads settings from AYARLAR.js (channel, style, color). Add
-         in OBS as Browser > "Local file".  Suggested: 460 x 760.
-         Data: Kick API + Pusher WebSocket (no server needed).
-         Badges and emotes are shown automatically.
-     ============================================================ */
-  :root{
-    --accent:#53fc18;
-    --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
-    --msg-size:18px;
-    --name-size:16px;
-    --gap:9px;
-    --text-shadow:0 2px 4px rgba(0,0,0,0.9),0 0 6px rgba(0,0,0,0.6);
-  }
   *{ margin:0; padding:0; box-sizing:border-box; }
-  html,body{ width:100%; height:100%; overflow:hidden; background:transparent; font-family:var(--font); -webkit-font-smoothing:antialiased; }
-  body{ padding:14px; }
-
-  #feed{ display:flex; flex-direction:column; justify-content:flex-end; gap:var(--gap); height:calc(100vh - 28px); width:100%;
-    -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 56px); mask-image:linear-gradient(180deg,transparent 0,#000 56px); }
-
-  /* TR: mesaj giriş/çıkış animasyonu / EN: message enter/leave animation */
-  .msg{ opacity:0; transform:translateY(14px); animation:enter .45s cubic-bezier(.2,.8,.2,1) forwards;
-    word-wrap:break-word; overflow-wrap:anywhere; line-height:1.45; width:fit-content; max-width:100%; }
-  .msg.leaving{ animation:leave .4s ease forwards; }
-  @keyframes enter{ to{ opacity:1; transform:translateY(0);} }
-  @keyframes leave{ to{ opacity:0; transform:translateY(-12px); height:0; margin:0; padding:0;} }
-
-  .uname{ font-weight:700; font-size:var(--name-size); }
-  .utext{ font-size:var(--msg-size); }
-  .emote{ height:1.4em; vertical-align:middle; margin:0 1px; }
-
-  /* TR: ROZETLER:
-       - ABONE rozeti = kanalın GERÇEK görseli (API'deki subscriber_badges, .badge-img).
-       - Diğer roller (mod/vip/og/onaylı...) = temiz inline SVG sembol (Kick bunları
-         frontend'inde inline SVG + Cloudflare arkasında tuttuğu için CDN'den çekilemez).
-       - broadcaster = AYARLAR.js'teki "yayinciYazisi" (sadece kanal sahibi).
-     EN: BADGES:
-       - SUBSCRIBER badge = the channel's REAL image (subscriber_badges from API, .badge-img).
-       - Other roles (mod/vip/og/verified...) = clean inline SVG symbols (Kick keeps these
-         as inline SVG behind Cloudflare, so they can't be fetched from a CDN).
-       - broadcaster = the "yayinciYazisi" label from AYARLAR.js (channel owner only). */
-  .badges{ display:inline-flex; align-items:center; gap:4px; vertical-align:middle; margin-right:6px; }
-  .badge{ display:inline-flex; align-items:center; justify-content:center; height:18px; min-width:18px;
-    padding:0 3px; border-radius:5px; box-shadow:0 1px 2px rgba(0,0,0,.35); }
-  .badge svg{ width:13px; height:13px; display:block; }
-  .badge .cnt{ font-size:10px; font-weight:800; color:#fff; line-height:1; margin:0 1px 0 2px;
-    font-family:var(--font); text-shadow:0 1px 1px rgba(0,0,0,.4); }
-  /* TR: rozet görseli: arka plan ŞEFFAF; gölge KUTU değil ŞEKLİ takip eder (drop-shadow).
-     EN: badge image: TRANSPARENT background; the shadow follows the SHAPE, not a box (drop-shadow). */
-  .badge-img{ height:18px; width:auto; display:block; object-fit:contain; image-rendering:auto;
-    filter:drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
-  .badge-try-wrap{ display:inline-flex; align-items:center; }
-  .cnt-out{ color:#fff; font-size:10px; font-weight:800; margin-left:2px; line-height:1;
-    font-family:var(--font); text-shadow:0 1px 1px rgba(0,0,0,.5); }
-  /* TR: yayıncı yazısı — arka plansız; harflerde soldan sağa AKAN sakin gökkuşağı (yavaş, göz yormaz).
-     EN: broadcaster label — no background; a calm rainbow FLOWING left-to-right (slow, easy on the eyes). */
-  .badge-broadcaster{ width:auto; height:auto; padding:0; background:none; box-shadow:none;
-    font-weight:800; font-size:13px; letter-spacing:.2px;
-    background-image:linear-gradient(90deg,#ff5e5e,#ff9d3c,#ffe14d,#5ee08a,#4fd0ff,#7c8bff,#c06bff,#ff5e8a,#ff5e5e);
-    background-size:220% 100%;
-    -webkit-background-clip:text; background-clip:text;
-    -webkit-text-fill-color:transparent; color:transparent;
-    text-shadow:0 1px 1px rgba(0,0,0,.65);   /* TR: ince keskin gölge, okunur kılar / EN: thin crisp shadow for readability */
-    animation:rainbowflow 9s linear infinite; }
-  @keyframes rainbowflow{ to{ background-position:220% 0; } }
-  /* TR: hareketi azalt seçiliyse animasyon kapanır / EN: animation off when reduced-motion is set */
-  @media (prefers-reduced-motion: reduce){ .badge-broadcaster{ animation:none; } }
-
-  /* ===== TR: STİL 1 — MİNİMAL CAM / EN: STYLE 1 — MINIMAL GLASS ===== */
-  body.style-glass .msg{ background:rgba(20,20,24,0.5); backdrop-filter:blur(14px) saturate(140%); -webkit-backdrop-filter:blur(14px) saturate(140%);
-    border:1px solid rgba(255,255,255,0.08); border-left:3px solid var(--accent); border-radius:10px; padding:9px 13px; }
-  body.style-glass .uname{ color:var(--accent); }
-  body.style-glass .utext{ color:rgba(255,255,255,0.95); }
-
-  /* ===== TR: STİL 2 — CANLI ENERJİK / EN: STYLE 2 — VIVID ===== */
-  body.style-vivid .msg{ align-self:flex-start; background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 22%,transparent),color-mix(in srgb,var(--accent) 8%,transparent));
-    border:1.5px solid color-mix(in srgb,var(--accent) 55%,transparent); border-radius:20px; padding:8px 16px; box-shadow:0 0 18px color-mix(in srgb,var(--accent) 25%,transparent); }
-  body.style-vivid .uname{ color:var(--accent); text-shadow:0 0 10px color-mix(in srgb,var(--accent) 60%,transparent); }
-  body.style-vivid .utext{ color:#fff; }
-
-  /* ===== TR: STİL 3 — YUMUŞAK MODERN / EN: STYLE 3 — SOFT MODERN ===== */
-  body.style-soft .msg{ align-self:flex-start; background:rgba(255,255,255,0.10); border-radius:16px; padding:10px 15px; border:1px solid rgba(255,255,255,0.06); }
-  body.style-soft .uname{ color:var(--accent); display:block; margin-bottom:2px; font-size:14px; }
-  body.style-soft .utext{ color:rgba(255,255,255,0.96); }
-
-  /* ===== TR: STİL 4 — SİNEMATİK / EN: STYLE 4 — CINEMATIC ===== */
-  body.style-cinema .msg{ padding:7px 6px; border-bottom:1px solid rgba(255,255,255,0.07); text-shadow:var(--text-shadow); }
-  body.style-cinema .uname{ color:var(--accent); letter-spacing:.4px; }
-  body.style-cinema .utext{ color:rgba(255,255,255,0.88); }
-
-  /* TR: küçük durum bildirimi (köşe) / EN: small status note (corner) */
-  #status{ position:fixed; top:6px; right:8px; font-size:11px; color:rgba(255,255,255,0.5);
-    background:rgba(0,0,0,0.4); padding:2px 8px; border-radius:6px; font-family:var(--font); transition:opacity .4s; max-width:90%; }
-  #status.hide{ opacity:0; }
+  html, body{ width:100%; height:100%; overflow:hidden; background:transparent; }
+  body{ padding:14px; font-family:var(--font); -webkit-font-smoothing:antialiased; }
 </style>
 </head>
-<body class="style-glass">
-<div id="feed"></div>
-<div id="status">…</div>
+<body>
+<div class="ko-feed" id="feed"></div>
+<div class="ko-note is-hidden" id="note" aria-live="polite"></div>
 
 <script>
 (function(){
-/* =================== TR: AYARLAR / EN: SETTINGS ===================
-   TR: Değerler AYARLAR.js'ten okunur; dosya yoksa güvenli varsayılana düşer.
-   EN: Values come from AYARLAR.js; falls back to safe defaults if missing. */
-const A = (window.KICK_OVERLAY_AYARLAR || {});
-const CONFIG = {
-  CHANNEL: String(A.kanal || "").trim().toLowerCase(),
-  STYLE: A.stil || "glass",            // glass | vivid | soft | cinema
-  accent: A.renk || "#53fc18",
-  broadcasterLabel: A.yayinciYazisi || "Streamer",
-  maxMessages: 8,
-  demo: false                          // TR: önizleme / EN: preview mode
-};
+  const K = window.KickOverlay;
+  const S = K.readSettings();
+  K.applyLook(S);
 
-document.body.className = "style-" + CONFIG.STYLE;
-document.documentElement.style.setProperty('--accent', CONFIG.accent);
+  const feed = document.getElementById('feed');
+  const noteEl = document.getElementById('note');
+  const MAX = S.sohbetMaksMesaj;
+  // Matches the .ko-msg.is-leaving animation duration in themes.css (.4s).
+  const LEAVE_MS = 400;
+  const SEEN_CAP = 500;
+  // Only hex or a plain color name: free text must not reach the CSS.
+  const NAME_RE = /^#[0-9a-f]{3,8}$|^[a-z]{3,20}$/i;
+  const EMOTE_RE = /\[emote:(\d+):([^\]]+)\]/g;
+  const BROADCASTER = new Set(['broadcaster', 'owner', 'host']);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const STROKE = { fill:'none', stroke:'#fff', 'stroke-width':'2.2', 'stroke-linecap':'round', 'stroke-linejoin':'round' };
+  const P = d => ['path', { d: d }];
 
-const CHANNEL = CONFIG.CHANNEL;
-const MAX = CONFIG.maxMessages;
-const PUSHER_KEY = "32cbd69e4b950bf97679";
-const PUSHER_CLUSTER = "us2";
+  // Drawn role symbols, as [tag, attributes]. Built with createElementNS, never from markup strings.
+  const ICON = {
+    moderator: { els: [P('M12 3l7 2.7v5.1c0 4.2-2.9 7.5-7 8.7-4.1-1.2-7-4.5-7-8.7V5.7L12 3z'), P('M8.6 11.8l2.2 2.2 4-4.2')] },
+    vip: { els: [P('M3.5 9l4-5h9l4 5L12 21 3.5 9z'), P('M3.5 9h17')] },
+    og: { els: [['circle', { cx:12, cy:9, r:5 }], P('M8.6 13.1L7 21l5-2.7L17 21l-1.6-7.9')] },
+    founder: { els: [P('M6 3v18'), P('M6 4h11l-2.3 3.4L17 11H6')] },
+    subscriber: { fill: true, els: [P('M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6 6.8 19.4l1-5.9L3.5 9.4l5.9-.8L12 3.2z')] },
+    sub_gifter: { sw: '2', els: [['rect', { x:4, y:10, width:16, height:10, rx:1 }], P('M3 7h18v3H3zM12 7v13'), P('M12 7C12 7 11.4 3.5 9 4c-1.9.4-1.4 3 3 3zM12 7c0 0 .6-3.5 3-3 1.9.4 1.4 3-3 3z')] },
+    verified: { els: [['circle', { cx:12, cy:12, r:8.5 }], P('M8.3 12.2l2.5 2.5 4.9-5')] },
+    staff: { els: [P('M12 3l7 2.7v5.1c0 4.2-2.9 7.5-7 8.7-4.1-1.2-7-4.5-7-8.7V5.7L12 3z'), P('M12 8.5v4'), P('M12 15.4h.01')] }
+  };
+  const BADGE_COLOR = {
+    moderator:'#16c172', vip:'#ec4899', og:'#f0b429', founder:'#ef5350',
+    subscriber:'#6f6cff', sub_gifter:'#14b8a6', verified:'#2aa3ff', staff:'#0b8f3a'
+  };
 
-const feed = document.getElementById('feed');
-const statusEl = document.getElementById('status');
-const seen = new Set();
+  const seen = new Set();   // dedupe guard by message id
+  const byId = new Map();   // message id -> live .ko-msg element
+  let subBadges = [];       // [{months, src}] sorted high -> low, from K.parse.subBadges
 
-function setStatus(t){ statusEl.textContent = t; statusEl.classList.remove('hide'); }
-function hideStatusSoon(){ setTimeout(()=>statusEl.classList.add('hide'), 4000); }
+  function own(map, key){ return Object.hasOwn(map, key) ? map[key] : null; }
 
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-/* TR: emote'ları gerçek görsele çevir / EN: turn emotes into real images */
-function renderBody(raw){
-  return escapeHtml(raw).replace(
-    /\[emote:(\d+):([^\]]+)\]/g,
-    (_, id, name)=>`<img class="emote" src="https://files.kick.com/emotes/${encodeURIComponent(id)}/fullsize" alt="${escapeHtml(name)}" title="${escapeHtml(name)}" />`
-  );
-}
-
-/* TR: rol -> SEMBOL. Canlı chat'te identity.badges = [{type,text,count?}] gelir, GÖRSEL gelmez;
-       bu yüzden her rol için aşağıda temiz, telifsiz inline SVG çizilidir.
-   EN: role -> SYMBOL. Live chat sends identity.badges = [{type,text,count?}] but NO image;
-       so a clean, license-free inline SVG is drawn below for each role. */
-const ICON = {
-  moderator:`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 2.7v5.1c0 4.2-2.9 7.5-7 8.7-4.1-1.2-7-4.5-7-8.7V5.7L12 3z"/><path d="M8.6 11.8l2.2 2.2 4-4.2"/></svg>`,
-  vip:`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 9l4-5h9l4 5L12 21 3.5 9z"/><path d="M3.5 9h17"/></svg>`,
-  og:`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="5"/><path d="M8.6 13.1L7 21l5-2.7L17 21l-1.6-7.9"/></svg>`,
-  founder:`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v18"/><path d="M6 4h11l-2.3 3.4L17 11H6"/></svg>`,
-  subscriber:`<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6 6.8 19.4l1-5.9L3.5 9.4l5.9-.8L12 3.2z"/></svg>`,
-  sub_gifter:`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="1"/><path d="M3 7h18v3H3zM12 7v13"/><path d="M12 7C12 7 11.4 3.5 9 4c-1.9.4-1.4 3 3 3zM12 7c0 0 .6-3.5 3-3 1.9.4 1.4 3-3 3z"/></svg>`,
-  verified:`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.3 12.2l2.5 2.5 4.9-5"/></svg>`,
-  staff:`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 2.7v5.1c0 4.2-2.9 7.5-7 8.7-4.1-1.2-7-4.5-7-8.7V5.7L12 3z"/><path d="M12 8.5v4M12 15.4h.01"/></svg>`
-};
-// TR: her rolün pil arka plan rengi (sembol beyaz) / EN: pill background color per role (symbol is white)
-const BADGE_COLOR = {
-  moderator:'#16c172', vip:'#ec4899', og:'#f0b429', founder:'#ef5350',
-  subscriber:'#6f6cff', sub_gifter:'#14b8a6', verified:'#2aa3ff', staff:'#0b8f3a'
-};
-const BROADCASTER_TYPES = new Set(['broadcaster','owner','host']);
-
-/* TR: Kanalın GERÇEK abone rozet görselleri (API: subscriber_badges). Chat'te abone rozeti
-       {type:"subscriber", count: AY} gelir; aya uyan en yüksek eşikteki görseli seçeriz.
-   EN: The channel's REAL subscriber badge images (API: subscriber_badges). In chat the badge
-       arrives as {type:"subscriber", count: MONTHS}; we pick the highest tier <= months. */
-let SUB_BADGES = [];   // [{months, src}] — TR: aydan büyüğe / EN: sorted high->low months
-function setSubBadges(arr){
-  SUB_BADGES = (arr||[])
-    .map(b=>({ months:+(b.months||0), src:(b && b.badge_image && b.badge_image.src) || "" }))
-    .filter(b=>b.src)
-    .sort((a,b)=>b.months-a.months);
-}
-function subBadgeFor(months){
-  if(!SUB_BADGES.length) return "";
-  const m = +months || 0;
-  const hit = SUB_BADGES.find(b=>m>=b.months) || SUB_BADGES[SUB_BADGES.length-1];
-  return hit ? hit.src : "";
-}
-
-/* ---- TR: İSTEĞE BAĞLI YEREL ROZET GÖRSELLERİ / EN: OPTIONAL LOCAL BADGE IMAGES ----
-   TR: Bu dosyayla AYNI klasördeki "badges" klasörüne aşağıdaki adlarla görsel koyarsan
-       (örn. badges/moderator.png) çizili sembol YERİNE senin görselin kullanılır. Dosya
-       yoksa hata vermez, çizili sembole düşer. Kod düzenlemen gerekmez.
-   EN: If you drop images into the "badges" folder next to this file using the names below
-       (e.g. badges/moderator.png), your image is used INSTEAD of the drawn symbol. If a file
-       is missing it doesn't error — it falls back to the drawn symbol. No code editing needed. */
-const LOCAL_BADGE_DIR = "badges/";
-// TR: desteklenen uzantılar, sırayla denenir / EN: supported extensions, tried in order
-const LOCAL_BADGE_EXTS = ["svg","png","webp","gif","jpg","jpeg"];
-const BADGE_FILE = {
-  moderator:"moderator", vip:"vip", og:"og", verified:"verified",
-  founder:"founder", sub_gifter:"gifter", staff:"staff"
-};
-const localBadge = {};   // TR: type -> src|false|undefined / EN: type -> resolved src | false | undefined
-function badgeCandidates(base){ return LOCAL_BADGE_EXTS.map(e=>`${LOCAL_BADGE_DIR}${base}.${e}`); }
-
-function roleBadgeHtml(type, b){
-  const color = BADGE_COLOR[type] || '#4b5563';
-  const cnt = (b && b.count && (type==='subscriber'||type==='sub_gifter')) ? `<span class="cnt">${b.count}</span>` : '';
-  const svgPill = `<span class="badge" style="background:${color}">${ICON[type]||''}${cnt}</span>`;
-  const base = BADGE_FILE[type];
-  if(!base || localBadge[type]===false) return svgPill;   // TR: yerel yok -> çizili / EN: no local -> drawn
-  const outCnt = (type==='sub_gifter' && b && b.count) ? `<span class="cnt-out">${b.count}</span>` : '';
-  // TR: daha önce çözülmüş yerel görsel varsa direkt kullan / EN: reuse already-resolved local image
-  if(typeof localBadge[type]==='string'){
-    return `<span class="badge-try-wrap"><img class="badge-img" src="${localBadge[type]}" alt="${type}" title="${type}" onerror="this.style.display='none'" />${outCnt}</span>`;
+  function countOf(b){
+    const n = Math.trunc(Number(b && b.count));
+    return Number.isSafeInteger(n) && n > 0 ? n : 0;
   }
-  // TR: bilinmiyor: uzantıları sırayla dene, hepsi olmazsa çizili sembole düş
-  // EN: unknown: try extensions in order, fall back to drawn symbol if all fail
-  const hidden = `<span class="badge bfallback" style="display:none;background:${color}">${ICON[type]||''}${cnt}</span>`;
-  const first = badgeCandidates(base)[0];
-  const tryWrap = `<span class="badge-try-wrap"><img class="badge-img badge-try" data-type="${type}" data-idx="0" src="${first}" alt="${type}" title="${type}" />${outCnt}</span>`;
-  return hidden + tryWrap;
-}
 
-function renderBadges(badges, isVerified){
-  // TR: yedek alan: gerçek veride doğrulama badges[].type==='verified' / EN: legacy fallback for verified
-  const list = (badges||[]).slice();
-  if(isVerified && !list.some(b=>String(b?.type||'').toLowerCase()==='verified'))
-    list.push({type:'verified'});
-
-  let inner='';
-  list.forEach(b=>{
-    const type = String(b?.type||'').toLowerCase();
-    if(BROADCASTER_TYPES.has(type)){
-      // TR: kanal sahibi -> AYARLAR.js'teki yazı / EN: channel owner -> label from AYARLAR.js
-      inner += `<span class="badge badge-broadcaster">${escapeHtml(CONFIG.broadcasterLabel)}</span>`;
-      return;
-    }
-    if(type==='subscriber'){
-      // TR: GERÇEK abone rozeti (görsel olmazsa alttaki çizili yıldıza düşer)
-      // EN: REAL subscriber badge (falls back to the drawn star below if the image fails)
-      const src = subBadgeFor(b.count);
-      if(src){
-        const ttl = b.count ? `Sub · ${b.count}m` : 'Sub';
-        inner += `<img class="badge-img" src="${escapeHtml(src)}" alt="subscriber" title="${ttl}" onerror="this.style.display='none'" />`;
-        return;
-      }
-    }
-    const svg = ICON[type];
-    if(svg){
-      inner += roleBadgeHtml(type, b);   // TR: yerel görsel ya da çizili sembol / EN: local image or drawn symbol
-    } else if(b?.text){
-      // TR: bilinmeyen tip -> Kick'in verdiği metni nötr pilde göster / EN: unknown type -> show Kick's text in a neutral pill
-      inner += `<span class="badge" style="background:#4b5563;padding:0 7px;width:auto;color:#fff;font-size:10px;font-weight:700">${escapeHtml(b.text)}</span>`;
-    }
-  });
-  return inner ? `<span class="badges">${inner}</span>` : '';
-}
-
-function addMessage({ id, senderId, username, color, message, badges, isVerified, createdAt }){
-  const safeName = String(username||'?');
-  const safeMsg = String(message||'');
-  const key = id || `${safeName}|${safeMsg}|${createdAt||''}`;
-  if(seen.has(key)) return;
-  seen.add(key);
-  if(seen.size>500) seen.clear();
-
-  const el = document.createElement('div');
-  el.className = 'msg';
-  // TR: silme/ban eşlemesi için kimlikler / EN: identifiers for delete/ban matching
-  if(id) el.dataset.id = String(id);
-  if(senderId) el.dataset.uid = String(senderId);
-  el.dataset.uname = safeName.toLowerCase();
-  const nameColor = color && String(color).trim() ? `style="color:${escapeHtml(color)}"` : '';
-  el.innerHTML = renderBadges(badges, isVerified) +
-    `<span class="uname" ${nameColor}>${escapeHtml(safeName)}</span>` +
-    `<span class="utext"> ${renderBody(safeMsg)}</span>`;
-  feed.appendChild(el);
-
-  // TR: yerel rozet denemeleri: yüklenemezse otomatik çizili sembole düş
-  // EN: local badge attempts: fall back to the drawn symbol automatically if it can't load
-  el.querySelectorAll('img.badge-try').forEach(img=>{
-    const t = img.dataset.type;
-    img.addEventListener('load', ()=>{ localBadge[t] = img.getAttribute('src'); img.classList.remove('badge-try'); });
-    img.addEventListener('error', ()=>{
-      const cands = badgeCandidates(BADGE_FILE[t]);
-      const idx = (+img.dataset.idx || 0) + 1;
-      if(idx < cands.length){ img.dataset.idx = idx; img.src = cands[idx]; return; }  // TR: sıradaki uzantı / EN: next extension
-      localBadge[t] = false;   // TR: hepsi olmadı -> çizili / EN: all failed -> drawn
-      const wrap = img.closest('.badge-try-wrap');
-      const fb = wrap && wrap.previousElementSibling;
-      if(fb && fb.classList.contains('bfallback')) fb.style.display = 'inline-flex';
-      if(wrap) wrap.remove();
+  function roleIcon(type){
+    const def = own(ICON, type);
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    const attrs = def.fill ? { fill:'#fff', stroke:'none' } : Object.assign({}, STROKE, { 'stroke-width': def.sw || '2.2' });
+    Object.keys(attrs).forEach(k => svg.setAttribute(k, attrs[k]));
+    def.els.forEach(([tag, a]) => {
+      const node = document.createElementNS(SVG_NS, tag);
+      Object.keys(a).forEach(k => node.setAttribute(k, String(a[k])));
+      svg.appendChild(node);
     });
-  });
-
-  while(feed.children.length > MAX){
-    const old = feed.firstElementChild;
-    old.classList.add('leaving');
-    setTimeout(()=>old.remove(), 400);
-    break;
+    return svg;
   }
-}
 
-/* TR: mesajı yumuşak çıkış animasyonuyla kaldır (.leaving zaten CSS'te)
-   EN: remove a message with the soft leave animation (.leaving already in CSS) */
-function fadeRemove(el){
-  if(!el || el.classList.contains('leaving')) return;
-  el.classList.add('leaving');
-  setTimeout(()=>el.remove(), 400);
-}
+  function pill(type, count){
+    const span = document.createElement('span');
+    span.className = 'ko-badge';
+    span.style.backgroundColor = own(BADGE_COLOR, type) || '#4b5563';
+    span.appendChild(roleIcon(type));
+    if(count > 0 && (type === 'subscriber' || type === 'sub_gifter')){
+      const c = document.createElement('span');
+      c.className = 'ko-count';
+      c.textContent = String(count);
+      span.appendChild(c);
+    }
+    return span;
+  }
 
-/* TR: MODERASYON — Kick sitesiyle aynı şekilde mesajları kaldır
-   EN: MODERATION — remove messages the same way Kick's site does */
-function removeMessageById(messageId){
-  if(!messageId) return;
-  const el = feed.querySelector(`.msg[data-id="${CSS.escape(messageId)}"]`);
-  if(el){ fadeRemove(el); seen.delete(messageId); }   // TR: tekrar gelebilsin / EN: allow re-add if it comes again
-}
-function removeMessagesByUser(userId, username){
-  const uname = String(username||'').toLowerCase();
-  feed.querySelectorAll('.msg').forEach(el=>{
-    const matchId   = userId && el.dataset.uid === String(userId);
-    const matchName = !userId && uname && el.dataset.uname === uname;   // TR: uid yoksa isimle / EN: by name if no uid
-    if(matchId || matchName){
+  // Real channel badge for the highest tier <= months; drawn star if none fits or the image fails.
+  function subscriberBadge(months){
+    const tier = subBadges.find(b => months >= b.months);
+    if(!tier || !/^https:\/\//.test(tier.src)) return pill('subscriber', months);
+    const wrap = document.createElement('span');
+    wrap.className = 'ko-badge';
+    const img = document.createElement('img');
+    img.setAttribute('src', tier.src);
+    img.setAttribute('alt', 'subscriber');
+    img.setAttribute('title', months > 0 ? 'Sub · ' + months + 'm' : 'Sub');
+    img.addEventListener('error', () => wrap.replaceWith(pill('subscriber', months)));
+    wrap.appendChild(img);
+    return wrap;
+  }
+
+  function renderBadges(list){
+    const wrap = document.createElement('span');
+    wrap.className = 'ko-badges';
+    let any = false;
+    let bcastShown = false;
+    for(const b of (Array.isArray(list) ? list : [])){
+      const type = String((b && b.type) || '').toLowerCase();
+      const n = countOf(b);
+      if(BROADCASTER.has(type)){
+        if(bcastShown) continue;
+        bcastShown = true;
+        const s = document.createElement('span');
+        s.className = 'ko-bcast';
+        s.textContent = S.yayinciYazisi;
+        wrap.appendChild(s);
+      } else if(type === 'subscriber'){
+        wrap.appendChild(subscriberBadge(n));
+      } else if(own(ICON, type)){
+        wrap.appendChild(pill(type, n));
+      } else if(b && b.text){
+        const t = document.createElement('span');
+        t.className = 'ko-badge';
+        t.style.backgroundColor = '#4b5563';
+        t.style.fontSize = '10px';
+        t.style.fontWeight = '700';
+        t.textContent = String(b.text);
+        wrap.appendChild(t);
+      } else {
+        continue;
+      }
+      any = true;
+    }
+    return any ? wrap : null;
+  }
+
+  // Emotes become <img>, everything else stays text. Nothing is parsed as markup.
+  function appendBody(parent, raw){
+    let last = 0;
+    for(const m of raw.matchAll(EMOTE_RE)){
+      if(m.index > last) parent.appendChild(document.createTextNode(raw.slice(last, m.index)));
+      const img = document.createElement('img');
+      img.className = 'ko-emote';
+      img.setAttribute('src', 'https://files.kick.com/emotes/' + m[1] + '/fullsize');
+      img.setAttribute('alt', m[2]);
+      img.setAttribute('title', m[2]);
+      img.addEventListener('error', () => img.replaceWith(document.createTextNode(m[2])));
+      parent.appendChild(img);
+      last = m.index + m[0].length;
+    }
+    if(last < raw.length) parent.appendChild(document.createTextNode(raw.slice(last)));
+  }
+
+  function addMessage(ev){
+    const id = ev.id != null && ev.id !== '' ? String(ev.id) : '';
+    const key = id || [ev.username, ev.message, ev.createdAt].join('|');
+    if(seen.has(key)) return;
+    seen.add(key);
+    if(seen.size > SEEN_CAP) seen.clear();
+
+    const username = String(ev.username || '?');
+    const el = document.createElement('div');
+    el.className = 'ko-msg';
+    if(id){ el.dataset.id = id; byId.set(id, el); }
+    if(ev.senderId) el.dataset.uid = String(ev.senderId);
+    el.dataset.uname = username.toLowerCase();
+
+    const badges = renderBadges(ev.badges);
+    if(badges) el.appendChild(badges);
+
+    const user = document.createElement('span');
+    user.className = 'ko-user';
+    user.textContent = username;
+    const color = String(ev.color || '').trim();
+    if(NAME_RE.test(color)) user.style.color = color;
+    el.appendChild(user);
+
+    const text = document.createElement('span');
+    text.className = 'ko-text';
+    text.appendChild(document.createTextNode(' '));
+    appendBody(text, String(ev.message || ''));
+    el.appendChild(text);
+
+    feed.appendChild(el);
+    trimOverflow();
+  }
+
+  function fadeRemove(el){
+    if(!el || el.classList.contains('is-leaving')) return;
+    if(el.dataset.id && byId.get(el.dataset.id) === el) byId.delete(el.dataset.id);
+    el.classList.add('is-leaving');
+    setTimeout(() => el.remove(), LEAVE_MS);
+  }
+
+  // Leaving messages are not counted; the oldest live ones fade out.
+  function trimOverflow(){
+    const live = feed.querySelectorAll('.ko-msg:not(.is-leaving)');
+    for(let i = 0; i < live.length - MAX; i++) fadeRemove(live[i]);
+  }
+
+  function removeMessageById(id){
+    const el = byId.get(id);
+    if(!el) return;
+    fadeRemove(el);
+    seen.delete(id);   // allow the id to be shown again if it comes back
+  }
+
+  function removeMessagesByUser(userId, username){
+    const uname = String(username || '').toLowerCase();
+    feed.querySelectorAll('.ko-msg:not(.is-leaving)').forEach(el => {
+      const match = userId ? el.dataset.uid === String(userId) : (!!uname && el.dataset.uname === uname);
+      if(!match) return;
       if(el.dataset.id) seen.delete(el.dataset.id);
       fadeRemove(el);
-    }
-  });
-}
-function clearAllMessages(){
-  feed.querySelectorAll('.msg').forEach(fadeRemove);
-}
-
-/* =================== TR: VERİ MOTORU (Kick API + Pusher) / EN: DATA ENGINE (Kick API + Pusher) =================== */
-async function fetchChannelInfo(){
-  const res = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(CHANNEL)}`, {
-    headers:{ "Accept":"application/json" }, cache:"no-store"
-  });
-  if(!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-async function loadChannel(){
-  // TR: TEK istek: chatroom_id + GERÇEK abone rozet görselleri / EN: ONE request: chatroom_id + REAL subscriber badge images
-  try{
-    const data = await fetchChannelInfo();          // v2
-    setSubBadges(data?.subscriber_badges);
-    const id = data?.chatroom?.id || data?.chatroom_id;
-    if(id) return id;
-  }catch(e){ console.debug("v2 failed", e); }
-  try{
-    const res = await fetch(`https://kick.com/api/v1/channels/${encodeURIComponent(CHANNEL)}`, {
-      headers:{ "Accept":"application/json" }, cache:"no-store"
     });
-    if(res.ok){
-      const data = await res.json();
-      if(!SUB_BADGES.length) setSubBadges(data?.subscriber_badges);
-      const id = data?.chatroom?.id || data?.chatroom_id;
-      if(id) return id;
+  }
+
+  function clearAll(){
+    feed.querySelectorAll('.ko-msg:not(.is-leaving)').forEach(el => fadeRemove(el));
+  }
+
+  function onEvent(ev){
+    if(!ev) return;
+    switch(ev.kind){
+      case 'chat':   if(ev.message) addMessage(ev); break;
+      case 'delete': removeMessageById(ev.messageId); break;
+      case 'ban':    removeMessagesByUser(ev.userId, ev.username); break;
+      case 'clear':  clearAll(); break;
     }
-  }catch(e){ console.debug("v1 failed", e); }
-  throw new Error("chatroom_id not found");
-}
-
-function parsePayload(payload){
-  if(!payload) return null;
-  const eventName = String(payload.event||"");
-  // TR: Pusher sistem mesajlarını ele / EN: ignore Pusher system events
-  if(/^pusher/i.test(eventName)) return null;
-  let data = payload.data;
-  if(typeof data === "string"){ try{ data = JSON.parse(data); }catch{ return null; } }
-  if(!data) return null;
-
-  // TR: MODERASYON OLAYLARI — Kick sitesinde mesajı kaldıran event'ler. Bu kanala
-  //     (chatrooms.{id}) zaten abone olduğumuz için ek abonelik gerekmez.
-  // EN: MODERATION EVENTS — events that remove a message on Kick's site. We're already
-  //     subscribed to this channel (chatrooms.{id}), so no extra subscription is needed.
-  if(/MessageDeleted/i.test(eventName)){
-    const mid = (data.message && data.message.id) || data.message_id || data.id;
-    return mid ? { kind:'delete', messageId:String(mid) } : null;
-  }
-  if(/UserBanned/i.test(eventName)){
-    // TR: ban/timeout -> Kick o kullanıcının TÜM mesajlarını gizler
-    // EN: ban/timeout -> Kick hides ALL of that user's messages
-    const u = data.user || {};
-    return { kind:'ban',
-      userId: u.id != null ? String(u.id) : "",
-      username: String(u.username || u.slug || "").toLowerCase() };
-  }
-  if(/ChatroomClear/i.test(eventName)){
-    return { kind:'clear' };
   }
 
-  // TR: NORMAL SOHBET MESAJI / EN: NORMAL CHAT MESSAGE
-  if(!/ChatMessage/i.test(eventName)) return null;
-  const sender = data.sender || data.user || {};
-  const ident = sender.identity || data.identity || {};
-  // TR: GERÇEK yapı: sender.identity = { color, badges:[{type,text,count?}] }. İsim rengi "color" alanında.
-  // EN: REAL shape: sender.identity = { color, badges:[{type,text,count?}] }. Name color is the "color" field.
-  return {
-    kind: 'chat',
-    id: data.id || data.message_id || data.uuid,
-    senderId: sender.id != null ? String(sender.id) : (sender.user_id != null ? String(sender.user_id) : ""),
-    username: sender.username || sender.slug || data.username || "?",
-    color: ident.color || ident.username_color || sender.color || "",
-    message: data.content || data.message || "",
-    badges: ident.badges || sender.badges || [],
-    isVerified: !!sender.is_verified,   // TR: eski alan, yedek / EN: legacy field, kept as fallback
-    createdAt: data.created_at || data.createdAt || ""
-  };
-}
+  function setNote(text){ noteEl.textContent = text; noteEl.classList.remove('is-hidden'); }
+  function clearNote(){ noteEl.classList.add('is-hidden'); }
 
-function connectChat(chatroomId){
-  const url = `wss://ws-${PUSHER_CLUSTER}.pusher.com/app/${PUSHER_KEY}?protocol=7&client=js&version=8.4.0&flash=false`;
-  let ws=null, pingTimer=null, retryDelay=1000;
-  function subscribe(channel){ if(ws?.readyState===WebSocket.OPEN) ws.send(JSON.stringify({event:"pusher:subscribe",data:{auth:"",channel}})); }
-  function open(){
-    ws = new WebSocket(url);
-    ws.onopen = ()=>{
-      subscribe(`chatrooms.${chatroomId}`);
-      subscribe(`chatrooms.${chatroomId}.v2`);
-      retryDelay=1000;
-      clearInterval(pingTimer);
-      pingTimer=setInterval(()=>{ if(ws?.readyState===WebSocket.OPEN) ws.send(JSON.stringify({event:"pusher:ping",data:{}})); },30000);
-      setStatus(`● ${CHANNEL}`); hideStatusSoon();
-    };
-    ws.onmessage = (event)=>{
-      let payload; try{ payload=JSON.parse(event.data); }catch{ return; }
-      const msg = parsePayload(payload);
-      if(!msg) return;
-      switch(msg.kind){
-        case 'chat':   if(msg.message) addMessage(msg); break;
-        case 'delete': removeMessageById(msg.messageId); break;                // TR: tek mesaj silindi / EN: one message deleted
-        case 'ban':    removeMessagesByUser(msg.userId, msg.username); break;   // TR: kullanıcı banlandı / EN: user banned/timed out
-        case 'clear':  clearAllMessages(); break;                              // TR: sohbet temizlendi / EN: chat cleared
+  // K.connectChat parses each frame with K.parse.chatEvent before calling onEvent.
+  function onStatus(s){
+    if(s === 'open') clearNote();
+    else if(s === 'rejected') setNote('Canlı sohbet bağlantısı yok (Kick akışı kapalı)');
+    else setNote('bağlanıyor…');
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  // Retries the channel lookup with backoff (15 s doubling, capped at 120 s). Never shows demo messages.
+  async function startLive(){
+    setNote('bağlanıyor…');
+    let delay = 15000;
+    for(;;){
+      const ch = await K.kick.channel(S.kanal);
+      const id = ch.ok ? K.parse.chatroomId(ch.data) : null;
+      if(typeof id === 'number'){
+        subBadges = K.parse.subBadges(ch.data);
+        K.connectChat(id, { onMessage: onEvent, onStatus: onStatus });
+        return;
       }
-    };
-    ws.onerror = ()=> setStatus("connection error");
-    ws.onclose = ()=>{ clearInterval(pingTimer); setStatus("reconnecting…"); setTimeout(open, retryDelay); retryDelay=Math.min(retryDelay*1.8,15000); };
+      setNote('Kanal bilgisi alınamadı, yeniden deneniyor');
+      await sleep(delay);
+      delay = Math.min(delay * 2, 120000);
+    }
   }
-  open();
-}
 
-/* =================== TR: DEMO / EN: DEMO =================== */
-function runDemo(hintWhenEmpty){
-  // TR: kanal boşsa kullanıcıya kalıcı ipucu / EN: persistent hint to the user when channel is empty
-  if(hintWhenEmpty){ setStatus("DEMO · AYARLAR.js → kanal / set your channel"); }
-  else { setStatus("demo"); hideStatusSoon(); }
-  // TR: demo'da da gerçek abone rozetini göstermeyi dener / EN: demo also tries to show the real sub badge
-  if(CHANNEL) fetchChannelInfo().then(d=>setSubBadges(d?.subscriber_badges)).catch(()=>{});
-  const L = CONFIG.broadcasterLabel;
-  const samples = [
-    {username:"StreamerName", color:"#53fc18", message:"Hey chat! 👋 / Selam!", badges:[{type:"broadcaster"}]},
-    {username:"Mia", color:"#7bdcff", message:"This overlay looks clean", badges:[{type:"vip"}]},
-    {username:"Luna", color:"#ff8bd1", message:"audio is crystal clear"},
-    {username:"Kenji", color:"#ffd166", message:"GG! ranked when?", badges:[{type:"subscriber",count:3}]},
-    {username:"Alex", color:"#a78bfa", message:"thanks for the gifts", badges:[{type:"og"},{type:"sub_gifter",count:5}]}
+  // Preview only: used when kanal is empty. Makes no network calls.
+  const SAMPLES = [
+    { username:'StreamerName', color:'#53fc18', message:'Hey chat! 👋 / Selam!', badges:[{type:'broadcaster'}] },
+    { username:'Mia', color:'#7bdcff', message:'This overlay looks clean', badges:[{type:'vip'}] },
+    { username:'Luna', color:'#ff8bd1', message:'audio is crystal clear', badges:[] },
+    { username:'Kenji', color:'#ffd166', message:'GG! ranked when?', badges:[{type:'subscriber', count:3}] },
+    { username:'Alex', color:'#a78bfa', message:'thanks for the gifts', badges:[{type:'og'}, {type:'sub_gifter', count:5}] }
   ];
-  let i=0;
-  setInterval(()=>{ const s=samples[i%samples.length]; addMessage({...s, id:"demo-"+i, createdAt:Date.now()+i}); i++; }, 1500);
-}
-
-/* =================== TR: BAŞLAT / EN: START =================== */
-async function init(){
-  // TR: kanal yazılmamışsa demo + ipucu göster (boş ekran sanılmasın)
-  // EN: if no channel is set, show demo + a hint (so it doesn't look broken)
-  if(!CHANNEL){ runDemo(true); return; }
-  if(CONFIG.demo){ runDemo(false); return; }
-  setStatus(`… ${CHANNEL}`);
-  try{
-    const chatroomId = await loadChannel();
-    connectChat(chatroomId);
-  }catch(err){
-    setStatus(`error: ${err.message} — demo`);
-    runDemo(false);
+  function startPreview(){
+    const hint = document.createElement('div');
+    hint.className = 'ko-hint';
+    hint.textContent = '⚙ AYARLAR.js → kanal / set your channel';
+    document.body.appendChild(hint);
+    let i = 0;
+    const tick = () => {
+      addMessage(Object.assign({}, SAMPLES[i % SAMPLES.length], { id: 'demo-' + i }));
+      i++;
+    };
+    tick();
+    setInterval(tick, 2500);
   }
-}
-init();
 
-/* TR: test/elle (konsoldan): moderasyonu gerçek mod aksiyonu olmadan dene.
-   EN: test/manual (console): try moderation without a real mod action.
-   _testDelete() -> son mesajı sil / delete last message
-   _testDelete(id) / _testBan("username") / _testClear() */
-window._testDelete = function(id){
-  if(!id){ const last = feed.lastElementChild; id = last && last.dataset.id; }
-  removeMessageById(id);
-};
-window._testBan   = function(username){ removeMessagesByUser("", username); };
-window._testClear = clearAllMessages;
+  // Console helpers for manual moderation tests (no real mod action needed).
+  window._testDelete = function(id){
+    if(!id){
+      const live = feed.querySelectorAll('.ko-msg:not(.is-leaving)');
+      const last = live[live.length - 1];
+      id = last && last.dataset.id;
+    }
+    if(id) removeMessageById(String(id));
+  };
+  window._testBan = function(username){ removeMessagesByUser('', username); };
+  window._testClear = clearAll;
+
+  if(S.kanal) startLive();
+  else startPreview();
 })();
 </script>
 </body>
