@@ -108,7 +108,7 @@ Kick sends chat messages and bans to a web address you register in your Kick app
    ```
 
    Use the HTTPS address the tunnel prints, with `/kick/webhook` added at the end.
-4. In your Kick app settings, set that address as the webhook URL. The public Kick documentation does not say where this setting lives, so check your app's page in the developer area.
+4. Go to [kick.com/settings/developer](https://kick.com/settings/developer), click **Edit** on your app, turn on **Enable Webhooks**, and paste the address into the **Webhook URL** box. Kick's [event introduction](https://github.com/KickEngineering/KickDevDocs/blob/main/events/introduction.md) describes these steps.
 5. Subscribe to chat and bans:
 
    ```bash
@@ -277,7 +277,7 @@ Kick, sohbet mesajlarını ve yasakları, Kick uygulamanda kayıtlı bir web adr
    ```
 
    Tünelin verdiği HTTPS adresinin sonuna `/kick/webhook` ekle.
-4. Kick uygulama ayarlarında bu adresi webhook URL'si olarak gir. Kick'in herkese açık dokümantasyonu bu ayarın yerini belirtmiyor; geliştirici alanındaki uygulama sayfanda kontrol et.
+4. [kick.com/settings/developer](https://kick.com/settings/developer) adresine git, uygulamanın yanındaki **Edit**'e tıkla, **Enable Webhooks** anahtarını aç ve adresi **Webhook URL** kutusuna yapıştır. Kick'in [olay tanıtım sayfası](https://github.com/KickEngineering/KickDevDocs/blob/main/events/introduction.md) bu adımları anlatır.
 5. Sohbet ve yasak olaylarına abone ol:
 
    ```bash
