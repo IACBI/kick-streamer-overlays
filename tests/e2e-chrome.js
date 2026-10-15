@@ -289,6 +289,12 @@ async function previewChecks() {
   await sleep(4000);
   const cv = await ch.eval(`document.querySelectorAll('.ko-msg:not(.is-leaving)').length`);
   check('preview chat: sample messages shown', cv >= 1, `count=${cv}`);
+  const artSrc = await ch.eval(`Array.from(document.querySelectorAll('.ko-badge-art img')).map((i) => i.getAttribute('src'))`);
+  check('preview chat: badges/ art is used for the vip badge', artSrc.includes('badges/vip.svg'), `srcs=${JSON.stringify(artSrc)}`);
+  // The sample sub_gifter badge has no file in badges/, so it must fall back to the drawn symbol.
+  await sleep(9000);
+  const fallback = await ch.eval(`Array.from(document.querySelectorAll('.ko-badge')).some((b) => b.querySelector('svg') && (b.querySelector('.ko-count') || {}).textContent === '5')`);
+  check('preview chat: a missing badge file falls back to the drawn symbol', fallback);
   const hintShown = await ch.eval(`!!document.querySelector('.ko-hint')`);
   check('preview chat: no setup hint over the sample messages', !hintShown);
   await ch.close();

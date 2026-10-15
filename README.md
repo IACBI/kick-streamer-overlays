@@ -96,6 +96,8 @@ Every setting lives in `AYARLAR.js`. An invalid value falls back to its default,
 | `yenilemeSn` | Refresh interval in seconds (10–600) | `30` |
 | `sohbetMaksMesaj` | Most chat messages on screen at once (3–20) | `8` |
 
+**Badge art (optional).** Put an image named `moderator`, `vip`, `og`, `founder`, `verified`, `gifter` or `staff` (`.svg`, `.png`, `.webp`, `.gif`, `.jpg`) in `badges/` to replace the drawn chat badge. A missing file falls back to the drawn symbol. The five included icons are Kick's role artwork, added for convenience; replace or remove them freely (see `badges/OKU-README.txt`).
+
 **Kick app for the subscriber total (optional)**
 
 1. Create an app in Kick's developer area. The documentation is at [docs.kick.com](https://docs.kick.com).
@@ -216,6 +218,8 @@ Tüm ayarlar `AYARLAR.js` içindedir. Geçersiz bir değer varsayılanına döne
 | `yuzdeGoster` | Hedefin yüzdesini göster | `false` |
 | `yenilemeSn` | Yenileme aralığı, saniye (10–600) | `30` |
 | `sohbetMaksMesaj` | Ekranda aynı anda en fazla sohbet mesajı (3–20) | `8` |
+
+**Rozet görselleri (isteğe bağlı).** `badges/` klasörüne `moderator`, `vip`, `og`, `founder`, `verified`, `gifter` veya `staff` adıyla bir görsel (`.svg`, `.png`, `.webp`, `.gif`, `.jpg`) koyarsan çizili sohbet rozetinin yerine geçer. Dosya yoksa çizili simge gösterilir. Pakete eklenen beş ikon Kick'in rol görselleridir, kolaylık için eklenmiştir; istediğin gibi değiştirebilir veya kaldırabilirsin (bkz. `badges/OKU-README.txt`).
 
 **Abone toplamı için Kick uygulaması (isteğe bağlı)**
 

@@ -16,6 +16,9 @@
   *{ margin:0; padding:0; box-sizing:border-box; }
   html, body{ width:100%; height:100%; overflow:hidden; background:transparent; }
   body{ padding:14px; font-family:var(--font); -webkit-font-smoothing:antialiased; }
+  /* Badge art: the image is the badge, so no pill background or box shadow. */
+  .ko-badge-art{ background:none; box-shadow:none; padding:0; min-width:0; height:18px; }
+  .ko-badge-art img{ height:18px; width:auto; display:block; filter:drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
 </style>
 </head>
 <body>
@@ -104,6 +107,40 @@
     return span;
   }
 
+  // Optional art: badges/<name>.<ext> replaces the drawn symbol. A missing or failing file falls back to it.
+  const LOCAL_FILE = { moderator:'moderator', vip:'vip', og:'og', founder:'founder', verified:'verified', sub_gifter:'gifter', staff:'staff' };
+  const LOCAL_EXT = ['svg', 'png', 'webp', 'gif', 'jpg', 'jpeg'];
+  const localSrc = new Map();   // type -> resolved src, or false when no file exists
+
+  function roleBadge(type, count){
+    const base = own(LOCAL_FILE, type);
+    if(!base || localSrc.get(type) === false) return pill(type, count);
+    const wrap = document.createElement('span');
+    wrap.className = 'ko-badge ko-badge-art';
+    const img = document.createElement('img');
+    img.alt = type;
+    img.title = type;
+    let ext = 0;
+    const known = localSrc.get(type);
+    img.src = typeof known === 'string' ? known : 'badges/' + base + '.' + LOCAL_EXT[0];
+    img.addEventListener('load', () => localSrc.set(type, img.getAttribute('src')));
+    img.addEventListener('error', () => {
+      if(typeof localSrc.get(type) === 'string'){ wrap.replaceWith(pill(type, count)); return; }
+      ext += 1;
+      if(ext < LOCAL_EXT.length){ img.src = 'badges/' + base + '.' + LOCAL_EXT[ext]; return; }
+      localSrc.set(type, false);
+      wrap.replaceWith(pill(type, count));
+    });
+    wrap.appendChild(img);
+    if(count > 0 && type === 'sub_gifter'){
+      const c = document.createElement('span');
+      c.className = 'ko-count';
+      c.textContent = String(count);
+      wrap.appendChild(c);
+    }
+    return wrap;
+  }
+
   // Real channel badge for the highest tier <= months; drawn star if none fits or the image fails.
   function subscriberBadge(months){
     const tier = subBadges.find(b => months >= b.months);
@@ -112,6 +149,7 @@
     wrap.className = 'ko-badge';
     wrap.dataset.months = String(months);
     const img = document.createElement('img');
+    img.dataset.kind = 'subscriber';   // the shared error listener only handles these
     img.setAttribute('src', tier.src);
     img.setAttribute('alt', 'subscriber');
     img.setAttribute('title', months > 0 ? 'Sub · ' + months + 'm' : 'Sub');
@@ -137,7 +175,7 @@
       } else if(type === 'subscriber'){
         wrap.appendChild(subscriberBadge(n));
       } else if(own(ICON, type)){
-        wrap.appendChild(pill(type, n));
+        wrap.appendChild(roleBadge(type, n));
       } else if(b && b.text){
         const t = document.createElement('span');
         t.className = 'ko-badge';
@@ -175,6 +213,7 @@
     const img = e.target;
     if(!(img instanceof HTMLImageElement)) return;
     if(img.classList.contains('ko-emote')){ img.replaceWith(document.createTextNode(img.alt)); return; }
+    if(img.dataset.kind !== 'subscriber') return;   // role art falls back to its own drawn symbol
     const wrap = img.parentElement;
     if(wrap && wrap.classList.contains('ko-badge')) wrap.replaceWith(pill('subscriber', Number(wrap.dataset.months) || 0));
   }, true);
