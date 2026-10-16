@@ -23,12 +23,16 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - `AYARLAR.js` listed 8 of the 13 themes.
 - Removed a pass-through helper and an ineffective theme rule from the chat overlay.
 
-## [2.0.0] - 2026-10-16
+## [2.0.99] - 2026-10-15
+
+### Added
+- Live chat through the optional local relay in `relay/`, with Kick signature verification.
+
+## [2.0.0] - 2026-10-15
 
 ### Added
 - Thirteen themes, three corner shapes, four fonts, three motion levels and a preview mode (`?onizleme=1`).
 - Studio (`studio.html`) with live previews, presets and a downloadable `AYARLAR.js`.
-- Live chat through the local relay in `relay/`, with Kick signature verification.
 - Subscriber total from Kick's official API with your own app credentials.
 
 ### Changed
