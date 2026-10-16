@@ -2,6 +2,17 @@
 
 All notable changes to this project are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.1.1] - 2026-10-16
+
+### Fixed
+- Countdown title read "BIRAZDAN" with a plain I: CSS uppercase on an English page broke the Turkish dotted İ. The title now keeps its normal case.
+- Status notes on the subscriber and combined bars were Turkish only; they now follow the `dil` setting.
+- Stale chat troubleshooting entry in the studio (it still described the old Pusher feed).
+
+### Changed
+- Numbers use Turkish separators (1.234) when `dil` is `tr`, and the page language follows `dil`.
+- Wording, link and date fixes in the README and changelog; consistent header comments in the overlay pages.
+
 ## [2.1.0] - 2026-10-16
 
 ### Added
