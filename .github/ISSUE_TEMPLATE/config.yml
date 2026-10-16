@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Kick developer documentation
+    url: https://docs.kick.com
+    about: Questions about Kick's API, apps and webhooks are answered there.

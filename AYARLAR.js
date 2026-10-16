@@ -10,7 +10,8 @@ window.KICK_OVERLAY_AYARLAR = {
   // Kick channel name, as in kick.com/NAME
   kanal: "",
 
-  // Theme: glass | vivid | soft | cinema | neon | minimal | pastel | terminal
+  // Theme: glass | vivid | soft | cinema | neon | minimal | pastel | terminal |
+  //        aurora | holo | ember | paper | retro
   stil: "glass",
 
   // Corner shape: pill | rounded | square
@@ -52,6 +53,19 @@ window.KICK_OVERLAY_AYARLAR = {
   yenilemeSn: 30,
 
   // Maximum chat messages on screen (3–20)
-  sohbetMaksMesaj: 8
+  sohbetMaksMesaj: 8,
+
+  // Countdown (countdown.html): minutes to count down from when the page loads
+  geriSayimDk: 5,
+
+  // Countdown title. Empty = "Starting soon" in your label language
+  geriSayimBaslik: "",
+
+  // Announcement bar (ticker.html): lines separated by |  (up to 12)
+  // Example: "Follow for more | !discord | New video every Friday"
+  duyuruMetinleri: "",
+
+  // Seconds each announcement stays on screen (3–60)
+  duyuruSn: 6
 
 };

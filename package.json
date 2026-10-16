@@ -1,0 +1,18 @@
+{
+  "name": "kick-streamer-overlays",
+  "version": "2.1.0",
+  "description": "Free OBS overlays for Kick: goal bars, viewer panel, chat, countdown, announcement bar and a settings studio.",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "A.C.B",
+  "homepage": "https://github.com/IACBI/kick-streamer-overlays",
+  "repository": { "type": "git", "url": "git+https://github.com/IACBI/kick-streamer-overlays.git" },
+  "bugs": { "url": "https://github.com/IACBI/kick-streamer-overlays/issues" },
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node tests/run.js && node tests/relay-test.js",
+    "test:browser": "node tests/e2e-chrome.js",
+    "relay": "node relay/server.js",
+    "record": "node tools/record-previews.js"
+  }
+}

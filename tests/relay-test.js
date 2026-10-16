@@ -93,9 +93,9 @@ function openSse(port) {
   return { frames, close: () => req.destroy() };
 }
 
-function get(port, p, method = 'GET') {
+function get(port, p, method = 'GET', headers) {
   return new Promise((resolve, reject) => {
-    const req = http.request({ host: '127.0.0.1', port, path: p, method }, (res) => {
+    const req = http.request({ host: '127.0.0.1', port, path: p, method, headers }, (res) => {
       let data = '';
       res.on('data', (c) => { data += c; });
       res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: data }));
@@ -209,6 +209,7 @@ function get(port, p, method = 'GET') {
   check('webhook port: any other path is not found (404)', (await get(webhookPort, '/events')).status === 404);
   check('events port: unknown paths are not found (404)', (await get(eventsPort, '/kick/webhook')).status === 404);
   check('events port: POST is refused (405)', (await get(eventsPort, '/events', 'POST')).status === 405);
+  check('events port: a foreign Host header is refused (403, DNS rebinding)', (await get(eventsPort, '/health', 'GET', { Host: 'evil.example' })).status === 403);
   const health = await get(eventsPort, '/health');
   check('events port: health reports the connected overlay', health.status === 200 && /"clients":1/.test(health.body), health.body);
   check('events port: responses allow the overlay page to read them (CORS)', health.headers['access-control-allow-origin'] === '*');

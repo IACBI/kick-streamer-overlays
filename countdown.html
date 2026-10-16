@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<!-- OBS Browser source (Local file): 520 x 190. "Starting soon" countdown. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kick Countdown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/themes.css">
+<script src="AYARLAR.js"></script>
+<script src="AYARLAR.local.js"></script>
+<script src="shared/kick-core.js"></script>
+<style>
+  html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
+  body {
+    box-sizing: border-box; padding: 16px; display: flex; align-items: center; justify-content: center;
+    font-family: var(--font); -webkit-font-smoothing: antialiased;
+  }
+  .ko-panel.cd {
+    width: 100%; flex-direction: column; gap: 10px; padding: 18px 28px 20px; text-align: center;
+    border-radius: var(--r-card);
+  }
+  body.shape-pill .ko-panel.cd { border-radius: 36px; }
+  .cd-title { font-size: 16px; font-weight: 700; color: var(--muted); letter-spacing: .4px; text-transform: uppercase; text-shadow: var(--text-shadow); }
+  .cd-time {
+    font-size: 64px; font-weight: 800; line-height: 1; color: var(--text); text-shadow: var(--text-shadow);
+    font-variant-numeric: tabular-nums; letter-spacing: 1px;
+  }
+  .cd-track { width: 100%; height: 6px; border-radius: 999px; overflow: hidden; background: var(--surface-border); }
+  .cd-fill {
+    width: 100%; height: 100%; border-radius: inherit; background: var(--fill-bg);
+    transform-origin: 0 50%; transform: scaleX(1); transition: transform 1s linear;
+  }
+  .cd.is-done .cd-time { animation: cd-pop 1.2s ease-in-out infinite; }
+  @keyframes cd-pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  body.motion-off .cd-fill { transition: none; }
+  body.motion-low .cd.is-done .cd-time { animation: none; }
+  @media (prefers-reduced-motion: reduce) { .cd.is-done .cd-time { animation: none; } }
+</style>
+</head>
+<body>
+<div class="ko-panel cd" id="panel" role="timer" aria-live="off">
+  <div class="cd-title" id="title"></div>
+  <div class="cd-time" id="time">00:00</div>
+  <div class="cd-track"><div class="cd-fill" id="fill"></div></div>
+</div>
+<script>
+(function(){
+  const K = window.KickOverlay;
+  const S = K.readSettings();
+  const PREVIEW = K.isPreview();
+  K.applyLook(S);
+
+  const panel = document.getElementById('panel');
+  const elTitle = document.getElementById('title');
+  const elTime = document.getElementById('time');
+  const elFill = document.getElementById('fill');
+
+  // The countdown starts when the page loads, so refreshing the OBS source restarts it.
+  // Preview shows a clock part-way through so the design is visible at once.
+  const totalMs = S.geriSayimDk * 60 * 1000;
+  const deadline = Date.now() + (PREVIEW ? 272000 : totalMs);
+  const baseMs = PREVIEW ? 300000 : totalMs;
+  const pad = (n) => String(n).padStart(2, '0');
+
+  elTitle.textContent = S.geriSayimBaslik || K.label(S, 'Birazdan başlıyoruz', 'Starting soon');
+
+  let shown = -1;
+  let timer = null;
+
+  function render(){
+    const left = Math.max(0, deadline - Date.now());
+    const secs = Math.ceil(left / 1000);
+    if (secs === shown) return;
+    shown = secs;
+    const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+    elTime.textContent = (h > 0 ? h + ':' + pad(m) : pad(m)) + ':' + pad(s);
+    elFill.style.transform = 'scaleX(' + Math.max(0, Math.min(1, left / baseMs)).toFixed(4) + ')';
+    if (secs === 0) {
+      panel.classList.add('is-done');
+      elTitle.textContent = K.label(S, 'Başlıyoruz!', 'Going live!');
+      clearInterval(timer);
+      timer = null;
+    }
+  }
+
+  render();
+  timer = setInterval(render, 250);
+  window.addEventListener('pagehide', function(){ if (timer !== null) clearInterval(timer); });
+})();
+</script>
+</body>
+</html>

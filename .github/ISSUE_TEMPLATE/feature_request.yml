@@ -1,0 +1,14 @@
+name: Feature request
+description: A theme, overlay or setting you would like to see.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to see, and what would you use it for?
+    validations:
+      required: true
+  - type: textarea
+    id: alt
+    attributes:
+      label: Anything similar you tried or saw elsewhere?

@@ -3,7 +3,8 @@
 <head>
 <!-- Kick Overlay Stüdyo: ayarları seçin, önizleyin, AYARLAR.js dosyasını indirin.
      Önizleme boyutları (OBS ile aynı): chat 460×760 · follower-bar 520×90 ·
-     subscriber-bar 520×90 · combined-bar 520×180 · info-panel 300×80 -->
+     subscriber-bar 520×90 · combined-bar 520×180 · info-panel 300×80 ·
+     countdown 520×190 · ticker 760×80 -->
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Kick Overlay Stüdyo</title>
@@ -368,6 +369,8 @@
     border: 0;
     transform-origin: 0 0;
     background: transparent;
+    /* The overlay pages declare no color-scheme. A mismatch with the dark page would make Chrome paint the frame opaque white. */
+    color-scheme: normal;
   }
 
   /* ---- Troubleshooting ---- */
@@ -389,7 +392,7 @@
     .st-btn { flex: 1 1 100%; }
     .st-themes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .st-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .st-presets .st-btn { flex: none; padding: 0 8px; }
+    .st-presets .st-btn { flex: none; padding: 0 4px; white-space: nowrap; }
     .st-color-row input[type="text"] { max-width: none; }
   }
 
@@ -521,11 +524,38 @@
           </div>
         </section>
 
+        <!-- 3b. Geri sayım ve duyuru -->
+        <section class="st-section" aria-labelledby="s3b">
+          <h2 id="s3b"><span class="st-num">4</span>Geri sayım ve duyuru çubuğu</h2>
+          <div class="st-grid">
+            <div class="st-field">
+              <label class="st-label" for="geriSayimDk">Geri sayım süresi (dakika)</label>
+              <input id="geriSayimDk" name="geriSayimDk" type="number" min="1" max="720" step="1" inputmode="numeric" />
+              <p class="st-hint">Sayfa yüklenince başlar. 1 ile 720 arası.</p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="geriSayimBaslik">Geri sayım başlığı</label>
+              <input id="geriSayimBaslik" name="geriSayimBaslik" type="text" maxlength="60" />
+              <p class="st-hint">Boşsa "Birazdan başlıyoruz" yazar.</p>
+            </div>
+            <div class="st-field" style="grid-column: 1 / -1">
+              <label class="st-label" for="duyuruMetinleri">Duyuru metinleri</label>
+              <input id="duyuruMetinleri" name="duyuruMetinleri" type="text" maxlength="400" placeholder="Takip et | !discord | Her cuma yeni video" />
+              <p class="st-hint">Satırları | ile ayırın (en çok 12).</p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="duyuruSn">Duyuru süresi (saniye)</label>
+              <input id="duyuruSn" name="duyuruSn" type="number" min="3" max="60" step="1" inputmode="numeric" />
+              <p class="st-hint">3 ile 60 arası.</p>
+            </div>
+          </div>
+        </section>
+
       </form>
 
       <!-- 6. Kick uygulaması (isteğe bağlı). Outside the form: secrets never reach the output. -->
       <section class="st-section" aria-labelledby="s6">
-        <h2 id="s6"><span class="st-num">6</span>Kick uygulaması<span class="st-tag">isteğe bağlı</span></h2>
+        <h2 id="s6"><span class="st-num">5</span>Kick uygulaması<span class="st-tag">isteğe bağlı</span></h2>
         <p class="st-hint">Aktif abone sayısını Kick'ten canlı çekmek için kendi Kick uygulamanızın bilgileri gerekir. Bilgiler yalnızca bu sayfanın belleğinde tutulur: kaydedilmez, adres çubuğuna ya da AYARLAR.js çıktısına yazılmaz.</p>
 
         <div class="st-grid" style="margin-top:16px">
@@ -558,7 +588,7 @@
 
       <!-- 4. Canlı önizleme -->
       <section class="st-section" aria-labelledby="s4">
-        <h2 id="s4"><span class="st-num">4</span>Canlı önizleme</h2>
+        <h2 id="s4"><span class="st-num">6</span>Canlı önizleme</h2>
         <p class="st-hint">Ayarlar değiştikçe önizleme yenilenir. Kanal boşsa overlay'ler kurulum ipucunu gösterir. Boyutlar OBS'deki gerçek boyutlardır; ekrana sığmayanlar küçültülür.</p>
 
         <div class="st-previews" style="margin-top:16px">
@@ -582,6 +612,16 @@
             <div class="st-stage"><div class="st-fit"><iframe width="300" height="80" title="Yayın bilgi paneli önizlemesi"></iframe></div></div>
           </figure>
 
+          <figure class="st-pv" data-overlay="countdown.html" data-w="520" data-h="190">
+            <figcaption><span>Geri sayım</span><span>520 × 190</span></figcaption>
+            <div class="st-stage"><div class="st-fit"><iframe width="520" height="190" title="Geri sayım önizlemesi"></iframe></div></div>
+          </figure>
+
+          <figure class="st-pv" data-overlay="ticker.html" data-w="760" data-h="80">
+            <figcaption><span>Duyuru çubuğu</span><span>760 × 80</span></figcaption>
+            <div class="st-stage"><div class="st-fit"><iframe width="760" height="80" title="Duyuru çubuğu önizlemesi"></iframe></div></div>
+          </figure>
+
           <figure class="st-pv" data-overlay="chat.html" data-w="460" data-h="760">
             <figcaption><span>Sohbet</span><span>460 × 760</span></figcaption>
             <div class="st-stage"><div class="st-fit"><iframe width="460" height="760" title="Sohbet önizlemesi"></iframe></div></div>
@@ -591,7 +631,7 @@
 
       <!-- 5. Çıktı -->
       <section class="st-section" aria-labelledby="s5">
-        <h2 id="s5"><span class="st-num">5</span>Çıktı: AYARLAR.js</h2>
+        <h2 id="s5"><span class="st-num">7</span>Çıktı: AYARLAR.js</h2>
         <textarea id="cikti" readonly spellcheck="false" aria-label="Oluşturulan AYARLAR.js içeriği"></textarea>
         <div class="st-actions">
           <button type="button" id="indir" class="st-btn st-btn--primary">AYARLAR.js indir</button>
@@ -603,7 +643,7 @@
 
       <!-- 7. Sorun giderme -->
       <section class="st-section" aria-labelledby="s7">
-        <h2 id="s7"><span class="st-num">7</span>Sorun giderme</h2>
+        <h2 id="s7"><span class="st-num">8</span>Sorun giderme</h2>
 
         <h3>Kontrol listesi</h3>
         <ol class="st-list">
@@ -697,7 +737,11 @@
     { key: 'oturumFarkiGoster', note: 'Show "+N this stream" next to the subscriber count' },
     { key: 'yuzdeGoster', note: 'Show the percentage of the goal' },
     { key: 'yenilemeSn', note: 'Refresh interval in seconds (10–600)' },
-    { key: 'sohbetMaksMesaj', note: 'Maximum chat messages on screen (3–20)' }
+    { key: 'sohbetMaksMesaj', note: 'Maximum chat messages on screen (3–20)' },
+    { key: 'geriSayimDk', note: 'Countdown (countdown.html): minutes to count down from when the page loads' },
+    { key: 'geriSayimBaslik', note: 'Countdown title. Empty = "Starting soon" in your label language' },
+    { key: 'duyuruMetinleri', note: 'Announcement bar (ticker.html): lines separated by |  (up to 12)\nExample: "Follow for more | !discord | New video every Friday"' },
+    { key: 'duyuruSn', note: 'Seconds each announcement stays on screen (3–60)' }
   ]; }
 
   var $ = function (id) { return document.getElementById(id); };

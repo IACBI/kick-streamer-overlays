@@ -33,7 +33,11 @@
     oturumFarkiGoster: { t: 'bool', d: true },
     yuzdeGoster:       { t: 'bool', d: false },
     yenilemeSn:        { t: 'int', d: 30, min: 10, max: 600 },
-    sohbetMaksMesaj:   { t: 'int', d: 8, min: 3, max: 20 }
+    sohbetMaksMesaj:   { t: 'int', d: 8, min: 3, max: 20 },
+    geriSayimDk:       { t: 'int', d: 5, min: 1, max: 720 },
+    geriSayimBaslik:   { t: 'str', d: '', max: 60 },
+    duyuruMetinleri:   { t: 'str', d: '', max: 400 },
+    duyuruSn:          { t: 'int', d: 6, min: 3, max: 60 }
   };
 
   // Local-only keys. Never read from the URL, so secrets never end up in a URL.
@@ -148,6 +152,11 @@
     startMs: 3723000
   };
 
+  // Splits the announcement setting (lines separated by |) into at most 12 trimmed, non-empty lines.
+  function splitLines(v) {
+    return String(v || '').split('|').map(function (t) { return t.trim(); }).filter(Boolean).slice(0, 12);
+  }
+
   // ---- Labels, numbers, look ---------------------------------------------
 
   function label(s, tr, en) {
@@ -254,11 +263,6 @@
       if (n !== null) return n;
     }
     return null;
-  }
-
-  function parseChatroomId(d) {
-    var id = d && ((d.chatroom && d.chatroom.id) || d.chatroom_id);
-    return typeof id === 'number' && isFinite(id) ? id : null;
   }
 
   function parseLive(d) {
@@ -417,15 +421,15 @@
   function schemaKeys() { return Object.keys(SCHEMA); }
 
   global.KickOverlay = {
-    version: '2.0.0',
+    version: '2.1.0',
     enums: enumsOf,
     schemaKeys: schemaKeys,
     normalize: normalize,
     normalizeLocal: normalizeLocal,
     readSettings: readSettings,
-    hasCredentials: hasCredentials,
     isPreview: isPreview,
     sample: SAMPLE,
+    splitLines: splitLines,
     label: label,
     fmt: fmt,
     pct: pct,
@@ -434,7 +438,6 @@
     getJson: getJson,
     parse: {
       followers: parseFollowers,
-      chatroomId: parseChatroomId,
       live: parseLive,
       subBadges: parseSubBadges,
       official: parseOfficialChannel,

@@ -1,0 +1,26 @@
+name: Bug report
+description: An overlay, the studio or the relay does not behave as documented.
+labels: [bug]
+body:
+  - type: dropdown
+    id: part
+    attributes:
+      label: Which part?
+      options: [follower-bar, subscriber-bar, combined-bar, info-panel, chat, countdown, ticker, studio, relay, docs]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include your settings (from AYARLAR.js) but never your Kick client secret.
+  - type: input
+    id: env
+    attributes:
+      label: OBS version and operating system

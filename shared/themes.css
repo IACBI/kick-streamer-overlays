@@ -58,7 +58,9 @@ body.theme-soft {
   --surface: rgba(255, 255, 255, 0.1);
   --surface-border: rgba(255, 255, 255, 0.06);
   --shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
-  --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 60%, #fff), var(--accent));
+  /* White text sits on this fill, so it stays at or below the accent's own lightness. */
+  --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 78%, #000), color-mix(in srgb, var(--accent) 92%, #000));
+  --text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 0 10px rgba(0, 0, 0, 0.3);
   --bar-h: 54px;
   --msg-bg: rgba(255, 255, 255, 0.1);
   --msg-border: rgba(255, 255, 255, 0.06);
@@ -261,7 +263,9 @@ body.theme-paper .ko-msg { backdrop-filter: none; -webkit-backdrop-filter: none;
 body.theme-paper .ko-bar { isolation: isolate; }
 body.theme-paper .ko-fill { mix-blend-mode: multiply; }
 body.theme-paper .ko-fill::after { display: none; }
-body.theme-paper .ko-user { color: var(--name-color, color-mix(in srgb, var(--accent) 40%, var(--text))); }
+/* Light surfaces: darken the name colour (Kick colours or the accent) so it stays readable. */
+body.theme-paper .ko-user,
+body.theme-pastel .ko-user { color: color-mix(in srgb, var(--name-color, var(--accent)) 50%, #14110d); }
 
 /* Retro: arcade pixels. Square corners, hard shadows, a dotted fill and a hard text shadow. */
 body.theme-retro {
@@ -415,10 +419,9 @@ body.motion-low .ko-msg { animation-duration: .2s; }
 .ko-badge img { height: 18px; width: auto; display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .45)); }
 .ko-badge .ko-count { font-size: 10px; font-weight: 800; margin: 0 1px 0 2px; line-height: 1; }
 .ko-bcast {
-  font-weight: 800; font-size: 13px; letter-spacing: .2px;
-  background-image: linear-gradient(90deg, #ff5e5e, #ff9d3c, #ffe14d, #5ee08a, #4fd0ff, #7c8bff, #c06bff, #ff5e8a, #ff5e5e);
-  background-size: 220% 100%; -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent; text-shadow: 0 1px 1px rgba(0, 0, 0, .65);
+  padding: 1px 7px; border-radius: 5px; font-weight: 800; font-size: 12px; letter-spacing: .2px; color: #fff;
+  background-image: linear-gradient(90deg, #e5484d, #f08a24, #d9a400, #2fae5b, #1c9bd6, #5b6cf0, #a24be0, #d6407a, #e5484d);
+  background-size: 220% 100%; text-shadow: 0 1px 2px rgba(0, 0, 0, .6); box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
   animation: ko-flow 9s linear infinite;
 }
 @keyframes ko-flow { to { background-position: 220% 0; } }

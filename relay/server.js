@@ -18,6 +18,7 @@ const KEY_URL = 'https://api.kick.com/public/v1/public-key';
 const KEY_TTL_MS = 60 * 60 * 1000;
 const MAX_BODY = 64 * 1024;
 const MAX_CLIENTS = 20;
+const LOOPBACK_HOST = /^(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/i;
 
 function send(res, status, body, extra) {
   const payload = body === undefined ? '' : JSON.stringify(body);
@@ -124,6 +125,8 @@ function createRelay(opts) {
 
   // ---- events listener (local only, for the overlay page) ----
   const events = http.createServer((req, res) => {
+    // Only loopback names are served, so a web page cannot reach this port through DNS rebinding.
+    if (!LOOPBACK_HOST.test(req.headers.host || '')) return send(res, 403, { error: 'forbidden host' });
     res.setHeader('Access-Control-Allow-Origin', '*');
     if (req.method !== 'GET') return send(res, 405, { error: 'method not allowed' }, { Allow: 'GET' });
     if (req.url === '/health') return send(res, 200, { ok: true, clients: clients.size });

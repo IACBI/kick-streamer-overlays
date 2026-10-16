@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<!-- OBS Browser source (Local file): 760 x 80. Rotating announcement bar. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kick Announcement Bar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/themes.css">
+<script src="AYARLAR.js"></script>
+<script src="AYARLAR.local.js"></script>
+<script src="shared/kick-core.js"></script>
+<style>
+  html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
+  body {
+    position: relative; box-sizing: border-box; padding: 16px; display: flex; align-items: center; justify-content: center;
+    font-family: var(--font); -webkit-font-smoothing: antialiased;
+  }
+  .ko-bar { width: 100%; }
+  .tk-msg {
+    position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center;
+    padding: 0 28px; text-align: center; font-size: 20px; font-weight: 700; color: var(--text); text-shadow: var(--text-shadow);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    opacity: 0; transform: translateY(10px); transition: opacity .45s ease, transform .45s cubic-bezier(.2, .8, .2, 1);
+  }
+  .tk-msg.is-in { opacity: 1; transform: none; }
+  .tk-msg.is-out { opacity: 0; transform: translateY(-10px); }
+  .tk-bar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; height: 3px; background: var(--fill-bg); transform-origin: 0 50%; transform: scaleX(0); }
+  .tk-bar.is-run { animation: tk-run var(--tk-ms, 6000ms) linear forwards; }
+  @keyframes tk-run { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  body.motion-off .tk-msg { transition: none; }
+  body.motion-low .tk-bar, body.motion-off .tk-bar { display: none; }
+  @media (prefers-reduced-motion: reduce) { .tk-msg { transition-duration: .01s; } .tk-bar { display: none; } }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="ko-bar" id="bar">
+  <div class="tk-msg" id="msg" aria-live="polite"></div>
+  <div class="tk-bar" id="progress"></div>
+</div>
+<script>
+(function(){
+  const K = window.KickOverlay;
+  const S = K.readSettings();
+  const PREVIEW = K.isPreview();
+  K.applyLook(S);
+
+  const elBar = document.getElementById('bar');
+  const elMsg = document.getElementById('msg');
+  const elProgress = document.getElementById('progress');
+  const SAMPLES = ['Follow the channel so you never miss a stream', 'Takip et, yayını kaçırma', '!discord · !socials · !schedule'];
+  const SWAP_MS = 450;
+  const interval = S.duyuruSn * 1000;
+
+  let lines = K.splitLines(S.duyuruMetinleri);
+  let idx = 0;
+  let timer = null;
+
+  function show(text){
+    elMsg.textContent = text;
+    elMsg.classList.remove('is-out');
+    elMsg.classList.add('is-in');
+    if (lines.length > 1) {
+      elProgress.style.setProperty('--tk-ms', (interval - SWAP_MS) + 'ms');
+      elProgress.classList.remove('is-run');
+      void elProgress.offsetWidth;   // restart the animation
+      elProgress.classList.add('is-run');
+    }
+  }
+
+  function next(){
+    elMsg.classList.remove('is-in');
+    elMsg.classList.add('is-out');
+    setTimeout(function(){
+      idx = (idx + 1) % lines.length;
+      show(lines[idx]);
+    }, S.animasyon === 'off' ? 0 : SWAP_MS);
+  }
+
+  function showHint(){
+    const h = document.createElement('div');
+    h.className = 'ko-hint';
+    h.textContent = '⚙ AYARLAR.js → duyuruMetinleri';
+    elBar.appendChild(h);
+  }
+
+  if (PREVIEW) lines = SAMPLES;
+  if (lines.length === 0) { showHint(); return; }
+  show(lines[0]);
+  if (lines.length > 1) {
+    timer = setInterval(next, interval);
+    window.addEventListener('pagehide', function(){ clearInterval(timer); });
+  }
+})();
+</script>
+</body>
+</html>

@@ -18,7 +18,7 @@ const CORE_FILE = path.join(ROOT, 'shared', 'kick-core.js');
 const CSS_FILE = path.join(ROOT, 'shared', 'themes.css');
 const SETTINGS_FILE = path.join(ROOT, 'AYARLAR.js');
 const FIXTURE_DIR = path.join(__dirname, 'fixtures');
-const OVERLAY_PAGES = ['follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html'];
+const OVERLAY_PAGES = ['follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html', 'countdown.html', 'ticker.html'];
 // The studio is a configurator: it generates AYARLAR.js, so it does not load the settings scripts.
 const STUDIO_PAGE = 'studio.html';
 
@@ -34,7 +34,7 @@ const DEFAULTS = {
   kanal: '', stil: 'glass', sekil: 'pill', yaziTipi: 'inter', dil: 'both', animasyon: 'normal',
   renk: '#53fc18', yayinciYazisi: 'Streamer', takipciHedefi: 1000, takipciYedek: 0,
   aboneHedefi: 100, aboneSayisi: 0, oturumFarkiGoster: true, yuzdeGoster: false,
-  yenilemeSn: 30, sohbetMaksMesaj: 8
+  yenilemeSn: 30, sohbetMaksMesaj: 8, geriSayimDk: 5, geriSayimBaslik: '', duyuruMetinleri: '', duyuruSn: 6
 };
 
 const CORE_SOURCE = fs.readFileSync(CORE_FILE, 'utf8');
@@ -263,7 +263,7 @@ async function testCoreApi() {
   await check('kick-core.js loads and exposes the documented API', () => {
     ['readSettings', 'normalize', 'schemaKeys', 'enums', 'label', 'fmt', 'pct', 'applyLook', 'tween',
       'getJson', 'createSubscriberSource', 'connectRelay'].forEach((n) => ok(typeof K[n] === 'function', 'missing ' + n));
-    ['followers', 'chatroomId', 'live', 'subBadges', 'time', 'official'].forEach((n) =>
+    ['followers', 'live', 'subBadges', 'time', 'official'].forEach((n) =>
       ok(typeof K.parse[n] === 'function', 'missing parse.' + n));
     ok(typeof K.kick.channel === 'function', 'missing kick.channel');
     ['token', 'channel', 'clearToken'].forEach((n) => ok(typeof K.official[n] === 'function', 'missing official.' + n));
@@ -501,11 +501,6 @@ async function testParsers() {
   await check('followers: both fields missing gives null', () => eq(K.parse.followers({}), null, 'missing'));
   await check('followers: empty string gives null', () => eq(K.parse.followers({ followers_count: '' }), null, 'empty'));
   await check('followers: null input gives null', () => eq(K.parse.followers(null), null, 'null input'));
-
-  await check('chatroomId: id from fixture; missing gives null', () => {
-    eq(K.parse.chatroomId(v2off), 2002, 'fixture');
-    eq(K.parse.chatroomId({}), null, 'missing');
-  });
 
   await check('live: livestream null gives live false', () => {
     eqFields(K.parse.live(v2off), { live: false, viewers: 0, startMs: null }, '');

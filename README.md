@@ -1,9 +1,11 @@
 <a id="top"></a>
 # Kick Streamer Overlay Pack
 
-Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime panel, a chat overlay, and a studio that writes your settings file. The basic setup needs no server and no account.
+Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime panel, a chat overlay, a "starting soon" countdown, a rotating announcement bar, and a studio that writes your settings file. The basic setup needs no server and no account.
 
-![License](https://img.shields.io/badge/license-free-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Tests](https://img.shields.io/badge/tests-134%20unit%20checks-2563eb)
+[![CI](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml/badge.svg)](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml) ![License](https://img.shields.io/badge/license-free-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Overlays](https://img.shields.io/badge/overlays-7-0ea5e9) ![Tests](https://img.shields.io/badge/tests-138%20checks-2563eb)
+
+<p align="center"><img src="screenshots/hero.png" alt="Goal bars, a countdown, an announcement bar, an info panel and chat in one theme family" width="860"></p>
 
 **Read this in:** [English](#english) · [Türkçe](#turkce)
 
@@ -14,9 +16,9 @@ Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime p
 
 ### Overview
 
-![Thirteen themes with live follower data from kick.com/iacbi](screenshots/themes.gif)
+![All thirteen themes in turn, shown on the combined goal bars](screenshots/themes.gif)
 
-<sub>Each theme in turn, with the live follower count of kick.com/iacbi. The bar fills, the count rises, and a light sweep crosses the fill.</sub>
+<sub>Each of the 13 themes in turn, with sample numbers. The bars fill and a light sweep crosses the fill.</sub>
 
 Pick a look in `studio.html`, enter your channel name, and add the files to OBS as Browser sources. The overlays read Kick's public channel data directly.
 
@@ -33,7 +35,8 @@ Pick a look in `studio.html`, enter your channel name, and add the files to OBS 
 - Corner shapes (`pill`, `rounded`, `square`), four fonts, labels in Turkish, English or both, three motion levels, and an optional percentage
 - A session gain next to the subscriber count, such as "+3 this stream"
 - Preview mode (`?onizleme=1`) with sample numbers and no network calls, used by the studio and these docs
-- Studio with live previews, presets, a downloadable `AYARLAR.js`, and a connection test for your Kick app
+- Studio with live previews of every overlay, presets, a downloadable `AYARLAR.js`, and a connection test for your Kick app
+- A countdown for your "starting soon" scene and an announcement bar that rotates your socials, commands or schedule. Both work without any Kick data
 - Built for OBS: animations use `transform`, `opacity` and `background-position`. The exceptions are the chat message exit and the bar fill width. Chat keeps a fixed number of messages, polls never overlap, and no Kick data is ever inserted as HTML
 
 ### Requirements
@@ -41,7 +44,7 @@ Pick a look in `studio.html`, enter your channel name, and add the files to OBS 
 - OBS Studio with Browser sources
 - A Kick channel name
 - Optional: a Kick developer app (client ID and secret) for the subscriber total
-- Node.js 18 or newer, for the relay and the tests
+- Node.js 20 or newer, for the relay and the tests
 - Optional, for live chat: a tunnel tool such as `cloudflared` or `ngrok`
 
 ### Installation
@@ -60,9 +63,11 @@ Pick a look in `studio.html`, enter your channel name, and add the files to OBS 
 | `combined-bar.html` | Followers and subscribers in one panel | 520 × 180 |
 | `info-panel.html` | Viewers and uptime, shown only while live | 300 × 80 |
 | `chat.html` | Live chat (needs the relay, see Live chat) | 460 × 760 |
+| `countdown.html` | "Starting soon" countdown that starts when the source loads | 520 × 190 |
+| `ticker.html` | Announcement bar that rotates your lines | 760 × 80 |
 | `studio.html` | Configurator. Open it in a browser, not in OBS | — |
 
-The animations below use sample numbers (`?onizleme=1`) so they show the design. The follower count in the theme animation is live data from kick.com/iacbi.
+Every animation here uses sample data (`?onizleme=1`), so it shows the design and makes no request to Kick.
 
 <p align="center">
   <img src="screenshots/chat-preview.gif" width="500" alt="Chat preview: sample messages arrive one by one, with badge art"><br>
@@ -79,7 +84,15 @@ The animations below use sample numbers (`?onizleme=1`) so they show the design.
   <sub><b>Combined panel.</b> Both goal bars fill smoothly. The chip shows how many subscribers were gained during this stream.</sub>
 </p>
 
-<sub>The chat, info panel and combined animations use sample numbers (<code>?onizleme=1</code>), so they show the design, not a live channel.</sub>
+<p align="center">
+  <img src="screenshots/countdown.gif" width="460" alt="Countdown: the clock ticks down and the bar drains"><br>
+  <sub><b>Countdown.</b> Put it on your "starting soon" scene. The clock starts when the source loads, so refreshing the source restarts it. At zero it shows "Going live!".</sub>
+</p>
+
+<p align="center">
+  <img src="screenshots/ticker.gif" width="640" alt="Announcement bar: three lines rotate with a progress line"><br>
+  <sub><b>Announcement bar.</b> Your lines rotate with a soft transition. A thin line shows when the next one arrives.</sub>
+</p>
 
 Troubleshooting:
 
@@ -87,6 +100,8 @@ Troubleshooting:
 - **"Kick uygulama bilgisi hatalı"** (Kick rejected your app credentials): check `kickClientId` and `kickClientSecret` in `AYARLAR.local.js`. The studio's connection test shows the same error.
 - **"Kick'e ulaşılamadı"** (Kick did not answer): the last value stays on screen and the overlay tries again.
 - **Subscriber count is 0**: no Kick app is set up, so the value comes from `aboneSayisi`.
+- **The countdown restarted**: it counts from the moment the source loads. Refreshing the source, or switching scenes with *Shutdown source when not visible* on, starts it again.
+- **`⚙ AYARLAR.js → duyuruMetinleri`** on the announcement bar: fill in `duyuruMetinleri`, then refresh the source.
 
 <a id="live-chat-en"></a>
 #### Live chat (optional)
@@ -116,7 +131,7 @@ Kick sends chat messages and bans to a web address you register in your Kick app
    ```
 6. Add `chat.html` in OBS as usual. Messages appear as soon as Kick delivers them.
 
-The relay accepts only events with a valid Kick signature and shows each event once. Its overlay port listens on `127.0.0.1` only, so the tunnel exposes just the webhook path. Kick limits subscriptions per app: 10,000 per event type, and 1,000 for chat messages while the app is unverified.
+The relay accepts only events with a valid Kick signature and shows each event once. Its overlay port listens on `127.0.0.1` only and refuses requests with a foreign `Host` header, so the tunnel exposes just the webhook path. Kick limits subscriptions per app: 10,000 per event type, and 1,000 for chat messages while the app is unverified.
 
 <a id="configuration-en"></a>
 ### Configuration
@@ -141,6 +156,10 @@ Every setting lives in `AYARLAR.js`. An invalid value falls back to its default,
 | `yuzdeGoster` | Show the percentage of the goal | `false` |
 | `yenilemeSn` | Refresh interval in seconds (10–600) | `30` |
 | `sohbetMaksMesaj` | Most chat messages on screen at once (3–20) | `8` |
+| `geriSayimDk` | Countdown length in minutes (1–720) | `5` |
+| `geriSayimBaslik` | Countdown title. Empty shows "Starting soon" in your label language | *(empty)* |
+| `duyuruMetinleri` | Announcement lines separated by `\|`, up to 12, e.g. `Follow for more \| !discord \| New video every Friday` | *(empty)* |
+| `duyuruSn` | Seconds each announcement stays (3–60) | `6` |
 
 **Badge art (optional).** Put an image named `moderator`, `vip`, `og`, `founder`, `verified`, `gifter` or `staff` (`.svg`, `.png`, `.webp`, `.gif`, `.jpg`) in `badges/` to replace the drawn chat badge. A missing file falls back to the drawn symbol. The five included icons are Kick's role artwork, added for convenience; replace or remove them freely (see `badges/OKU-README.txt`).
 
@@ -164,9 +183,11 @@ The overlay requests and renews its own access token from `id.kick.com`. Kick do
 
 ### Contributing
 
-- Unit tests: `node tests/run.js`, and relay tests: `node tests/relay-test.js` (Node.js 18 or newer, no packages).
+- Unit tests: `node tests/run.js`, and relay tests: `node tests/relay-test.js` (Node.js 20 or newer, no packages). GitHub Actions runs both on every push.
 - Browser tests: `node tests/e2e-chrome.js`. They need Chrome or Edge. Add `--live --channel <name>` for real Kick data, `--token` for the local mock, `--preview` for sample mode, `--perf` for a 30-second heap and DOM check, and `--relay` for live chat through the relay with signed test events.
 - Pages must stay classic scripts so they work from `file://`. Use the shared `.ko-*` components and tokens in `shared/themes.css`, and prefer `transform` and `opacity` for new animations.
+- `node tools/record-previews.js` re-creates the images in `screenshots/` (needs Node.js 22, Chrome or Edge, and `ffmpeg`).
+- More in [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [changelog](CHANGELOG.md).
 
 ### License
 
@@ -183,9 +204,9 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 
 ### Genel Bakış
 
-![Kick verisiyle on üç tema, kick.com/iacbi takipçi sayısı](screenshots/themes.gif)
+![On üç temanın hepsi sırayla, birleşik hedef çubuklarında](screenshots/themes.gif)
 
-<sub>Her tema sırayla, kick.com/iacbi kanalının canlı takipçi sayısıyla. Çubuk dolar, sayı artar ve dolgunun üzerinden bir ışık geçer.</sub>
+<sub>13 temanın her biri sırayla, örnek sayılarla. Çubuklar dolar ve dolgunun üzerinden bir ışık geçer.</sub>
 
 `studio.html` içinde bir görünüm seç, kanal adını yaz ve dosyaları OBS'ye Tarayıcı kaynağı olarak ekle. Overlay'ler Kick'in herkese açık kanal verisini doğrudan okur.
 
@@ -202,7 +223,8 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 - Köşe şekilleri (`pill`, `rounded`, `square`), dört yazı tipi, Türkçe, İngilizce ya da ikisi birden etiketler, üç hareket seviyesi ve isteğe bağlı yüzde gösterimi
 - Abone sayısının yanında "bu yayında +3" gibi yayın içi artış
 - Önizleme modu (`?onizleme=1`): ağ çağrısı yapmadan örnek sayılar gösterir. Stüdyo ve bu dokümantasyon kullanır.
-- Canlı önizlemeli, hazır ayarlı, indirilebilir `AYARLAR.js` içeren stüdyo; Kick uygulaman için bağlantı testi
+- Her overlay için canlı önizlemeli, hazır ayarlı, indirilebilir `AYARLAR.js` içeren stüdyo; Kick uygulaman için bağlantı testi
+- "Birazdan başlıyoruz" sahnen için geri sayım ve sosyal medya, komut ya da yayın takvimini döndüren duyuru çubuğu. İkisi de Kick verisi olmadan çalışır
 - OBS için tasarlandı: animasyonlar `transform`, `opacity` ve `background-position` kullanır. İstisnalar sohbet mesajının çıkışı ve çubuk dolgusunun genişliğidir. Sohbet sabit sayıda mesaj tutar, sorgular üst üste binmez ve Kick verisi hiçbir zaman HTML olarak eklenmez
 
 ### Gereksinimler
@@ -210,7 +232,7 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 - Tarayıcı kaynağı destekleyen OBS Studio
 - Bir Kick kanal adı
 - İsteğe bağlı: abone toplamı için bir Kick geliştirici uygulaması (client ID ve client secret)
-- Relay ve testler için Node.js 18 veya üstü
+- Relay ve testler için Node.js 20 veya üstü
 - Opsiyonel, canlı sohbet için: `cloudflared` veya `ngrok` gibi bir tünel aracı
 
 ### Kurulum
@@ -229,9 +251,11 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 | `combined-bar.html` | Takipçi ve aboneler tek panelde | 520 × 180 |
 | `info-panel.html` | İzleyici ve yayın süresi, yalnızca yayındayken | 300 × 80 |
 | `chat.html` | Canlı sohbet (relay gerektirir, bkz. Canlı sohbet) | 460 × 760 |
+| `countdown.html` | Kaynak yüklenince başlayan "birazdan başlıyoruz" geri sayımı | 520 × 190 |
+| `ticker.html` | Satırlarını sırayla gösteren duyuru çubuğu | 760 × 80 |
 | `studio.html` | Yapılandırıcı. OBS'de değil, tarayıcıda aç | — |
 
-Aşağıdaki animasyonlar tasarımı göstermek için örnek sayılar kullanır (`?onizleme=1`). Tema animasyonundaki takipçi sayısı kick.com/iacbi kanalının canlı verisidir.
+Buradaki tüm animasyonlar örnek veri kullanır (`?onizleme=1`); yani tasarımı gösterir ve Kick'e istek yapmaz.
 
 <p align="center">
   <img src="screenshots/chat-preview.gif" width="500" alt="Sohbet önizlemesi: örnek mesajlar teker teker gelir, rozet görselleriyle"><br>
@@ -248,7 +272,15 @@ Aşağıdaki animasyonlar tasarımı göstermek için örnek sayılar kullanır 
   <sub><b>Birleşik panel.</b> İki hedef çubuğu yumuşakça dolar. Rozet, bu yayında kazanılan abone sayısını gösterir.</sub>
 </p>
 
-<sub>Sohbet, yayın paneli ve birleşik panel animasyonları örnek sayılar kullanır (<code>?onizleme=1</code>); yani canlı bir kanalı değil tasarımı gösterir.</sub>
+<p align="center">
+  <img src="screenshots/countdown.gif" width="460" alt="Geri sayım: saat geriye sayar, çubuk boşalır"><br>
+  <sub><b>Geri sayım.</b> "Birazdan başlıyoruz" sahnene koy. Saat kaynak yüklenince başlar; kaynağı yenilersen yeniden başlar. Sıfırda "Başlıyoruz!" yazar.</sub>
+</p>
+
+<p align="center">
+  <img src="screenshots/ticker.gif" width="640" alt="Duyuru çubuğu: üç satır ilerleme çizgisiyle sırayla döner"><br>
+  <sub><b>Duyuru çubuğu.</b> Satırların yumuşak bir geçişle döner. İnce bir çizgi bir sonrakinin ne zaman geleceğini gösterir.</sub>
+</p>
 
 Sorun giderme:
 
@@ -256,6 +288,8 @@ Sorun giderme:
 - **"Kick uygulama bilgisi hatalı"**: Kick uygulama bilgilerini reddetti. `AYARLAR.local.js` içindeki `kickClientId` ve `kickClientSecret` değerlerini kontrol et. Stüdyonun bağlantı testi aynı hatayı gösterir.
 - **"Kick'e ulaşılamadı"**: Kick yanıt vermedi. Ekranda son değer kalır ve overlay yeniden dener.
 - **Abone sayısı 0**: Kick uygulaması kurulu değil, değer `aboneSayisi` alanından gelir.
+- **Geri sayım yeniden başladı**: sayım kaynağın yüklendiği andan başlar. Kaynağı yenilemek ya da *Görünmezken kaynağı kapat* açıkken sahne değiştirmek onu baştan başlatır.
+- Duyuru çubuğunda **`⚙ AYARLAR.js → duyuruMetinleri`** yazıyorsa `duyuruMetinleri` alanını doldur, sonra kaynağı yenile.
 
 <a id="canli-sohbet-tr"></a>
 #### Canlı sohbet (opsiyonel)
@@ -285,7 +319,7 @@ Kick, sohbet mesajlarını ve yasakları, Kick uygulamanda kayıtlı bir web adr
    ```
 6. `chat.html` dosyasını OBS'ye her zamanki gibi ekle. Mesajlar Kick teslim eder etmez görünür.
 
-Relay yalnızca geçerli Kick imzası taşıyan olayları kabul eder ve her olayı bir kez gösterir. Overlay portu yalnızca `127.0.0.1`'de dinler; tünel sadece webhook yolunu dışarı açar. Kick, uygulama başına abonelikleri sınırlar: olay türü başına 10.000, doğrulanmamış uygulamada sohbet mesajları için 1.000.
+Relay yalnızca geçerli Kick imzası taşıyan olayları kabul eder ve her olayı bir kez gösterir. Overlay portu yalnızca `127.0.0.1`'de dinler ve yabancı `Host` başlığı taşıyan istekleri reddeder; tünel sadece webhook yolunu dışarı açar. Kick, uygulama başına abonelikleri sınırlar: olay türü başına 10.000, doğrulanmamış uygulamada sohbet mesajları için 1.000.
 
 <a id="yapilandirma-tr"></a>
 ### Yapılandırma
@@ -310,6 +344,10 @@ Tüm ayarlar `AYARLAR.js` içindedir. Geçersiz bir değer varsayılanına döne
 | `yuzdeGoster` | Hedefin yüzdesini göster | `false` |
 | `yenilemeSn` | Yenileme aralığı, saniye (10–600) | `30` |
 | `sohbetMaksMesaj` | Ekranda aynı anda en fazla sohbet mesajı (3–20) | `8` |
+| `geriSayimDk` | Geri sayım süresi, dakika (1–720) | `5` |
+| `geriSayimBaslik` | Geri sayım başlığı. Boşsa etiket dilinde "Birazdan başlıyoruz" yazar | *(boş)* |
+| `duyuruMetinleri` | `\|` ile ayrılmış duyuru satırları, en çok 12, ör. `Takip et \| !discord \| Her cuma yeni video` | *(boş)* |
+| `duyuruSn` | Her duyurunun ekranda kalma süresi, saniye (3–60) | `6` |
 
 **Rozet görselleri (isteğe bağlı).** `badges/` klasörüne `moderator`, `vip`, `og`, `founder`, `verified`, `gifter` veya `staff` adıyla bir görsel (`.svg`, `.png`, `.webp`, `.gif`, `.jpg`) koyarsan çizili sohbet rozetinin yerine geçer. Dosya yoksa çizili simge gösterilir. Pakete eklenen beş ikon Kick'in rol görselleridir, kolaylık için eklenmiştir; istediğin gibi değiştirebilir veya kaldırabilirsin (bkz. `badges/OKU-README.txt`).
 
@@ -333,9 +371,11 @@ Overlay, erişim anahtarını `id.kick.com` üzerinden kendisi alır ve yeniler.
 
 ### Katkı
 
-- Birim testleri: `node tests/run.js`, relay testleri: `node tests/relay-test.js` (Node.js 18 veya üstü, paket gerekmez).
+- Birim testleri: `node tests/run.js`, relay testleri: `node tests/relay-test.js` (Node.js 20 veya üstü, paket gerekmez). GitHub Actions ikisini de her push'ta çalıştırır.
 - Tarayıcı testleri: `node tests/e2e-chrome.js`. Chrome veya Edge gerekir. Gerçek Kick verisi için `--live --channel <ad>`, yerel sahte sunucu için `--token`, önizleme modu için `--preview`, 30 saniyelik bellek ve DOM kontrolü için `--perf`, imzalı test olaylarıyla relay üzerinden canlı sohbet için `--relay` ekle.
 - Sayfalar `file://` üzerinden çalışabilmek için klasik script olarak kalmalı. Ortak `.ko-*` bileşenlerini ve `shared/themes.css` içindeki değişkenleri kullan, yeni animasyonlar için `transform` ve `opacity` tercih et.
+- `node tools/record-previews.js`, `screenshots/` içindeki görselleri yeniden üretir (Node.js 22, Chrome veya Edge ve `ffmpeg` gerekir).
+- Ayrıntılar: [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) ve [değişiklik günlüğü](CHANGELOG.md).
 
 ### Lisans
 

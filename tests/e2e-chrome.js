@@ -186,6 +186,31 @@ async function offlineChecks() {
   check('info-panel: no unexpected errors', unexpected(ip.logs).length === 0, short(unexpected(ip.logs)));
   await ip.close();
 
+  const cd = await openPage('countdown.html', '?geriSayimDk=1&geriSayimBaslik=Test%20Title', [520, 190]);
+  await sleep(2500);
+  const cdInfo = await cd.eval(`({ title: document.getElementById('title').textContent, time: document.getElementById('time').textContent, scale: document.getElementById('fill').style.transform })`);
+  check('countdown: custom title and a running clock under one minute', cdInfo.title === 'Test Title' && /^00:(59|58|57)$/.test(cdInfo.time), JSON.stringify(cdInfo));
+  check('countdown: no unexpected errors', unexpected(cd.logs).length === 0, short(unexpected(cd.logs)));
+  await cd.shot('countdown.png');
+  await cd.close();
+
+  const tk = await openPage('ticker.html', '', [760, 80]);
+  await sleep(1500);
+  const tkInfo = await tk.eval(`({ hint: !!document.querySelector('.ko-hint'), text: document.getElementById('msg').textContent })`);
+  check('ticker: setup hint when no announcements are set', tkInfo.hint && tkInfo.text === '', JSON.stringify(tkInfo));
+  check('ticker: no unexpected errors', unexpected(tk.logs).length === 0, short(unexpected(tk.logs)));
+  await tk.close();
+
+  const tk2 = await openPage('ticker.html', '?duyuruMetinleri=First%20%7C%20Second%20%7C%20%7C%20Third&duyuruSn=3', [760, 80]);
+  await sleep(1000);
+  const first = await tk2.eval(`document.getElementById('msg').textContent`);
+  await sleep(4200);
+  const second = await tk2.eval(`document.getElementById('msg').textContent`);
+  check('ticker: shows the first line, then rotates and skips empty lines', first === 'First' && second === 'Second', first + ' -> ' + second);
+  check('ticker: no unexpected errors with announcements', unexpected(tk2.logs).length === 0, short(unexpected(tk2.logs)));
+  await tk2.shot('ticker.png');
+  await tk2.close();
+
   const ch = await openPage('chat.html', '', [460, 760]);
   await sleep(5000);
   const chInfo = await ch.eval(`({ msgs: document.querySelectorAll('.ko-msg:not(.is-leaving)').length })`);
@@ -336,7 +361,7 @@ async function tokenChecks() {
   const port = 8787;
   const server = await mock.startMockKick({ port });
   const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'kick-token-'));
-  for (const f of ['AYARLAR.js', 'follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html']) {
+  for (const f of ['AYARLAR.js', 'follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html', 'countdown.html', 'ticker.html']) {
     fs.copyFileSync(path.join(ROOT, f), path.join(copy, f));
   }
   fs.cpSync(path.join(ROOT, 'shared'), path.join(copy, 'shared'), { recursive: true });

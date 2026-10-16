@@ -38,6 +38,7 @@
   // Matches the .ko-msg.is-leaving animation duration in themes.css (.4s).
   const LEAVE_MS = 400;
   const SEEN_CAP = 500;
+  const CONNECTING = K.label(S, 'bağlanıyor…', 'connecting…');
   // Only hex (#rgb or #rrggbb, as in kick-core) or a plain colour name reaches the CSS.
   const HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
   const NAME_RE = /^[a-z]{3,20}$/i;
@@ -66,7 +67,6 @@
   };
 
   const seen = new Set();   // dedupe guard by message id
-  const byId = new Map();   // message id -> live .ko-msg element
   let subBadges = [];       // [{months, src}] sorted high -> low, from K.parse.subBadges
   let stopChat = null;      // from K.connectRelay
   let previewTimer = null;
@@ -218,24 +218,17 @@
     if(wrap && wrap.classList.contains('ko-badge')) wrap.replaceWith(pill('subscriber', Number(wrap.dataset.months) || 0));
   }, true);
 
-  // Removes a message node at once and forgets its id.
-  function dropNode(el){
-    if(el.dataset.id && byId.get(el.dataset.id) === el) byId.delete(el.dataset.id);
-    el.remove();
-  }
-
   // Deletes, bans and clears fade out before they are removed.
   function fadeRemove(el){
     if(!el || el.classList.contains('is-leaving')) return;
-    if(el.dataset.id && byId.get(el.dataset.id) === el) byId.delete(el.dataset.id);
     el.classList.add('is-leaving');
-    setTimeout(() => dropNode(el), LEAVE_MS);
+    setTimeout(() => el.remove(), LEAVE_MS);
   }
 
   // Keeps the feed at MAX nodes before a new one is added. The oldest message sits under the
   // top mask fade, so it is removed without animation.
   function makeRoom(){
-    while(feed.childElementCount >= MAX) dropNode(feed.firstElementChild);
+    while(feed.childElementCount >= MAX) feed.firstElementChild.remove();
   }
 
   function addMessage(ev){
@@ -248,7 +241,7 @@
     const username = String(ev.username || '?');
     const el = document.createElement('div');
     el.className = 'ko-msg';
-    if(id){ el.dataset.id = id; byId.set(id, el); }
+    if(id) el.dataset.id = id;
     if(ev.senderId) el.dataset.uid = String(ev.senderId);
     el.dataset.uname = username.toLowerCase();
 
@@ -259,7 +252,7 @@
     user.className = 'ko-user';
     user.textContent = username;
     const color = String(ev.color || '').trim();
-    if(HEX_RE.test(color) || NAME_RE.test(color)) user.style.color = color;
+    if(HEX_RE.test(color) || NAME_RE.test(color)) user.style.setProperty("--name-color", color);
     el.appendChild(user);
 
     const text = document.createElement('span');
@@ -272,13 +265,6 @@
     feed.appendChild(el);
   }
 
-  function removeMessageById(id){
-    const el = byId.get(id);
-    if(!el) return;
-    fadeRemove(el);
-    seen.delete(id);   // allow the id to be shown again if it comes back
-  }
-
   function removeMessagesByUser(userId, username){
     const uname = String(username || '').toLowerCase();
     feed.querySelectorAll('.ko-msg:not(.is-leaving)').forEach(el => {
@@ -289,17 +275,11 @@
     });
   }
 
-  function clearAll(){
-    feed.querySelectorAll('.ko-msg:not(.is-leaving)').forEach(el => fadeRemove(el));
-  }
-
   function onEvent(ev){
     if(!ev) return;
     switch(ev.kind){
       case 'chat':   if(ev.message) addMessage(ev); break;
-      case 'delete': removeMessageById(ev.messageId); break;
       case 'ban':    removeMessagesByUser(ev.userId, ev.username); break;
-      case 'clear':  clearAll(); break;
     }
   }
 
@@ -309,13 +289,13 @@
   // The relay (relay/server.js) sends chat and ban events already in this shape.
   function onStatus(s){
     if(s === 'open') clearNote();
-    else if(s === 'reconnecting') setNote('Canlı sohbet köprüsüne bağlanılamadı (relay çalışıyor mu?) · yeniden deneniyor');
-    else setNote('bağlanıyor…');
+    else if(s === 'reconnecting') setNote(K.label(S, 'Canlı sohbet köprüsüne bağlanılamadı (relay çalışıyor mu?) · yeniden deneniyor', 'Cannot reach the chat relay (is it running?) · retrying'));
+    else setNote(CONNECTING);
   }
 
   // Chat comes from the local relay. Subscriber badge images come from Kick's public channel data.
   function startLive(){
-    setNote('bağlanıyor…');
+    setNote(CONNECTING);
     K.kick.channel(S.kanal).then((ch) => { if(ch.ok && !closing) subBadges = K.parse.subBadges(ch.data); }).catch(() => {});
     stopChat = K.connectRelay(S.relayAdresi + '/events', { onMessage: onEvent, onStatus: onStatus });
   }
@@ -343,18 +323,6 @@
     tick();
     previewTimer = setInterval(tick, 2500);
   }
-
-  // Console helpers for manual moderation tests (no real mod action needed).
-  window._testDelete = function(id){
-    if(!id){
-      const live = feed.querySelectorAll('.ko-msg:not(.is-leaving)');
-      const last = live[live.length - 1];
-      id = last && last.dataset.id;
-    }
-    if(id) removeMessageById(String(id));
-  };
-  window._testBan = function(username){ removeMessagesByUser('', username); };
-  window._testClear = clearAll;
 
   window.addEventListener('pagehide', function(){
     closing = true;
