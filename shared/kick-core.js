@@ -165,8 +165,11 @@
     return tr + ' / ' + en;
   }
 
+  // Thousands separators follow the label language: 1.234 for tr, 1,234 otherwise. applyLook() sets it.
+  var numLocale = 'en-US';
+
   function fmt(n) {
-    return Math.round(Number(n) || 0).toLocaleString('en-US');
+    return Math.round(Number(n) || 0).toLocaleString(numLocale);
   }
 
   function pct(current, goal) {
@@ -193,6 +196,9 @@
       'motion-' + s.animasyon
     ).join(' ');
     var root = global.document.documentElement;
+    // Lets the browser apply the right language rules (hyphenation, screen readers). "both" stays English.
+    root.lang = s.dil === 'tr' ? 'tr' : 'en';
+    numLocale = s.dil === 'tr' ? 'tr-TR' : 'en-US';
     root.style.setProperty('--accent', s.renk);
     root.style.setProperty('--accent-rgb', hexToRgb(s.renk).join(' '));
   }

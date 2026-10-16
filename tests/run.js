@@ -463,6 +463,16 @@ async function testHelpers() {
     eq(doc.documentElement.style.values['--accent-rgb'], '170 187 204', '--accent-rgb');
   });
 
+  await check('fmt() uses Turkish separators only for dil=tr, and applyLook() sets the document language', () => {
+    ctx.document = fakeDocument('');
+    K.applyLook(K.normalize({ dil: 'tr' }));
+    eq(K.fmt(1234567), '1.234.567', 'tr');
+    eq(ctx.document.documentElement.lang, 'tr', 'lang tr');
+    K.applyLook(K.normalize({ dil: 'both' }));
+    eq(K.fmt(1234567), '1,234,567', 'both');
+    eq(ctx.document.documentElement.lang, 'en', 'lang en');
+  });
+
   await check('tween() with 0 ms jumps straight to the end', () => {
     const seen = [];
     K.tween(0, 10, 0, (v) => seen.push(v));

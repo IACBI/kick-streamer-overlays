@@ -39,7 +39,7 @@
   const LEAVE_MS = 400;
   const SEEN_CAP = 500;
   const CONNECTING = K.label(S, 'bağlanıyor…', 'connecting…');
-  // Only hex (#rgb or #rrggbb, as in kick-core) or a plain colour name reaches the CSS.
+  // Only hex (#rgb or #rrggbb, as in kick-core) or a plain color name reaches the CSS.
   const HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
   const NAME_RE = /^[a-z]{3,20}$/i;
   // Badge art only from Kick's own hosts; anything else falls back to the drawn badge.
@@ -218,7 +218,7 @@
     if(wrap && wrap.classList.contains('ko-badge')) wrap.replaceWith(pill('subscriber', Number(wrap.dataset.months) || 0));
   }, true);
 
-  // Deletes, bans and clears fade out before they are removed.
+  // Messages of a banned user fade out before they are removed.
   function fadeRemove(el){
     if(!el || el.classList.contains('is-leaving')) return;
     el.classList.add('is-leaving');
@@ -304,7 +304,7 @@
   const SAMPLES = [
     { username:'StreamerName', color:'#53fc18', message:'Hey chat! 👋 / Selam!', badges:[{type:'broadcaster'}] },
     { username:'Mia', color:'#7bdcff', message:'This overlay looks clean', badges:[{type:'vip'}] },
-    { username:'Luna', color:'#ff8bd1', message:'audio is crystal clear', badges:[] },
+    { username:'Luna', color:'#ff8bd1', message:'Audio is crystal clear', badges:[] },
     { username:'Kenji', color:'#ffd166', message:'GG! ranked when?', badges:[{type:'subscriber', count:3}] },
     { username:'Alex', color:'#a78bfa', message:'thanks for the gifts', badges:[{type:'og'}, {type:'sub_gifter', count:5}] }
   ];

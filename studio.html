@@ -648,7 +648,7 @@
         <h3>Kontrol listesi</h3>
         <ol class="st-list">
           <li>Kanal alanına yalnızca kanal adını yazdınız mı? (kick.com/<strong>ad</strong>)</li>
-          <li>AYARLAR.js dosyasını proje klasörüne koyup OBS'de kaynağı Yenile'diniz mi?</li>
+          <li>AYARLAR.js dosyasını proje klasörüne koyup OBS'de kaynağa sağ tıklayarak Yenile'yi seçtiniz mi?</li>
           <li>OBS kaynağının genişlik ve yüksekliği, bu sayfadaki boyutla aynı mı?</li>
           <li>Canlı abone sayısı istiyorsanız Kick uygulama bilgilerini girip "Bağlantıyı test et" ile doğruladınız mı?</li>
         </ol>
@@ -661,7 +661,7 @@
           </div>
           <div>
             <dt>Kick uygulama bilgisi hatalı — AYARLAR.local.js</dt>
-            <dd>Client ID veya Secret yanlış ya da yetkisiz. Bilgileri kontrol edip kaynağı OBS'de Yenile'yin.</dd>
+            <dd>Client ID veya Secret yanlış ya da yetkisiz. Bilgileri kontrol edip OBS'de kaynağa sağ tıklayıp Yenile'yi seçin.</dd>
           </div>
           <div>
             <dt>Kick'e ulaşılamadı, son değer gösteriliyor</dt>
@@ -672,8 +672,8 @@
             <dd>Kick bu kanal için abone bilgisi vermiyor. Sayı 0 görünebilir; manuel abone sayısı bu durumda kullanılmaz.</dd>
           </div>
           <div>
-            <dt>Canlı sohbet bağlantısı yok (Kick akışı kapalı)</dt>
-            <dd>Kick'in canlı sohbet akışı şu an kapalı; sohbet kutusu boş kalır. Sahte mesaj gösterilmez.</dd>
+            <dt>Canlı sohbet köprüsüne bağlanılamadı</dt>
+            <dd>Sohbet, yerel relay üzerinden gelir. <code>node relay/server.js</code> çalışıyor mu? Çalışmıyorsa sohbet kutusu boş kalır ve sahte mesaj gösterilmez. Kurulum için README'deki Canlı sohbet bölümüne bakın.</dd>
           </div>
           <div>
             <dt>bağlanıyor…</dt>
@@ -702,7 +702,7 @@
     stil: {
       glass: 'Cam', vivid: 'Canlı', soft: 'Yumuşak', cinema: 'Sinema', neon: 'Neon', minimal: 'Minimal',
       pastel: 'Pastel', terminal: 'Terminal', aurora: 'Kuzey Işığı', holo: 'Holografik', ember: 'Kor',
-      paper: 'Kağıt', retro: 'Piksel'
+      paper: 'Kâğıt', retro: 'Piksel'
     },
     sekil: { pill: 'Hap', rounded: 'Yuvarlak', square: 'Kare' },
     yaziTipi: { inter: 'Inter', poppins: 'Poppins', nunito: 'Nunito', mono: 'Mono' },

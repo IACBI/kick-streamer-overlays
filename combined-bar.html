@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Kick Combined Bar</title>
-<!-- OBS Browser source size: 520 x 180 -->
+<!-- OBS Browser source (Local file): 520 x 180. Follower and subscriber goals in one panel. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -53,10 +53,10 @@
   const note = $('note'), hint = $('hint');
   const TICK = S.yenilemeSn * 1000;
   const NOTES = {
-    auth: 'Kick uygulama bilgisi hatalı — AYARLAR.local.js',
-    rate: "Kick'e ulaşılamadı, son değer gösteriliyor",
-    error: "Kick'e ulaşılamadı, son değer gösteriliyor",
-    'no-data': 'Kick bu kanal için abone verisi döndürmedi'
+    auth: K.label(S, 'Kick uygulama bilgisi hatalı', 'Kick app credentials rejected') + ' — AYARLAR.local.js',
+    rate: K.label(S, "Kick'e ulaşılamadı, son değer gösteriliyor", 'Kick unreachable, showing the last value'),
+    error: K.label(S, "Kick'e ulaşılamadı, son değer gösteriliyor", 'Kick unreachable, showing the last value'),
+    'no-data': K.label(S, 'Kick bu kanal için abone verisi döndürmedi', 'Kick returned no subscriber data for this channel')
   };
 
   function makeRow(root, goal) {

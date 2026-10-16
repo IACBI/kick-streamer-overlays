@@ -67,7 +67,7 @@ Pick a look in `studio.html`, enter your channel name, and add the files to OBS 
 | `ticker.html` | Announcement bar that rotates your lines | 760 × 80 |
 | `studio.html` | Configurator. Open it in a browser, not in OBS | — |
 
-Every animation here uses sample data (`?onizleme=1`), so it shows the design and makes no request to Kick.
+These previews use sample data (`?onizleme=1`), so they show the design and make no request to Kick.
 
 <p align="center">
   <img src="screenshots/chat-preview.gif" width="500" alt="Chat preview: sample messages arrive one by one, with badge art"><br>
@@ -131,7 +131,7 @@ Kick sends chat messages and bans to a web address you register in your Kick app
    ```
 6. Add `chat.html` in OBS as usual. Messages appear as soon as Kick delivers them.
 
-The relay accepts only events with a valid Kick signature and shows each event once. Its overlay port listens on `127.0.0.1` only and refuses requests with a foreign `Host` header, so the tunnel exposes just the webhook path. Kick limits subscriptions per app: 10,000 per event type, and 1,000 for chat messages while the app is unverified.
+The relay accepts only events with a valid Kick signature and passes each event on only once. Its overlay port listens on `127.0.0.1` only and refuses requests with a foreign `Host` header, so the tunnel exposes just the webhook path. Kick limits subscriptions per app: 10,000 per event type, and 1,000 for chat messages while the app is unverified.
 
 <a id="configuration-en"></a>
 ### Configuration
@@ -146,7 +146,7 @@ Every setting lives in `AYARLAR.js`. An invalid value falls back to its default,
 | `yaziTipi` | `inter` · `poppins` · `nunito` · `mono` | `inter` |
 | `dil` | `tr` · `en` · `both` | `both` |
 | `animasyon` | `normal` · `low` · `off` | `normal` |
-| `renk` | Accent colour, hex (e.g. `#53fc18`) | `#53fc18` |
+| `renk` | Accent color, hex (e.g. `#53fc18`) | `#53fc18` |
 | `yayinciYazisi` | Label next to your name in chat (chat only) | `Streamer` |
 | `takipciHedefi` | Follower goal | `1000` |
 | `takipciYedek` | Follower count shown when Kick cannot be reached | `0` |
@@ -161,7 +161,7 @@ Every setting lives in `AYARLAR.js`. An invalid value falls back to its default,
 | `duyuruMetinleri` | Announcement lines separated by `\|`, up to 12, e.g. `Follow for more \| !discord \| New video every Friday` | *(empty)* |
 | `duyuruSn` | Seconds each announcement stays (3–60) | `6` |
 
-**Badge art (optional).** Put an image named `moderator`, `vip`, `og`, `founder`, `verified`, `gifter` or `staff` (`.svg`, `.png`, `.webp`, `.gif`, `.jpg`) in `badges/` to replace the drawn chat badge. A missing file falls back to the drawn symbol. The five included icons are Kick's role artwork, added for convenience; replace or remove them freely (see `badges/OKU-README.txt`).
+**Badge art (optional).** Put an image named `moderator`, `vip`, `og`, `founder`, `verified`, `gifter` or `staff` (`.svg`, `.png`, `.webp`, `.gif`, `.jpg`, `.jpeg`) in `badges/` to replace the drawn chat badge. A missing file falls back to the drawn symbol. The five included icons are Kick's role artwork, added for convenience; replace or remove them freely (see `badges/OKU-README.txt`).
 
 **Kick app for the subscriber total (optional)**
 
@@ -177,7 +177,7 @@ Every setting lives in `AYARLAR.js`. An invalid value falls back to its default,
 
 3. Keep this file private. `.gitignore` already lists it, so Git will not track it. Do not share it or commit it.
 
-The overlay requests and renews its own access token from `id.kick.com`. Kick documents `active_subscribers_count` for a channel but does not describe it, so use the studio's **Test connection** button to confirm the number is your subscriber total.
+The overlay requests and renews its own access token from `id.kick.com`. Kick lists `active_subscribers_count` for a channel but does not explain it, so use the studio's **Test connection** button to confirm the number is your subscriber total.
 
 **Secrets and privacy.** Your client secret is read only from `AYARLAR.local.js` or the studio's memory. It is never placed in a URL, a saved draft, or the generated settings file. The overlays contact only `kick.com`, `api.kick.com`, `id.kick.com`, `files.kick.com`, and Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) for the typefaces. Live chat reaches the overlay from the relay on `127.0.0.1`. The relay talks only to Kick's API and its public key endpoint, and checks every webhook signature before it accepts an event.
 
@@ -186,7 +186,7 @@ The overlay requests and renews its own access token from `id.kick.com`. Kick do
 - Unit tests: `node tests/run.js`, and relay tests: `node tests/relay-test.js` (Node.js 20 or newer, no packages). GitHub Actions runs both on every push.
 - Browser tests: `node tests/e2e-chrome.js`. They need Chrome or Edge. Add `--live --channel <name>` for real Kick data, `--token` for the local mock, `--preview` for sample mode, `--perf` for a 30-second heap and DOM check, and `--relay` for live chat through the relay with signed test events.
 - Pages must stay classic scripts so they work from `file://`. Use the shared `.ko-*` components and tokens in `shared/themes.css`, and prefer `transform` and `opacity` for new animations.
-- `node tools/record-previews.js` re-creates the images in `screenshots/` (needs Node.js 22, Chrome or Edge, and `ffmpeg`).
+- `node tools/record-previews.js` re-creates the images in `screenshots/` (needs Node.js 22 or newer, Chrome or Edge, and `ffmpeg`).
 - More in [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [changelog](CHANGELOG.md).
 
 ### License
@@ -288,7 +288,7 @@ Sorun giderme:
 - **"Kick uygulama bilgisi hatalı"**: Kick uygulama bilgilerini reddetti. `AYARLAR.local.js` içindeki `kickClientId` ve `kickClientSecret` değerlerini kontrol et. Stüdyonun bağlantı testi aynı hatayı gösterir.
 - **"Kick'e ulaşılamadı"**: Kick yanıt vermedi. Ekranda son değer kalır ve overlay yeniden dener.
 - **Abone sayısı 0**: Kick uygulaması kurulu değil, değer `aboneSayisi` alanından gelir.
-- **Geri sayım yeniden başladı**: sayım kaynağın yüklendiği andan başlar. Kaynağı yenilemek ya da *Görünmezken kaynağı kapat* açıkken sahne değiştirmek onu baştan başlatır.
+- **Geri sayım yeniden başladı**: sayım kaynağın yüklendiği andan başlar. Kaynağı yenilemek ya da OBS'de *Shutdown source when not visible* seçeneği açıkken sahne değiştirmek onu baştan başlatır.
 - Duyuru çubuğunda **`⚙ AYARLAR.js → duyuruMetinleri`** yazıyorsa `duyuruMetinleri` alanını doldur, sonra kaynağı yenile.
 
 <a id="canli-sohbet-tr"></a>
@@ -349,7 +349,7 @@ Tüm ayarlar `AYARLAR.js` içindedir. Geçersiz bir değer varsayılanına döne
 | `duyuruMetinleri` | `\|` ile ayrılmış duyuru satırları, en çok 12, ör. `Takip et \| !discord \| Her cuma yeni video` | *(boş)* |
 | `duyuruSn` | Her duyurunun ekranda kalma süresi, saniye (3–60) | `6` |
 
-**Rozet görselleri (isteğe bağlı).** `badges/` klasörüne `moderator`, `vip`, `og`, `founder`, `verified`, `gifter` veya `staff` adıyla bir görsel (`.svg`, `.png`, `.webp`, `.gif`, `.jpg`) koyarsan çizili sohbet rozetinin yerine geçer. Dosya yoksa çizili simge gösterilir. Pakete eklenen beş ikon Kick'in rol görselleridir, kolaylık için eklenmiştir; istediğin gibi değiştirebilir veya kaldırabilirsin (bkz. `badges/OKU-README.txt`).
+**Rozet görselleri (isteğe bağlı).** `badges/` klasörüne `moderator`, `vip`, `og`, `founder`, `verified`, `gifter` veya `staff` adıyla bir görsel (`.svg`, `.png`, `.webp`, `.gif`, `.jpg`, `.jpeg`) koyarsan çizili sohbet rozetinin yerine geçer. Dosya yoksa çizili simge gösterilir. Pakete eklenen beş ikon Kick'in rol görselleridir, kolaylık için eklenmiştir; istediğin gibi değiştirebilir veya kaldırabilirsin (bkz. `badges/OKU-README.txt`).
 
 **Abone toplamı için Kick uygulaması (isteğe bağlı)**
 
@@ -374,7 +374,7 @@ Overlay, erişim anahtarını `id.kick.com` üzerinden kendisi alır ve yeniler.
 - Birim testleri: `node tests/run.js`, relay testleri: `node tests/relay-test.js` (Node.js 20 veya üstü, paket gerekmez). GitHub Actions ikisini de her push'ta çalıştırır.
 - Tarayıcı testleri: `node tests/e2e-chrome.js`. Chrome veya Edge gerekir. Gerçek Kick verisi için `--live --channel <ad>`, yerel sahte sunucu için `--token`, önizleme modu için `--preview`, 30 saniyelik bellek ve DOM kontrolü için `--perf`, imzalı test olaylarıyla relay üzerinden canlı sohbet için `--relay` ekle.
 - Sayfalar `file://` üzerinden çalışabilmek için klasik script olarak kalmalı. Ortak `.ko-*` bileşenlerini ve `shared/themes.css` içindeki değişkenleri kullan, yeni animasyonlar için `transform` ve `opacity` tercih et.
-- `node tools/record-previews.js`, `screenshots/` içindeki görselleri yeniden üretir (Node.js 22, Chrome veya Edge ve `ffmpeg` gerekir).
+- `node tools/record-previews.js`, `screenshots/` içindeki görselleri yeniden üretir (Node.js 22 veya üstü, Chrome veya Edge ve `ffmpeg` gerekir).
 - Ayrıntılar: [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) ve [değişiklik günlüğü](CHANGELOG.md).
 
 ### Lisans
