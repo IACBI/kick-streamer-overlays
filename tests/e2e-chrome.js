@@ -230,6 +230,44 @@ async function offlineChecks() {
   check('studio: theme choices rendered', stInfo.themeHits >= 1, `hits=${stInfo.themeHits}`);
   check('studio: no unexpected errors', unexpected(st.logs).length === 0, short(unexpected(st.logs)));
   await st.shot('studio.png');
+
+  // Studio behaviour: links, tabs, presets, language, reset.
+  const urlOf = (id) => `document.querySelector('[data-url="${id}"]').value`;
+  const base = await st.eval(`({ follower: ${urlOf('follower')}, tabs: document.querySelectorAll('[role=tab]').length, cards: document.querySelectorAll('[data-card]').length, warn: !document.querySelector('[data-card="follower"] .st-card-warn').hidden })`);
+  check('studio: seven overlay tabs and seven link cards', base.tabs === 7 && base.cards === 7, JSON.stringify(base));
+  check('studio: default link has no query string', /follower-bar\.html$/.test(base.follower), base.follower);
+  check('studio: card warns when the channel is empty', base.warn);
+
+  await st.eval(`(() => { const k = document.getElementById('kanal'); k.value = 'Test_Kanal'; k.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('[data-preset="neon"]').click(); })()`);
+  await sleep(600);
+  const set = await st.eval(`({ follower: ${urlOf('follower')}, chat: ${urlOf('chat')}, ticker: ${urlOf('ticker')}, warn: !document.querySelector('[data-card="follower"] .st-card-warn').hidden, src: document.getElementById('onizleme').getAttribute('src') })`);
+  check('studio: link carries the lowercase channel and the preset look', /kanal=test_kanal/.test(set.follower) && /stil=neon/.test(set.follower) && /sekil=rounded/.test(set.follower), set.follower);
+  check('studio: a link holds only the settings that overlay reads', !/sohbetMaksMesaj|geriSayim|duyuru/.test(set.follower) && !/takipciHedefi/.test(set.chat), set.follower + ' | ' + set.chat);
+  check('studio: the accent color is URL-encoded, no secret keys', /renk=%2339ff14/.test(set.follower) && !/client|secret/i.test(set.follower), set.follower);
+  check('studio: the empty-channel warning goes away', !set.warn);
+  check('studio: the bar preview uses live data once a channel is set', !/onizleme=1/.test(set.src), set.src);
+
+  await st.eval(`document.getElementById('tab-chat').click()`);
+  await sleep(500);
+  const tab = await st.eval(`({ src: document.getElementById('onizleme').getAttribute('src'), sel: document.getElementById('tab-chat').getAttribute('aria-selected'), open: document.getElementById('g-chat').open, w: document.getElementById('onizleme').getAttribute('width') })`);
+  check('studio: choosing the chat tab loads chat.html at 460 px and opens its settings group', /^chat\.html\?/.test(tab.src) && tab.sel === 'true' && tab.open && tab.w === '460', JSON.stringify(tab));
+
+  await st.eval(`document.querySelector('[data-lang="en"]').click()`);
+  await sleep(300);
+  const en = await st.eval(`({ lang: document.documentElement.lang, title: document.title, copy: document.querySelector('[data-copy]').textContent, theme: document.querySelector('[data-label-value="aurora"]').textContent })`);
+  check('studio: switching to English changes the page language and texts', en.lang === 'en' && en.copy.trim() === 'Copy link' && en.theme === 'Aurora', JSON.stringify(en));
+  await st.eval(`document.querySelector('[data-lang="tr"]').click()`);
+  await sleep(300);
+  const tr = await st.eval(`({ lang: document.documentElement.lang, copy: document.querySelector('[data-copy]').textContent, theme: document.querySelector('[data-label-value="aurora"]').textContent })`);
+  check('studio: switching back to Turkish restores the texts', tr.lang === 'tr' && tr.copy.trim() === 'Bağlantıyı kopyala' && tr.theme === 'Kuzey Işığı', JSON.stringify(tr));
+
+  await st.eval(`document.getElementById('sifirla').click()`);
+  await sleep(400);
+  const reset = await st.eval(`({ kanal: document.getElementById('kanal').value, stil: document.querySelector('input[name=stil]:checked').value, follower: ${urlOf('follower')} })`);
+  check('studio: reset keeps the channel and restores the default look', reset.kanal === 'test_kanal' && reset.stil === 'glass' && /kanal=test_kanal/.test(reset.follower) && !/stil=/.test(reset.follower), JSON.stringify(reset));
+  // Network log lines are expected here: the test channel does not exist. Script errors are not.
+  const scriptErrors = st.logs.filter((l) => l.kind !== 'log');
+  check('studio: no script errors after interaction', scriptErrors.length === 0, short(scriptErrors));
   await st.close();
 }
 

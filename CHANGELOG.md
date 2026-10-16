@@ -2,6 +2,22 @@
 
 All notable changes to this project are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.2.0] - 2026-10-16
+
+### Added
+- Studio rebuilt as a guided, two-language (Turkish and English) page: channel, look, content, then **Add to OBS**.
+- A ready link for every overlay (Copy link). It holds only the settings that overlay reads and only the ones that differ from the defaults, never Kick app credentials.
+- One sticky preview with a tab per overlay, four preview backgrounds, and "open in a new tab". On phones the preview stays pinned and compact at the top.
+- Settings are grouped per overlay; the group of the overlay being previewed opens by itself. A reset button keeps the channel.
+- Light and dark page following the system, skip link, keyboard-operable tabs, toast feedback.
+- Tests for the studio: links, tabs, presets, language switch, reset, and a check that both languages define every text.
+- `screenshots/studio.png`.
+
+### Changed
+- The AYARLAR.js file moved into an optional "Settings file method" section; links are now the main way to use the pack in OBS.
+- The chat preview in the studio always shows sample messages, since live chat needs the local relay.
+- README (English and Turkish) describes the link-based setup.
+
 ## [2.1.1] - 2026-10-16
 
 ### Fixed

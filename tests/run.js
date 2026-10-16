@@ -990,6 +990,29 @@ async function testThemesAndPages() {
     ok(hrefs.includes('shared/themes.css'), 'shared/themes.css link missing');
     ok(srcs.includes('shared/kick-core.js'), 'shared/kick-core.js script missing');
   });
+  await check('studio texts: Turkish and English have the same keys, and every key used in the page exists', () => {
+    const html = pageHtml(STUDIO_PAGE);
+    const start = html.indexOf('var I18N = ');
+    const end = html.indexOf('// Enum labels per language');
+    ok(start > 0 && end > start, 'I18N table not found');
+    const I18N = new vm.Script('(' + html.slice(start + 11, end).trim().replace(/;\s*$/, '') + ')').runInNewContext({});
+    const tr = Object.keys(I18N.tr), en = Object.keys(I18N.en);
+    eq(tr.filter((k) => !en.includes(k)), [], 'keys only in tr');
+    eq(en.filter((k) => !tr.includes(k)), [], 'keys only in en');
+    const used = new Set();
+    for (const m of html.matchAll(/data-i18n(?:-ph|-aria)?="([^"]+)"/g)) used.add(m[1]);
+    for (const m of html.matchAll(/\bt\('([^']+)'/g)) used.add(m[1]);
+    // Keys built from an id at run time.
+    ['follower', 'subscriber', 'combined', 'info', 'countdown', 'ticker', 'chat'].forEach((id) => { used.add('ov.' + id); used.add('ov.' + id + '.d'); });
+    ['minimal', 'neon', 'pastel', 'gece', 'kagit'].forEach((id) => used.add('preset.' + id));
+    ['checker', 'dark', 'light', 'scene'].forEach((id) => used.add('bg.' + id));
+    for (let n = 1; n <= 4; n++) used.add('help.c' + n);
+    for (let n = 1; n <= 7; n++) { used.add('help.n' + n + '.t'); used.add('help.n' + n + '.d'); }
+    // Prefixes of the run-time keys above (t('preset.' + id)) are not keys themselves.
+    const missing = [...used].filter((k) => !tr.includes(k) && !/.$/.test(k) && k !== 'help.n');
+    eq(missing, [], 'keys used but not defined');
+    for (const k of tr) ok(String(I18N.tr[k]).trim() !== '' && String(I18N.en[k]).trim() !== '', 'empty text: ' + k);
+  });
 }
 
 // ---- Section: syntax -------------------------------------------------------------

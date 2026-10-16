@@ -83,6 +83,10 @@ const SCENES = {
     w: 800, h: 120, seconds: 10, colors: 96,
     html: `<iframe width="760" height="80" style="left:20px;top:20px" src="${fileUrl('ticker.html', '?onizleme=1&stil=neon&duyuruSn=3')}"></iframe>`
   },
+  // The studio itself: a still of the real page, English, dark.
+  studio: {
+    w: 1360, h: 900, seconds: 3, still: true, direct: 'studio.html', scheme: 'dark'
+  },
   hero: {
     w: 1280, h: 640, seconds: 11, still: true,
     html: `<iframe width="520" height="180" style="left:60px;top:60px;transform:scale(1.2)" src="${fileUrl('combined-bar.html', '?onizleme=1&stil=aurora')}"></iframe>
@@ -95,8 +99,8 @@ const SCENES = {
 };
 
 async function record(name, scene, chromePath, tmp, port) {
-  const stage = path.join(tmp, name + '.html');
-  fs.writeFileSync(stage, `<!doctype html><meta charset="utf-8"><style>${BACKDROP}</style><body>${scene.html}</body>`);
+  const stage = scene.direct ? path.join(ROOT, scene.direct) : path.join(tmp, name + '.html');
+  if (!scene.direct) fs.writeFileSync(stage, `<!doctype html><meta charset="utf-8"><style>${BACKDROP}</style><body>${scene.html}</body>`);
   const frames = path.join(tmp, name + '-frames');
   fs.rmSync(frames, { recursive: true, force: true });
   fs.mkdirSync(frames, { recursive: true });
@@ -128,6 +132,7 @@ async function record(name, scene, chromePath, tmp, port) {
     });
 
     await send('Page.enable');
+    if (scene.scheme) await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scene.scheme }] });
     await send('Emulation.setDeviceMetricsOverride', { width: scene.w, height: scene.h, deviceScaleFactor: 1, mobile: false });
     // Warm the font cache first, then load the stage again and record from its start.
     await send('Page.navigate', { url: pathToFileURL(stage).href });

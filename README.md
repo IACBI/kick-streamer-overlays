@@ -1,7 +1,7 @@
 <a id="top"></a>
 # Kick Streamer Overlay Pack
 
-Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime panel, a chat overlay, a "starting soon" countdown, a rotating announcement bar, and a studio that writes your settings file. The basic setup needs no server and no account.
+Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime panel, a chat overlay, a "starting soon" countdown, a rotating announcement bar, and a studio that gives you a ready link for each overlay. The basic setup needs no server and no account.
 
 [![CI](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml/badge.svg)](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml) ![License](https://img.shields.io/badge/license-free-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Overlays](https://img.shields.io/badge/overlays-7-0ea5e9) ![Tests](https://img.shields.io/badge/tests-138%20checks-2563eb)
 
@@ -20,7 +20,9 @@ Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime p
 
 <sub>Each of the 13 themes in turn, with sample numbers. The bars fill and a light sweep crosses the fill.</sub>
 
-Pick a look in `studio.html`, enter your channel name, and add the files to OBS as Browser sources. The overlays read Kick's public channel data directly.
+Open `studio.html`, enter your channel name, pick a look, and copy the link of each overlay into an OBS Browser source. The overlays read Kick's public channel data directly.
+
+<p align="center"><img src="screenshots/studio.png" alt="The studio: channel, look and theme choices on the left, a live preview with overlay tabs on the right" width="860"></p>
 
 | Feature | Status (checked 2026-10-16) |
 |---|---|
@@ -35,7 +37,7 @@ Pick a look in `studio.html`, enter your channel name, and add the files to OBS 
 - Corner shapes (`pill`, `rounded`, `square`), four fonts, labels in Turkish, English or both, three motion levels, and an optional percentage
 - A session gain next to the subscriber count, such as "+3 this stream"
 - Preview mode (`?onizleme=1`) with sample numbers and no network calls, used by the studio and these docs
-- Studio with live previews of every overlay, presets, a downloadable `AYARLAR.js`, and a connection test for your Kick app
+- Studio in Turkish and English: live preview with a tab per overlay, quick looks, a ready-to-paste link for every overlay, the `AYARLAR.js` file as an alternative, a light or dark page, and a connection test for your Kick app
 - A countdown for your "starting soon" scene and an announcement bar that rotates your socials, commands or schedule. Both work without any Kick data
 - Built for OBS: animations use `transform`, `opacity` and `background-position`. The exceptions are the chat message exit and the bar fill width. Chat keeps a fixed number of messages, polls never overlap, and no Kick data is ever inserted as HTML
 
@@ -50,9 +52,13 @@ Pick a look in `studio.html`, enter your channel name, and add the files to OBS 
 ### Installation
 
 1. Download this repository (or its ZIP) and keep the folder somewhere permanent.
-2. Open `studio.html` in your browser. Pick a look, enter your channel name, and download `AYARLAR.js`. Put it in the folder in place of the existing file. You can also edit `AYARLAR.js` by hand.
-3. In OBS, add a source with **Sources → + → Browser**, tick **Local file**, choose an overlay file, and set the width and height from the table below.
-4. After you change a setting, right-click the source and choose **Refresh**.
+2. Open `studio.html` in your browser. Enter your channel name and pick a look.
+3. In the studio's **Add to OBS** step, press **Copy link** on the overlay you want. In OBS add a source with **Sources → + → Browser**, turn **Local file** off, paste the link into **URL**, and set the width and height shown on the card (they are also in the table below).
+4. After you change a setting in the studio, copy the link again and paste it into the source.
+
+Prefer OBS's **Local file** option? Open the studio's **Settings file method**, download `AYARLAR.js`, put it in the project folder in place of the existing file, tick **Local file** in OBS, and choose the overlay file. After a change, right-click the source and choose **Refresh**. You can also edit `AYARLAR.js` by hand.
+
+A link holds only your public settings, never your Kick app credentials. The subscriber total still reads them from `AYARLAR.local.js`.
 
 ### Usage
 
@@ -65,7 +71,7 @@ Pick a look in `studio.html`, enter your channel name, and add the files to OBS 
 | `chat.html` | Live chat (needs the relay, see Live chat) | 460 × 760 |
 | `countdown.html` | "Starting soon" countdown that starts when the source loads | 520 × 190 |
 | `ticker.html` | Announcement bar that rotates your lines | 760 × 80 |
-| `studio.html` | Configurator. Open it in a browser, not in OBS | — |
+| `studio.html` | Studio: previews, settings and links. Open it in a browser, not in OBS | — |
 
 These previews use sample data (`?onizleme=1`), so they show the design and make no request to Kick.
 
@@ -96,7 +102,7 @@ These previews use sample data (`?onizleme=1`), so they show the design and make
 
 Troubleshooting:
 
-- **`⚙ AYARLAR.js → kanal`** is shown: set `kanal` in `AYARLAR.js`, then refresh the source.
+- **`⚙ AYARLAR.js → kanal`** is shown: enter your channel name in the studio and copy the link again (or set `kanal` in `AYARLAR.js` and refresh the source).
 - **"Kick uygulama bilgisi hatalı"** (Kick rejected your app credentials): check `kickClientId` and `kickClientSecret` in `AYARLAR.local.js`. The studio's connection test shows the same error.
 - **"Kick'e ulaşılamadı"** (Kick did not answer): the last value stays on screen and the overlay tries again.
 - **Subscriber count is 0**: no Kick app is set up, so the value comes from `aboneSayisi`.
@@ -136,7 +142,7 @@ The relay accepts only events with a valid Kick signature and passes each event 
 <a id="configuration-en"></a>
 ### Configuration
 
-Every setting lives in `AYARLAR.js`. An invalid value falls back to its default, and numbers are limited to their range.
+Every setting lives in `AYARLAR.js`, and the studio writes the same settings into the links it gives you. A link overrides `AYARLAR.js`. An invalid value falls back to its default, and numbers are limited to their range.
 
 | Setting | Values | Default |
 |---|---|---|
@@ -179,12 +185,13 @@ Every setting lives in `AYARLAR.js`. An invalid value falls back to its default,
 
 The overlay requests and renews its own access token from `id.kick.com`. Kick lists `active_subscribers_count` for a channel but does not explain it, so use the studio's **Test connection** button to confirm the number is your subscriber total.
 
-**Secrets and privacy.** Your client secret is read only from `AYARLAR.local.js` or the studio's memory. It is never placed in a URL, a saved draft, or the generated settings file. The overlays contact only `kick.com`, `api.kick.com`, `id.kick.com`, `files.kick.com`, and Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) for the typefaces. Live chat reaches the overlay from the relay on `127.0.0.1`. The relay talks only to Kick's API and its public key endpoint, and checks every webhook signature before it accepts an event.
+**Secrets and privacy.** Your client secret is read only from `AYARLAR.local.js` or the studio's memory. It is never placed in a link, a saved draft, or the generated settings file. The overlays contact only `kick.com`, `api.kick.com`, `id.kick.com`, `files.kick.com`, and Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) for the typefaces. Live chat reaches the overlay from the relay on `127.0.0.1`. The relay talks only to Kick's API and its public key endpoint, and checks every webhook signature before it accepts an event.
 
 ### Contributing
 
 - Unit tests: `node tests/run.js`, and relay tests: `node tests/relay-test.js` (Node.js 20 or newer, no packages). GitHub Actions runs both on every push.
 - Browser tests: `node tests/e2e-chrome.js`. They need Chrome or Edge. Add `--live --channel <name>` for real Kick data, `--token` for the local mock, `--preview` for sample mode, `--perf` for a 30-second heap and DOM check, and `--relay` for live chat through the relay with signed test events.
+- The studio keeps all its texts in one Turkish and English table. A new setting needs an entry in both languages.
 - Pages must stay classic scripts so they work from `file://`. Use the shared `.ko-*` components and tokens in `shared/themes.css`, and prefer `transform` and `opacity` for new animations.
 - `node tools/record-previews.js` re-creates the images in `screenshots/` (needs Node.js 22 or newer, Chrome or Edge, and `ffmpeg`).
 - More in [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [changelog](CHANGELOG.md).
@@ -208,7 +215,9 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 
 <sub>13 temanın her biri sırayla, örnek sayılarla. Çubuklar dolar ve dolgunun üzerinden bir ışık geçer.</sub>
 
-`studio.html` içinde bir görünüm seç, kanal adını yaz ve dosyaları OBS'ye Tarayıcı kaynağı olarak ekle. Overlay'ler Kick'in herkese açık kanal verisini doğrudan okur.
+`studio.html` dosyasını aç, kanal adını yaz, bir görünüm seç ve her overlay'in bağlantısını OBS'te bir Tarayıcı kaynağına yapıştır. Overlay'ler Kick'in herkese açık kanal verisini doğrudan okur.
+
+<p align="center"><img src="screenshots/studio.png" alt="Stüdyo: solda kanal, görünüm ve tema seçimi, sağda overlay sekmeli canlı önizleme" width="860"></p>
 
 | Özellik | Durum (2026-10-16 kontrolü) |
 |---|---|
@@ -223,7 +232,7 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 - Köşe şekilleri (`pill`, `rounded`, `square`), dört yazı tipi, Türkçe, İngilizce ya da ikisi birden etiketler, üç hareket seviyesi ve isteğe bağlı yüzde gösterimi
 - Abone sayısının yanında "bu yayında +3" gibi yayın içi artış
 - Önizleme modu (`?onizleme=1`): ağ çağrısı yapmadan örnek sayılar gösterir. Stüdyo ve bu dokümantasyon kullanır.
-- Her overlay için canlı önizlemeli, hazır ayarlı, indirilebilir `AYARLAR.js` içeren stüdyo; Kick uygulaman için bağlantı testi
+- Türkçe ve İngilizce stüdyo: her overlay için sekmeli canlı önizleme, hazır görünümler, her overlay için yapıştırmaya hazır bağlantı, alternatif olarak `AYARLAR.js` dosyası, açık ya da koyu sayfa ve Kick uygulaman için bağlantı testi
 - "Birazdan başlıyoruz" sahnen için geri sayım ve sosyal medya, komut ya da yayın takvimini döndüren duyuru çubuğu. İkisi de Kick verisi olmadan çalışır
 - OBS için tasarlandı: animasyonlar `transform`, `opacity` ve `background-position` kullanır. İstisnalar sohbet mesajının çıkışı ve çubuk dolgusunun genişliğidir. Sohbet sabit sayıda mesaj tutar, sorgular üst üste binmez ve Kick verisi hiçbir zaman HTML olarak eklenmez
 
@@ -238,9 +247,13 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 ### Kurulum
 
 1. Bu depoyu indir (veya ZIP olarak al) ve klasörü kalıcı bir yere koy.
-2. `studio.html` dosyasını tarayıcıda aç. Bir görünüm seç, kanal adını yaz ve `AYARLAR.js` dosyasını indir. Klasördeki mevcut dosyanın yerine koy. İstersen `AYARLAR.js` dosyasını elle de düzenleyebilirsin.
-3. OBS'de **Kaynaklar → + → Tarayıcı** ile bir kaynak ekle, **Yerel dosya** kutusunu işaretle, bir overlay dosyası seç ve genişlik ile yüksekliği aşağıdaki tablodan ayarla.
-4. Bir ayarı değiştirdikten sonra kaynağa sağ tıkla ve **Yenile**'yi seç.
+2. `studio.html` dosyasını tarayıcıda aç. Kanal adını yaz ve bir görünüm seç.
+3. Stüdyonun **OBS'e ekle** adımında istediğin overlay'in **Bağlantıyı kopyala** düğmesine bas. OBS'te **Kaynaklar → + → Tarayıcı** ile bir kaynak ekle, **Yerel dosya** kutusunu kapat, bağlantıyı **URL** kutusuna yapıştır ve genişlik ile yüksekliği kartta yazan boyuta ayarla (aşağıdaki tabloda da var).
+4. Stüdyoda bir ayarı değiştirdikten sonra bağlantıyı yeniden kopyalayıp kaynağa yapıştır.
+
+OBS'in **Yerel dosya** seçeneğini mi tercih edersin? Stüdyodaki **Ayar dosyası yöntemi** bölümünden `AYARLAR.js` dosyasını indir, proje klasöründeki dosyanın yerine koy, OBS'te **Yerel dosya** kutusunu işaretle ve overlay dosyasını seç. Değişiklikten sonra kaynağa sağ tıklayıp **Yenile**'yi seç. `AYARLAR.js` dosyasını elle de düzenleyebilirsin.
+
+Bağlantı yalnızca herkese açık ayarlarını taşır, Kick uygulaman bilgilerini asla. Abone toplamı bu bilgileri yine `AYARLAR.local.js` dosyasından okur.
 
 ### Kullanım
 
@@ -253,7 +266,7 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 | `chat.html` | Canlı sohbet (relay gerektirir, bkz. Canlı sohbet) | 460 × 760 |
 | `countdown.html` | Kaynak yüklenince başlayan "birazdan başlıyoruz" geri sayımı | 520 × 190 |
 | `ticker.html` | Satırlarını sırayla gösteren duyuru çubuğu | 760 × 80 |
-| `studio.html` | Yapılandırıcı. OBS'de değil, tarayıcıda aç | — |
+| `studio.html` | Stüdyo: önizleme, ayarlar ve bağlantılar. OBS'de değil, tarayıcıda aç | — |
 
 Buradaki tüm animasyonlar örnek veri kullanır (`?onizleme=1`); yani tasarımı gösterir ve Kick'e istek yapmaz.
 
@@ -284,7 +297,7 @@ Buradaki tüm animasyonlar örnek veri kullanır (`?onizleme=1`); yani tasarım�
 
 Sorun giderme:
 
-- **`⚙ AYARLAR.js → kanal`** yazısı görünüyorsa `AYARLAR.js` içinde `kanal` alanını doldur, sonra kaynağı yenile.
+- **`⚙ AYARLAR.js → kanal`** yazısı görünüyorsa stüdyoda kanal adını yaz ve bağlantıyı yeniden kopyala (ya da `AYARLAR.js` içinde `kanal` alanını doldurup kaynağı yenile).
 - **"Kick uygulama bilgisi hatalı"**: Kick uygulama bilgilerini reddetti. `AYARLAR.local.js` içindeki `kickClientId` ve `kickClientSecret` değerlerini kontrol et. Stüdyonun bağlantı testi aynı hatayı gösterir.
 - **"Kick'e ulaşılamadı"**: Kick yanıt vermedi. Ekranda son değer kalır ve overlay yeniden dener.
 - **Abone sayısı 0**: Kick uygulaması kurulu değil, değer `aboneSayisi` alanından gelir.
@@ -324,7 +337,7 @@ Relay yalnızca geçerli Kick imzası taşıyan olayları kabul eder ve her olay
 <a id="yapilandirma-tr"></a>
 ### Yapılandırma
 
-Tüm ayarlar `AYARLAR.js` içindedir. Geçersiz bir değer varsayılanına döner, sayılar kendi aralıklarına sınırlanır.
+Tüm ayarlar `AYARLAR.js` içindedir; stüdyo aynı ayarları verdiği bağlantılara da yazar. Bağlantı `AYARLAR.js` değerlerinin üzerine yazar. Geçersiz bir değer varsayılanına döner, sayılar kendi aralıklarına sınırlanır.
 
 | Ayar | Değerler | Varsayılan |
 |---|---|---|
@@ -367,12 +380,13 @@ Tüm ayarlar `AYARLAR.js` içindedir. Geçersiz bir değer varsayılanına döne
 
 Overlay, erişim anahtarını `id.kick.com` üzerinden kendisi alır ve yeniler. Kick, kanal için `active_subscribers_count` alanını belgeler ama açıklamaz. Sayının gerçekten abone toplamın olduğunu stüdyodaki **Bağlantıyı test et** düğmesiyle doğrula.
 
-**Gizli bilgiler ve gizlilik.** Client secret yalnızca `AYARLAR.local.js` dosyasından ya da stüdyonun belleğinden okunur. Hiçbir zaman bir URL'ye, kaydedilmiş taslağa ya da üretilen ayar dosyasına konmaz. Overlay'ler yalnızca `kick.com`, `api.kick.com`, `id.kick.com`, `files.kick.com` ve yazı tipleri için Google Fonts'a (`fonts.googleapis.com`, `fonts.gstatic.com`) bağlanır. Canlı sohbet, relay üzerinden `127.0.0.1`'den gelir. Relay yalnızca Kick'in API'sine ve açık anahtar uç noktasına bağlanır ve her webhook imzasını kabul etmeden önce doğrular.
+**Gizli bilgiler ve gizlilik.** Client secret yalnızca `AYARLAR.local.js` dosyasından ya da stüdyonun belleğinden okunur. Hiçbir zaman bir bağlantıya, kaydedilmiş taslağa ya da üretilen ayar dosyasına konmaz. Overlay'ler yalnızca `kick.com`, `api.kick.com`, `id.kick.com`, `files.kick.com` ve yazı tipleri için Google Fonts'a (`fonts.googleapis.com`, `fonts.gstatic.com`) bağlanır. Canlı sohbet, relay üzerinden `127.0.0.1`'den gelir. Relay yalnızca Kick'in API'sine ve açık anahtar uç noktasına bağlanır ve her webhook imzasını kabul etmeden önce doğrular.
 
 ### Katkı
 
 - Birim testleri: `node tests/run.js`, relay testleri: `node tests/relay-test.js` (Node.js 20 veya üstü, paket gerekmez). GitHub Actions ikisini de her push'ta çalıştırır.
 - Tarayıcı testleri: `node tests/e2e-chrome.js`. Chrome veya Edge gerekir. Gerçek Kick verisi için `--live --channel <ad>`, yerel sahte sunucu için `--token`, önizleme modu için `--preview`, 30 saniyelik bellek ve DOM kontrolü için `--perf`, imzalı test olaylarıyla relay üzerinden canlı sohbet için `--relay` ekle.
+- Stüdyo tüm metinlerini tek bir Türkçe ve İngilizce tabloda tutar. Yeni bir ayar için iki dilde de giriş gerekir.
 - Sayfalar `file://` üzerinden çalışabilmek için klasik script olarak kalmalı. Ortak `.ko-*` bileşenlerini ve `shared/themes.css` içindeki değişkenleri kullan, yeni animasyonlar için `transform` ve `opacity` tercih et.
 - `node tools/record-previews.js`, `screenshots/` içindeki görselleri yeniden üretir (Node.js 22 veya üstü, Chrome veya Edge ve `ffmpeg` gerekir).
 - Ayrıntılar: [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) ve [değişiklik günlüğü](CHANGELOG.md).

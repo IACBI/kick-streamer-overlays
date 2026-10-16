@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<!-- Kick Overlay Stüdyo: ayarları seçin, önizleyin, AYARLAR.js dosyasını indirin.
-     Önizleme boyutları (OBS ile aynı): chat 460×760 · follower-bar 520×90 ·
-     subscriber-bar 520×90 · combined-bar 520×180 · info-panel 300×80 ·
-     countdown 520×190 · ticker 760×80 -->
+<!-- Kick Overlay Studio: choose a look, preview it, copy a link for each overlay and paste it into OBS.
+     Preview sizes match OBS: follower-bar 520x90, subscriber-bar 520x90, combined-bar 520x180,
+     info-panel 300x80, countdown 520x190, ticker 760x80, chat 460x760. -->
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Kick Overlay Stüdyo</title>
+<title>Kick Overlay Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -16,266 +15,210 @@
 <style>
   /* ---- Studio tokens (UI only; overlay styling lives in shared/themes.css) ---- */
   :root {
-    color-scheme: dark;
+    color-scheme: dark light;
     --st-bg: #0b0d12;
+    --st-glow: rgb(83 252 24 / 7%);
     --st-panel: #12151d;
     --st-raised: #0f1219;
     --st-field: #0a0c11;
     --st-line: #242a38;
-    --st-line-soft: #1c2130;
+    --st-line-strong: #3a4358;
     --st-text: #e7eaf2;
     --st-muted: #98a2b8;
     --st-focus: #7aa7ff;
-    --st-primary: #7aa7ff;
+    --st-sel-bg: #151c2c;
+    --st-primary: #53fc18;
+    --st-primary-hover: #7bff4d;
+    --st-on-primary: #07130a;
     --st-ok: #4ade80;
     --st-err: #f87171;
+    --st-warn: #fbbf24;
+    --st-shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 22%);
     --st-accent: #53fc18;
   }
 
-  * { box-sizing: border-box; }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --st-bg: #f3f5fa;
+      --st-glow: rgb(35 128 10 / 8%);
+      --st-panel: #ffffff;
+      --st-raised: #f6f7fb;
+      --st-field: #ffffff;
+      --st-line: #d9deea;
+      --st-line-strong: #b6bed0;
+      --st-text: #151a26;
+      --st-muted: #566079;
+      --st-focus: #2f5fd0;
+      --st-sel-bg: #eaf1ff;
+      --st-primary: #23800a;
+      --st-primary-hover: #1c6a08;
+      --st-on-primary: #ffffff;
+      --st-ok: #15803d;
+      --st-err: #b91c1c;
+      --st-warn: #92400e;
+      --st-shadow: 0 1px 2px rgb(20 30 60 / 8%), 0 8px 24px rgb(20 30 60 / 8%);
+    }
+  }
 
+  * { box-sizing: border-box; }
   html, body { margin: 0; }
+  html { scroll-behavior: smooth; }
 
   body {
-    background: var(--st-bg);
+    min-height: 100vh;
+    background: radial-gradient(900px 420px at 15% -80px, var(--st-glow), transparent 70%), var(--st-bg);
     color: var(--st-text);
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
     font-size: 15px;
-    line-height: 1.5;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
     overflow-wrap: anywhere;
   }
 
-  :focus-visible {
-    outline: 2px solid var(--st-focus);
-    outline-offset: 2px;
-  }
+  :focus-visible { outline: 2px solid var(--st-focus); outline-offset: 2px; }
 
   h1, h2, h3 { margin: 0; line-height: 1.3; }
-  h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
-  h2 { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; margin-bottom: 14px; }
-  h3 { font-size: 14px; font-weight: 700; color: var(--st-muted); margin: 18px 0 8px; }
   p { margin: 0; }
+  a { color: var(--st-focus); }
 
-  /* ---- Page layout ---- */
-  .st-app {
-    max-width: 1220px;
-    margin: 0 auto;
-    padding: 24px 16px 56px;
+  .st-skip {
+    position: absolute; left: 12px; top: -48px; z-index: 50; padding: 8px 14px; border-radius: 10px;
+    background: var(--st-primary); color: var(--st-on-primary); font-weight: 700; text-decoration: none;
+  }
+  .st-skip:focus { top: 12px; }
+
+  /* ---- Top bar ---- */
+  .st-top {
+    max-width: 1280px; margin: 0 auto; padding: 20px 20px 0;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .st-brand { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 320px; }
+  .st-mark {
+    flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #53fc18, #1fa400); color: #07130a; box-shadow: 0 6px 18px rgb(83 252 24 / 28%);
+  }
+  .st-mark svg { width: 22px; height: 22px; }
+  h1 { font-size: 21px; font-weight: 800; letter-spacing: -0.015em; }
+  .st-lead { color: var(--st-muted); font-size: 14px; }
+
+  .st-langs { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--st-line); border-radius: 999px; background: var(--st-panel); }
+  .st-langs button {
+    min-width: 44px; min-height: 32px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent;
+    color: var(--st-muted); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .st-langs button[aria-pressed="true"] { background: var(--st-primary); color: var(--st-on-primary); }
+
+  /* ---- How it works strip ---- */
+  .st-how {
+    max-width: 1280px; margin: 18px auto 0; padding: 0 20px; display: grid; gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none;
+  }
+  .st-how li {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--st-line);
+    border-radius: 12px; background: var(--st-panel); font-size: 14px; font-weight: 600;
+  }
+  .st-how b {
+    flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 12px; background: var(--st-primary); color: var(--st-on-primary);
   }
 
-  .st-head { margin-bottom: 20px; }
-  .st-lead { color: var(--st-muted); margin-top: 4px; }
-
+  /* ---- Layout ---- */
   .st-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
-    align-items: start;
+    max-width: 1280px; margin: 18px auto 0; padding: 0 20px 56px;
+    display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start;
   }
-
-  .st-col {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  @media (min-width: 980px) {
-    .st-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  }
-
+  .st-col { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
   .st-form { display: flex; flex-direction: column; gap: 16px; margin: 0; min-width: 0; }
 
-  /* ---- Sections ---- */
+  @media (min-width: 1000px) {
+    .st-layout { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+    .st-preview { position: sticky; top: 16px; }
+  }
+
+  /* ---- Cards ---- */
   .st-section {
-    background: var(--st-panel);
-    border: 1px solid var(--st-line);
-    border-radius: 14px;
-    padding: 20px;
-    min-width: 0;
+    background: var(--st-panel); border: 1px solid var(--st-line); border-radius: 16px;
+    padding: 20px; min-width: 0; box-shadow: var(--st-shadow);
   }
-
+  .st-section > h2, .st-section > .st-h { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; margin-bottom: 14px; }
   .st-num {
-    display: inline-grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    font-size: 12px;
-    font-weight: 800;
-    background: var(--st-line);
-    color: var(--st-text);
-    flex: 0 0 auto;
+    display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; flex: 0 0 auto;
+    font-size: 12px; font-weight: 800; background: var(--st-line); color: var(--st-text);
   }
+  .st-intro { color: var(--st-muted); font-size: 14px; margin: -4px 0 14px; }
+  .st-tag { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--st-muted); border: 1px solid var(--st-line); border-radius: 999px; padding: 1px 9px; }
 
-  .st-tag {
-    margin-left: auto;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--st-muted);
-    border: 1px solid var(--st-line);
-    border-radius: 999px;
-    padding: 1px 9px;
+  /* Collapsible groups (native details) */
+  details.st-group { border: 1px solid var(--st-line); border-radius: 12px; background: var(--st-raised); }
+  details.st-group + details.st-group { margin-top: 10px; }
+  details.st-group > summary {
+    list-style: none; display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer;
+    font-weight: 700; font-size: 14px; border-radius: 12px; user-select: none;
   }
+  details.st-group > summary::-webkit-details-marker { display: none; }
+  details.st-group > summary::after {
+    content: ''; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--st-muted); border-bottom: 2px solid var(--st-muted);
+    transform: rotate(45deg); transition: transform .15s; flex: 0 0 auto;
+  }
+  details.st-group[open] > summary::after { transform: rotate(-135deg); }
+  details.st-group > summary small { font-weight: 500; color: var(--st-muted); font-size: 13px; }
+  .st-group-body { padding: 4px 14px 16px; }
+  .st-section > details.st-group:only-child { margin: 0; }
 
   /* ---- Fields ---- */
-  .st-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-    gap: 14px 16px;
-  }
-
+  .st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px 16px; }
   .st-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .st-field + .st-field { margin-top: 14px; }
   .st-grid > .st-field { margin-top: 0; }
-
-  .st-label, label.st-label { font-size: 14px; font-weight: 600; }
-
+  .st-wide { grid-column: 1 / -1; }
+  .st-label { font-size: 14px; font-weight: 600; }
   .st-hint { font-size: 13px; color: var(--st-muted); }
 
-  input[type="text"],
-  input[type="number"],
-  input[type="password"],
-  select,
-  textarea {
-    width: 100%;
-    min-height: 40px;
-    padding: 8px 12px;
-    font: inherit;
-    color: var(--st-text);
-    background: var(--st-field);
-    border: 1px solid var(--st-line);
-    border-radius: 10px;
+  input[type="text"], input[type="number"], input[type="password"], select, textarea {
+    width: 100%; min-height: 42px; padding: 8px 12px; font: inherit; color: var(--st-text);
+    background: var(--st-field); border: 1px solid var(--st-line); border-radius: 10px;
+    transition: border-color .15s;
   }
-
+  input:hover, select:hover, textarea:hover { border-color: var(--st-line-strong); }
   input[type="number"] { font-variant-numeric: tabular-nums; }
-
   select { appearance: auto; }
-
+  input::placeholder { color: var(--st-muted); opacity: .7; }
   input[type="color"] {
-    width: 48px;
-    height: 40px;
-    padding: 3px;
-    background: var(--st-field);
-    border: 1px solid var(--st-line);
-    border-radius: 10px;
-    cursor: pointer;
-    flex: 0 0 auto;
+    width: 48px; height: 42px; padding: 3px; background: var(--st-field); border: 1px solid var(--st-line);
+    border-radius: 10px; cursor: pointer; flex: 0 0 auto;
   }
-
-  input::placeholder { color: #5b6378; }
-
-  textarea {
-    min-height: 340px;
-    resize: vertical;
-    font-size: 13px;
-    line-height: 1.5;
-    white-space: pre;
-    overflow: auto;
-  }
-
+  textarea { min-height: 300px; resize: vertical; font-family: 'Roboto Mono', ui-monospace, Consolas, monospace; font-size: 12.5px; line-height: 1.55; white-space: pre; overflow: auto; }
   .st-color-row { display: flex; gap: 10px; align-items: center; }
   .st-color-row input[type="text"] { max-width: 160px; }
 
-  fieldset {
-    min-width: 0;
-    margin: 0 0 16px;
-    padding: 0;
-    border: 0;
-  }
-
-  legend {
-    padding: 0;
-    margin-bottom: 8px;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
+  fieldset { min-width: 0; margin: 0 0 16px; padding: 0; border: 0; }
+  legend { padding: 0; margin-bottom: 8px; font-size: 14px; font-weight: 600; }
   .st-checks { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
-
-  .st-check {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    font-size: 14px;
-  }
-
+  .st-check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; }
   .st-check input { width: 18px; height: 18px; accent-color: var(--st-primary); margin: 0; }
 
   /* ---- Choice cards and segmented options (native radios, visually hidden) ---- */
-  .st-themes {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-  }
-
+  .st-themes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
   .st-themes > .st-opt { min-width: 0; }
-
   .st-seg-group { display: flex; flex-wrap: wrap; gap: 8px; }
-
   .st-opt {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 40px;
-    padding: 8px 12px;
-    border: 1px solid var(--st-line);
-    border-radius: 10px;
-    background: var(--st-raised);
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: border-color .15s, background .15s;
+    position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px;
+    padding: 8px 12px; border: 1px solid var(--st-line); border-radius: 10px; background: var(--st-raised);
+    cursor: pointer; font-size: 14px; font-weight: 500; transition: border-color .15s, background .15s;
   }
-
-  .st-opt:hover { border-color: #3a4358; }
-
-  .st-opt input {
-    position: absolute;
-    opacity: 0;
-    width: 1px;
-    height: 1px;
-    margin: 0;
-    pointer-events: none;
-  }
-
+  .st-opt:hover { border-color: var(--st-line-strong); }
+  .st-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
   .st-opt:focus-within { outline: 2px solid var(--st-focus); outline-offset: 2px; }
-
-  .st-opt.is-checked {
-    border-color: var(--st-focus);
-    background: #151c2c;
-    box-shadow: inset 0 0 0 1px var(--st-focus);
-  }
-
+  .st-opt.is-checked { border-color: var(--st-focus); background: var(--st-sel-bg); box-shadow: inset 0 0 0 1px var(--st-focus); font-weight: 700; }
   .st-theme { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 8px; padding: 10px; }
-  .st-theme .st-opt-text { text-align: left; font-weight: 600; }
+  .st-theme .st-opt-text { text-align: left; }
 
   .st-swatch {
-    position: relative;
-    display: block;
-    height: 40px;
-    border-radius: 8px;
-    overflow: hidden;
-    background: linear-gradient(135deg, #1d2433, #131824);
-    border: 1px solid #2a3142;
+    position: relative; display: block; height: 40px; border-radius: 8px; overflow: hidden;
+    background: linear-gradient(135deg, #1d2433, #131824); border: 1px solid #2a3142;
   }
-
-  .st-swatch i {
-    position: absolute;
-    left: 10px;
-    right: 38%;
-    top: 50%;
-    height: 12px;
-    margin-top: -6px;
-    border-radius: 999px;
-    background: var(--st-accent);
-  }
-
+  .st-swatch i { position: absolute; left: 10px; right: 38%; top: 50%; height: 12px; margin-top: -6px; border-radius: 999px; background: var(--st-accent); }
   .st-swatch[data-stil="vivid"] { background: color-mix(in srgb, var(--st-accent) 16%, #0c0f15); border-color: var(--st-accent); }
   .st-swatch[data-stil="soft"] { background: #1c2232; border-color: #2f3750; }
   .st-swatch[data-stil="soft"] i { height: 14px; margin-top: -7px; border-radius: 999px; }
@@ -302,412 +245,705 @@
 
   /* ---- Buttons ---- */
   .st-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
-
   .st-btn {
-    min-height: 40px;
-    padding: 0 16px;
-    font: inherit;
-    font-weight: 600;
-    color: var(--st-text);
-    background: #1a1f2b;
-    border: 1px solid var(--st-line);
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background .15s, border-color .15s;
+    min-height: 40px; padding: 0 16px; font: inherit; font-size: 14px; font-weight: 600; color: var(--st-text);
+    background: var(--st-raised); border: 1px solid var(--st-line); border-radius: 10px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;
+    transition: background .15s, border-color .15s, transform .08s;
   }
-
-  .st-btn:hover:not(:disabled) { background: #222939; border-color: #3a4358; }
+  .st-btn:hover:not(:disabled) { border-color: var(--st-line-strong); background: var(--st-sel-bg); }
+  .st-btn:active:not(:disabled) { transform: translateY(1px); }
   .st-btn:disabled { opacity: .5; cursor: not-allowed; }
-
-  .st-btn--primary {
-    background: var(--st-primary);
-    border-color: transparent;
-    color: #0b1020;
-  }
-
-  .st-btn--primary:hover:not(:disabled) { background: #93b8ff; border-color: transparent; }
+  .st-btn--primary { background: var(--st-primary); border-color: transparent; color: var(--st-on-primary); }
+  .st-btn--primary:hover:not(:disabled) { background: var(--st-primary-hover); border-color: transparent; }
+  .st-btn--ghost { background: transparent; }
+  .st-btn--small { min-height: 34px; padding: 0 12px; font-size: 13px; }
+  .st-btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
 
   .st-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+  .st-presets .st-btn { gap: 8px; }
+  .st-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgb(128 128 128 / 50%); flex: 0 0 auto; }
 
-  .st-status { min-height: 1.5em; font-size: 14px; margin-top: 12px; overflow-wrap: anywhere; color: var(--st-muted); }
+  .st-status { min-height: 1.5em; font-size: 14px; margin-top: 12px; color: var(--st-muted); }
   .st-status.is-ok { color: var(--st-ok); }
   .st-status.is-err { color: var(--st-err); }
 
-  /* ---- Live previews ---- */
-  .st-previews { display: flex; flex-direction: column; gap: 18px; }
+  /* ---- Overlay link cards ---- */
+  .st-cards { display: flex; flex-direction: column; gap: 10px; }
+  .st-card { border: 1px solid var(--st-line); border-radius: 12px; background: var(--st-raised); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .st-card-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .st-card-name { font-weight: 700; font-size: 14.5px; }
+  .st-card-size { margin-left: auto; font-size: 12px; font-weight: 700; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--st-line); color: var(--st-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .st-card-desc { font-size: 13px; color: var(--st-muted); }
+  .st-card-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .st-card-row input { flex: 1 1 100%; min-height: 36px; font-size: 12.5px; font-family: 'Roboto Mono', ui-monospace, Consolas, monospace; text-overflow: ellipsis; }
+  .st-card-row .st-btn { white-space: nowrap; }
+  .st-card-warn { font-size: 12.5px; color: var(--st-warn); }
+  .st-card-warn[hidden] { display: none; }
 
-  .st-pv { margin: 0; min-width: 0; }
+  .st-steps { margin: 0 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  .st-note { font-size: 13px; color: var(--st-muted); margin-top: 12px; }
 
-  .st-pv figcaption {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 6px;
-    font-size: 13px;
-    font-weight: 600;
+  /* ---- Live preview ---- */
+  .st-preview { min-width: 0; }
+  .st-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 10px; scrollbar-width: thin; }
+  .st-tab {
+    flex: 0 0 auto; min-height: 34px; padding: 0 12px; border: 1px solid var(--st-line); border-radius: 999px;
+    background: var(--st-raised); color: var(--st-muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
   }
-
-  .st-pv figcaption span:last-child { color: var(--st-muted); font-weight: 500; font-variant-numeric: tabular-nums; }
-
-  .st-pv-note { margin-top: 6px; font-size: 12px; color: var(--st-muted); }
+  .st-tab:hover { border-color: var(--st-line-strong); color: var(--st-text); }
+  .st-tab[aria-selected="true"] { background: var(--st-sel-bg); border-color: var(--st-focus); color: var(--st-text); box-shadow: inset 0 0 0 1px var(--st-focus); }
 
   .st-stage {
-    padding: 12px;
-    overflow: hidden;
-    border: 1px solid var(--st-line);
-    border-radius: 12px;
-    background: repeating-conic-gradient(#171b24 0 25%, #10131a 0 50%) 0 0 / 20px 20px;
+    display: grid; place-items: center; min-height: 170px; padding: 12px; overflow: hidden;
+    border: 1px solid var(--st-line); border-radius: 14px;
   }
-
-  .st-fit { position: relative; margin: 0 auto; }
-
+  .st-stage[data-bg="checker"] { background: repeating-conic-gradient(#1a1e29 0 25%, #11141c 0 50%) 0 0 / 20px 20px; }
+  .st-stage[data-bg="dark"] { background: #0b0f17; }
+  .st-stage[data-bg="light"] { background: #e8eaf0; }
+  .st-stage[data-bg="scene"] {
+    background:
+      radial-gradient(60% 80% at 15% 20%, rgb(83 252 24 / 22%), transparent 60%),
+      radial-gradient(55% 70% at 90% 85%, rgb(124 58 237 / 38%), transparent 60%),
+      radial-gradient(40% 60% at 70% 10%, rgb(14 165 233 / 25%), transparent 60%), #0b0f17;
+  }
+  .st-fit { position: relative; }
   .st-fit iframe {
-    position: absolute;
-    left: 0;
-    top: 0;
-    display: block;
-    border: 0;
-    transform-origin: 0 0;
-    background: transparent;
-    /* The overlay pages declare no color-scheme. A mismatch with the dark page would make Chrome paint the frame opaque white. */
+    position: absolute; left: 0; top: 0; display: block; border: 0; transform-origin: 0 0; background: transparent;
+    /* The overlay pages declare no color-scheme. A mismatch with the page would make Chrome paint the frame opaque white.
+       Do not add a color-scheme meta tag to this page: it brings the white frame back in dark mode. */
     color-scheme: normal;
   }
+  .st-pv-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--st-muted); }
+  .st-pv-meta .st-grow { flex: 1 1 auto; }
+  .st-chip { display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px; border: 1px solid var(--st-line); border-radius: 999px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .st-bgs { display: inline-flex; gap: 4px; }
+  .st-bgs button {
+    min-height: 28px; padding: 0 10px; border: 1px solid var(--st-line); border-radius: 8px; background: transparent;
+    color: var(--st-muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .st-bgs button[aria-pressed="true"] { background: var(--st-sel-bg); color: var(--st-text); border-color: var(--st-focus); }
 
-  /* ---- Troubleshooting ---- */
+  /* ---- Help ---- */
   .st-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
-
-  .st-notes { margin: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+  .st-notes { margin: 0; display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
   .st-notes dt { font-weight: 700; }
   .st-notes dd { margin: 2px 0 0; color: var(--st-muted); }
+  h3.st-sub { font-size: 14px; font-weight: 700; color: var(--st-muted); margin: 16px 0 8px; }
 
-  /* ---- Responsive card grid: 4 columns wide, 3 medium, 2 on phones ---- */
-  @media (max-width: 1199px) {
-    .st-themes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* ---- Toast and footer ---- */
+  .st-toast {
+    position: fixed; left: 50%; bottom: 24px; z-index: 60; transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
+    padding: 10px 18px; border-radius: 999px; background: var(--st-primary); color: var(--st-on-primary); font-weight: 700; font-size: 14px;
+    box-shadow: var(--st-shadow); transition: opacity .2s, transform .2s;
   }
+  .st-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+  .st-toast.is-err { background: var(--st-err); color: #fff; }
 
-  /* ---- Small screens ---- */
+  .st-foot { max-width: 1280px; margin: 0 auto; padding: 0 20px 40px; color: var(--st-muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+
+  /* ---- Responsive ---- */
+  /* Phones and small tablets: the preview stays pinned at the top, compact, so every change is visible while scrolling. */
+  @media (max-width: 999px) {
+    .st-layout { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+    .st-preview { order: -1; position: sticky; top: 0; z-index: 20; margin: 0 -14px; }
+    .st-preview .st-section { padding: 8px 12px 10px; border-radius: 0 0 16px 16px; }
+    .st-preview #pv-title, .st-preview .st-pv-meta { display: none; }
+    .st-tabs { padding-bottom: 8px; }
+    .st-stage { min-height: 96px; padding: 8px; }
+  }
+  @media (max-width: 1199px) { .st-themes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 760px) { .st-how { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 560px) {
-    .st-app { padding: 16px 16px 40px; }
+    .st-top, .st-how, .st-layout, .st-foot { padding-left: 14px; padding-right: 14px; }
     .st-section { padding: 16px; }
-    .st-btn { flex: 1 1 100%; }
     .st-themes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .st-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .st-presets .st-btn { flex: none; padding: 0 4px; white-space: nowrap; }
+    .st-actions .st-btn { flex: 1 1 100%; }
     .st-color-row input[type="text"] { max-width: none; }
   }
-
   @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
     * { transition: none !important; }
   }
 </style>
 </head>
 <body>
-<div class="st-app">
+<a class="st-skip" href="#main" data-i18n="skip"></a>
 
-  <header class="st-head">
-    <h1>Kick Overlay Stüdyo</h1>
-    <p class="st-lead">Ayarları seçin, önizlemeye bakın ve AYARLAR.js dosyasını indirin.</p>
-  </header>
+<header class="st-top">
+  <div class="st-brand">
+    <span class="st-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></span>
+    <div>
+      <h1 data-i18n="brand.title"></h1>
+      <p class="st-lead" data-i18n="brand.lead"></p>
+    </div>
+  </div>
+  <div class="st-langs" role="group" data-i18n-aria="lang.aria">
+    <button type="button" data-lang="tr" aria-pressed="false">TR</button>
+    <button type="button" data-lang="en" aria-pressed="false">EN</button>
+  </div>
+</header>
 
-  <div class="st-layout">
+<ol class="st-how" aria-label="how it works">
+  <li><b>1</b><span data-i18n="how.1"></span></li>
+  <li><b>2</b><span data-i18n="how.2"></span></li>
+  <li><b>3</b><span data-i18n="how.3"></span></li>
+</ol>
 
-    <!-- Left column: settings -->
-    <div class="st-col">
+<noscript><p class="st-foot">This studio needs JavaScript.</p></noscript>
 
-      <form id="ayar-form" class="st-form" autocomplete="off" novalidate>
+<main id="main" class="st-layout">
 
-        <!-- 1. Kanal ve hazır ayarlar -->
-        <section class="st-section" aria-labelledby="s1">
-          <h2 id="s1"><span class="st-num">1</span>Kanal ve hazır ayarlar</h2>
+  <!-- Left column: settings -->
+  <div class="st-col">
 
-          <div class="st-field">
-            <label class="st-label" for="kanal">Kick kanal adı</label>
-            <input id="kanal" name="kanal" type="text" maxlength="40" placeholder="ornek_kanal" autocapitalize="none" spellcheck="false" />
-            <p class="st-hint">kick.com/<strong>kanal-adı</strong> kısmındaki ad. Boş bırakırsanız overlay'ler kurulum ipucu gösterir.</p>
-          </div>
+    <form id="ayar-form" class="st-form" autocomplete="off" novalidate>
 
-          <div class="st-field">
-            <span class="st-label" id="presets-label">Hazır ayarlar</span>
-            <div class="st-presets" role="group" aria-labelledby="presets-label">
-              <button type="button" class="st-btn" data-preset="minimal">Minimal</button>
-              <button type="button" class="st-btn" data-preset="neon">Neon</button>
-              <button type="button" class="st-btn" data-preset="pastel">Pastel</button>
-              <button type="button" class="st-btn" data-preset="gece">Gece</button>
-              <button type="button" class="st-btn" data-preset="kagit">Kâğıt</button>
-            </div>
-            <p class="st-hint">Tema, şekil, yazı tipi, hareket ve vurgu rengini birlikte değiştirir.</p>
-          </div>
-        </section>
+      <!-- 1. Channel -->
+      <section class="st-section" aria-labelledby="s1">
+        <h2 id="s1"><span class="st-num">1</span><span data-i18n="s1.title"></span></h2>
+        <div class="st-field">
+          <label class="st-label" for="kanal" data-i18n="f.kanal"></label>
+          <input id="kanal" name="kanal" type="text" maxlength="40" placeholder="ornek_kanal" autocapitalize="none" spellcheck="false" />
+          <p class="st-hint" data-i18n="h.kanal"></p>
+        </div>
+      </section>
 
-        <!-- 2. Görünüm -->
-        <section class="st-section" aria-labelledby="s2">
-          <h2 id="s2"><span class="st-num">2</span>Görünüm</h2>
+      <!-- 2. Look -->
+      <section class="st-section" aria-labelledby="s2">
+        <h2 id="s2"><span class="st-num">2</span><span data-i18n="s2.title"></span></h2>
 
+        <div class="st-field" style="margin-bottom:18px">
+          <span class="st-label" id="presets-label" data-i18n="presets.label"></span>
+          <div class="st-presets" id="presets" role="group" aria-labelledby="presets-label"></div>
+          <p class="st-hint" data-i18n="presets.hint"></p>
+        </div>
+
+        <fieldset>
+          <legend data-i18n="f.stil"></legend>
+          <div id="stil-secenekleri" class="st-themes"></div>
+        </fieldset>
+
+        <div class="st-grid">
           <fieldset>
-            <legend>Tema</legend>
-            <div id="stil-secenekleri" class="st-themes"></div>
+            <legend data-i18n="f.sekil"></legend>
+            <div id="sekil-secenekleri" class="st-seg-group"></div>
           </fieldset>
-
-          <div class="st-grid">
-            <fieldset>
-              <legend>Köşe şekli</legend>
-              <div id="sekil-secenekleri" class="st-seg-group"></div>
-            </fieldset>
-
-            <fieldset>
-              <legend>Etiket dili</legend>
-              <div id="dil-secenekleri" class="st-seg-group"></div>
-            </fieldset>
-
-            <fieldset>
-              <legend>Hareket</legend>
-              <div id="animasyon-secenekleri" class="st-seg-group"></div>
-            </fieldset>
-
-            <div class="st-field">
-              <label class="st-label" for="yaziTipi">Yazı tipi</label>
-              <select id="yaziTipi" name="yaziTipi"></select>
-            </div>
-          </div>
-
+          <fieldset>
+            <legend data-i18n="f.dil"></legend>
+            <div id="dil-secenekleri" class="st-seg-group"></div>
+          </fieldset>
+          <fieldset>
+            <legend data-i18n="f.animasyon"></legend>
+            <div id="animasyon-secenekleri" class="st-seg-group"></div>
+          </fieldset>
           <div class="st-field">
-            <span class="st-label" id="renk-label">Vurgu rengi</span>
-            <div class="st-color-row">
-              <input id="renk" name="renk" type="color" value="#53fc18" aria-labelledby="renk-label" />
-              <input id="renkMetin" type="text" maxlength="7" spellcheck="false" aria-label="Vurgu rengi, hex kodu" placeholder="#53fc18" />
-            </div>
+            <label class="st-label" for="yaziTipi" data-i18n="f.yaziTipi"></label>
+            <select id="yaziTipi" name="yaziTipi"></select>
           </div>
+        </div>
 
-          <div class="st-checks">
-            <label class="st-check"><input type="checkbox" name="yuzdeGoster" /> Hedefin yüzdesini göster</label>
-            <label class="st-check"><input type="checkbox" name="oturumFarkiGoster" /> Abone artışını göster (bu yayında +N)</label>
-          </div>
-        </section>
-
-        <!-- 3. Hedefler -->
-        <section class="st-section" aria-labelledby="s3">
-          <h2 id="s3"><span class="st-num">3</span>Hedefler</h2>
-          <div class="st-grid">
-            <div class="st-field">
-              <label class="st-label" for="takipciHedefi">Takipçi hedefi</label>
-              <input id="takipciHedefi" name="takipciHedefi" type="number" min="1" max="100000000" step="1" inputmode="numeric" />
-            </div>
-            <div class="st-field">
-              <label class="st-label" for="takipciYedek">Takipçi yedek sayısı</label>
-              <input id="takipciYedek" name="takipciYedek" type="number" min="0" max="100000000" step="1" inputmode="numeric" />
-              <p class="st-hint">Kick'e ulaşılamazsa gösterilir.</p>
-            </div>
-            <div class="st-field">
-              <label class="st-label" for="aboneHedefi">Abone hedefi</label>
-              <input id="aboneHedefi" name="aboneHedefi" type="number" min="1" max="100000000" step="1" inputmode="numeric" />
-            </div>
-            <div class="st-field">
-              <label class="st-label" for="aboneSayisi">Manuel abone sayısı</label>
-              <input id="aboneSayisi" name="aboneSayisi" type="number" min="0" max="100000000" step="1" inputmode="numeric" />
-              <p class="st-hint">Kick uygulaması bağlıysa canlı toplam kullanılır.</p>
-            </div>
-            <div class="st-field">
-              <label class="st-label" for="yenilemeSn">Yenileme aralığı (saniye)</label>
-              <input id="yenilemeSn" name="yenilemeSn" type="number" min="10" max="600" step="1" inputmode="numeric" />
-              <p class="st-hint">10 ile 600 arası.</p>
-            </div>
-            <div class="st-field">
-              <label class="st-label" for="sohbetMaksMesaj">Sohbette en çok mesaj</label>
-              <input id="sohbetMaksMesaj" name="sohbetMaksMesaj" type="number" min="3" max="20" step="1" inputmode="numeric" />
-              <p class="st-hint">3 ile 20 arası.</p>
-            </div>
-            <div class="st-field">
-              <label class="st-label" for="yayinciYazisi">Yayıncı etiketi</label>
-              <input id="yayinciYazisi" name="yayinciYazisi" type="text" maxlength="24" />
-              <p class="st-hint">Sohbette kendi adınızın yanında görünür.</p>
-            </div>
-          </div>
-        </section>
-
-        <!-- 3b. Geri sayım ve duyuru -->
-        <section class="st-section" aria-labelledby="s3b">
-          <h2 id="s3b"><span class="st-num">4</span>Geri sayım ve duyuru çubuğu</h2>
-          <div class="st-grid">
-            <div class="st-field">
-              <label class="st-label" for="geriSayimDk">Geri sayım süresi (dakika)</label>
-              <input id="geriSayimDk" name="geriSayimDk" type="number" min="1" max="720" step="1" inputmode="numeric" />
-              <p class="st-hint">Sayfa yüklenince başlar. 1 ile 720 arası.</p>
-            </div>
-            <div class="st-field">
-              <label class="st-label" for="geriSayimBaslik">Geri sayım başlığı</label>
-              <input id="geriSayimBaslik" name="geriSayimBaslik" type="text" maxlength="60" />
-              <p class="st-hint">Boşsa "Birazdan başlıyoruz" yazar.</p>
-            </div>
-            <div class="st-field" style="grid-column: 1 / -1">
-              <label class="st-label" for="duyuruMetinleri">Duyuru metinleri</label>
-              <input id="duyuruMetinleri" name="duyuruMetinleri" type="text" maxlength="400" placeholder="Takip et | !discord | Her cuma yeni video" />
-              <p class="st-hint">Satırları | ile ayırın (en çok 12).</p>
-            </div>
-            <div class="st-field">
-              <label class="st-label" for="duyuruSn">Duyuru süresi (saniye)</label>
-              <input id="duyuruSn" name="duyuruSn" type="number" min="3" max="60" step="1" inputmode="numeric" />
-              <p class="st-hint">3 ile 60 arası.</p>
-            </div>
-          </div>
-        </section>
-
-      </form>
-
-      <!-- 6. Kick uygulaması (isteğe bağlı). Outside the form: secrets never reach the output. -->
-      <section class="st-section" aria-labelledby="s6">
-        <h2 id="s6"><span class="st-num">5</span>Kick uygulaması<span class="st-tag">isteğe bağlı</span></h2>
-        <p class="st-hint">Aktif abone sayısını Kick'ten canlı çekmek için kendi Kick uygulamanızın bilgileri gerekir. Bilgiler yalnızca bu sayfanın belleğinde tutulur: kaydedilmez, adres çubuğuna ya da AYARLAR.js çıktısına yazılmaz.</p>
-
-        <div class="st-grid" style="margin-top:16px">
-          <div class="st-field">
-            <label class="st-label" for="kickClientId">Client ID</label>
-            <input id="kickClientId" type="password" autocomplete="off" spellcheck="false" />
-          </div>
-          <div class="st-field">
-            <label class="st-label" for="kickClientSecret">Client Secret</label>
-            <input id="kickClientSecret" type="password" autocomplete="new-password" spellcheck="false" />
+        <div class="st-field">
+          <span class="st-label" id="renk-label" data-i18n="f.renk"></span>
+          <div class="st-color-row">
+            <input id="renk" name="renk" type="color" value="#53fc18" aria-labelledby="renk-label" />
+            <input id="renkMetin" type="text" maxlength="7" spellcheck="false" data-i18n-aria="f.renkHex" placeholder="#53fc18" />
           </div>
         </div>
 
         <div class="st-checks">
-          <label class="st-check"><input id="gizliGoster" type="checkbox" /> Bilgileri göster</label>
+          <label class="st-check"><input type="checkbox" name="yuzdeGoster" /> <span data-i18n="f.yuzdeGoster"></span></label>
+          <label class="st-check"><input type="checkbox" name="oturumFarkiGoster" /> <span data-i18n="f.oturumFarkiGoster"></span></label>
         </div>
 
         <div class="st-actions">
-          <button type="button" id="kickTest" class="st-btn">Bağlantıyı test et</button>
-          <button type="button" id="yerelIndir" class="st-btn">AYARLAR.local.js indir</button>
-        </div>
-        <p id="kick-durum" class="st-status" role="status"></p>
-        <p class="st-hint">AYARLAR.local.js dosyasını AYARLAR.js ile aynı klasöre koyun. Bu dosyayı kimseyle paylaşmayın ve commit etmeyin.</p>
-      </section>
-
-    </div>
-
-    <!-- Right column: preview and output -->
-    <div class="st-col">
-
-      <!-- 4. Canlı önizleme -->
-      <section class="st-section" aria-labelledby="s4">
-        <h2 id="s4"><span class="st-num">6</span>Canlı önizleme</h2>
-        <p class="st-hint">Ayarlar değiştikçe önizleme yenilenir. Kanal boşsa overlay'ler kurulum ipucunu gösterir. Boyutlar OBS'deki gerçek boyutlardır; ekrana sığmayanlar küçültülür.</p>
-
-        <div class="st-previews" style="margin-top:16px">
-          <figure class="st-pv" data-overlay="follower-bar.html" data-w="520" data-h="90">
-            <figcaption><span>Takipçi çubuğu</span><span>520 × 90</span></figcaption>
-            <div class="st-stage"><div class="st-fit"><iframe width="520" height="90" title="Takipçi çubuğu önizlemesi"></iframe></div></div>
-          </figure>
-
-          <figure class="st-pv" data-overlay="subscriber-bar.html" data-w="520" data-h="90">
-            <figcaption><span>Abone çubuğu</span><span>520 × 90</span></figcaption>
-            <div class="st-stage"><div class="st-fit"><iframe width="520" height="90" title="Abone çubuğu önizlemesi"></iframe></div></div>
-          </figure>
-
-          <figure class="st-pv" data-overlay="combined-bar.html" data-w="520" data-h="180">
-            <figcaption><span>Birleşik çubuk</span><span>520 × 180</span></figcaption>
-            <div class="st-stage"><div class="st-fit"><iframe width="520" height="180" title="Birleşik çubuk önizlemesi"></iframe></div></div>
-          </figure>
-
-          <figure class="st-pv" data-overlay="info-panel.html" data-w="300" data-h="80">
-            <figcaption><span>Yayın bilgi paneli</span><span>300 × 80</span></figcaption>
-            <div class="st-stage"><div class="st-fit"><iframe width="300" height="80" title="Yayın bilgi paneli önizlemesi"></iframe></div></div>
-          </figure>
-
-          <figure class="st-pv" data-overlay="countdown.html" data-w="520" data-h="190">
-            <figcaption><span>Geri sayım</span><span>520 × 190</span></figcaption>
-            <div class="st-stage"><div class="st-fit"><iframe width="520" height="190" title="Geri sayım önizlemesi"></iframe></div></div>
-          </figure>
-
-          <figure class="st-pv" data-overlay="ticker.html" data-w="760" data-h="80">
-            <figcaption><span>Duyuru çubuğu</span><span>760 × 80</span></figcaption>
-            <div class="st-stage"><div class="st-fit"><iframe width="760" height="80" title="Duyuru çubuğu önizlemesi"></iframe></div></div>
-          </figure>
-
-          <figure class="st-pv" data-overlay="chat.html" data-w="460" data-h="760">
-            <figcaption><span>Sohbet</span><span>460 × 760</span></figcaption>
-            <div class="st-stage"><div class="st-fit"><iframe width="460" height="760" title="Sohbet önizlemesi"></iframe></div></div>
-          </figure>
+          <button type="button" class="st-btn st-btn--ghost st-btn--small" id="sifirla" data-i18n="reset"></button>
         </div>
       </section>
 
-      <!-- 5. Çıktı -->
-      <section class="st-section" aria-labelledby="s5">
-        <h2 id="s5"><span class="st-num">7</span>Çıktı: AYARLAR.js</h2>
-        <textarea id="cikti" readonly spellcheck="false" aria-label="Oluşturulan AYARLAR.js içeriği"></textarea>
-        <div class="st-actions">
-          <button type="button" id="indir" class="st-btn st-btn--primary">AYARLAR.js indir</button>
-          <button type="button" id="kopyala" class="st-btn">Kopyala</button>
+      <!-- 3. Numbers and content -->
+      <section class="st-section" aria-labelledby="s3">
+        <h2 id="s3"><span class="st-num">3</span><span data-i18n="s3.title"></span><span class="st-tag" data-i18n="tag.optional"></span></h2>
+        <p class="st-intro" data-i18n="s3.intro"></p>
+
+        <details class="st-group" id="g-goals" open>
+          <summary><span data-i18n="g.goals"></span><small data-i18n="g.goals.for"></small></summary>
+          <div class="st-group-body st-grid">
+            <div class="st-field">
+              <label class="st-label" for="takipciHedefi" data-i18n="f.takipciHedefi"></label>
+              <input id="takipciHedefi" name="takipciHedefi" type="number" min="1" max="100000000" step="1" inputmode="numeric" />
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="takipciYedek" data-i18n="f.takipciYedek"></label>
+              <input id="takipciYedek" name="takipciYedek" type="number" min="0" max="100000000" step="1" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.takipciYedek"></p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="aboneHedefi" data-i18n="f.aboneHedefi"></label>
+              <input id="aboneHedefi" name="aboneHedefi" type="number" min="1" max="100000000" step="1" inputmode="numeric" />
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="aboneSayisi" data-i18n="f.aboneSayisi"></label>
+              <input id="aboneSayisi" name="aboneSayisi" type="number" min="0" max="100000000" step="1" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.aboneSayisi"></p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="yenilemeSn" data-i18n="f.yenilemeSn"></label>
+              <input id="yenilemeSn" name="yenilemeSn" type="number" min="10" max="600" step="1" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.yenilemeSn"></p>
+            </div>
+          </div>
+        </details>
+
+        <details class="st-group" id="g-chat">
+          <summary><span data-i18n="g.chat"></span></summary>
+          <div class="st-group-body st-grid">
+            <div class="st-field">
+              <label class="st-label" for="sohbetMaksMesaj" data-i18n="f.sohbetMaksMesaj"></label>
+              <input id="sohbetMaksMesaj" name="sohbetMaksMesaj" type="number" min="3" max="20" step="1" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.sohbetMaksMesaj"></p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="yayinciYazisi" data-i18n="f.yayinciYazisi"></label>
+              <input id="yayinciYazisi" name="yayinciYazisi" type="text" maxlength="24" />
+              <p class="st-hint" data-i18n="h.yayinciYazisi"></p>
+            </div>
+          </div>
+        </details>
+
+        <details class="st-group" id="g-countdown">
+          <summary><span data-i18n="g.countdown"></span></summary>
+          <div class="st-group-body st-grid">
+            <div class="st-field">
+              <label class="st-label" for="geriSayimDk" data-i18n="f.geriSayimDk"></label>
+              <input id="geriSayimDk" name="geriSayimDk" type="number" min="1" max="720" step="1" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.geriSayimDk"></p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="geriSayimBaslik" data-i18n="f.geriSayimBaslik"></label>
+              <input id="geriSayimBaslik" name="geriSayimBaslik" type="text" maxlength="60" />
+              <p class="st-hint" data-i18n="h.geriSayimBaslik"></p>
+            </div>
+          </div>
+        </details>
+
+        <details class="st-group" id="g-ticker">
+          <summary><span data-i18n="g.ticker"></span></summary>
+          <div class="st-group-body st-grid">
+            <div class="st-field st-wide">
+              <label class="st-label" for="duyuruMetinleri" data-i18n="f.duyuruMetinleri"></label>
+              <input id="duyuruMetinleri" name="duyuruMetinleri" type="text" maxlength="400" data-i18n-ph="ph.duyuruMetinleri" />
+              <p class="st-hint" data-i18n="h.duyuruMetinleri"></p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="duyuruSn" data-i18n="f.duyuruSn"></label>
+              <input id="duyuruSn" name="duyuruSn" type="number" min="3" max="60" step="1" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.duyuruSn"></p>
+            </div>
+          </div>
+        </details>
+      </section>
+
+    </form>
+
+    <!-- 4. Add to OBS -->
+    <section class="st-section" aria-labelledby="s4">
+      <h2 id="s4"><span class="st-num">4</span><span data-i18n="s4.title"></span></h2>
+      <ol class="st-steps">
+        <li data-i18n="s4.step1"></li>
+        <li data-i18n="s4.step2"></li>
+        <li data-i18n="s4.step3"></li>
+      </ol>
+      <div id="kartlar" class="st-cards"></div>
+      <p class="st-note" data-i18n="s4.again"></p>
+
+      <details class="st-group" style="margin-top:16px">
+        <summary><span data-i18n="file.title"></span><small data-i18n="file.sub"></small></summary>
+        <div class="st-group-body">
+          <p class="st-hint" style="margin-bottom:12px" data-i18n="file.intro"></p>
+          <textarea id="cikti" readonly spellcheck="false" data-i18n-aria="file.aria"></textarea>
+          <div class="st-actions">
+            <button type="button" id="indir" class="st-btn st-btn--primary" data-i18n="file.download"></button>
+            <button type="button" id="kopyala" class="st-btn" data-i18n="file.copy"></button>
+          </div>
+          <p id="cikti-durum" class="st-status" role="status"></p>
         </div>
-        <p id="cikti-durum" class="st-status" role="status"></p>
-        <p class="st-hint">İndirilen dosyayı proje klasörüne koyun (AYARLAR.js'in bulunduğu yer), sonra OBS'de kaynağa sağ tıklayıp Yenile seçin.</p>
-      </section>
+      </details>
+    </section>
 
-      <!-- 7. Sorun giderme -->
-      <section class="st-section" aria-labelledby="s7">
-        <h2 id="s7"><span class="st-num">8</span>Sorun giderme</h2>
+    <!-- 5. Kick app (optional). Outside the form: secrets never reach the output. -->
+    <section class="st-section" aria-labelledby="s5">
+      <h2 id="s5"><span class="st-num">5</span><span data-i18n="s5.title"></span><span class="st-tag" data-i18n="tag.optional"></span></h2>
+      <p class="st-intro" data-i18n="s5.intro"></p>
 
-        <h3>Kontrol listesi</h3>
-        <ol class="st-list">
-          <li>Kanal alanına yalnızca kanal adını yazdınız mı? (kick.com/<strong>ad</strong>)</li>
-          <li>AYARLAR.js dosyasını proje klasörüne koyup OBS'de kaynağa sağ tıklayarak Yenile'yi seçtiniz mi?</li>
-          <li>OBS kaynağının genişlik ve yüksekliği, bu sayfadaki boyutla aynı mı?</li>
-          <li>Canlı abone sayısı istiyorsanız Kick uygulama bilgilerini girip "Bağlantıyı test et" ile doğruladınız mı?</li>
-        </ol>
+      <div class="st-grid">
+        <div class="st-field">
+          <label class="st-label" for="kickClientId">Client ID</label>
+          <input id="kickClientId" type="password" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="st-field">
+          <label class="st-label" for="kickClientSecret">Client Secret</label>
+          <input id="kickClientSecret" type="password" autocomplete="new-password" spellcheck="false" />
+        </div>
+      </div>
+      <div class="st-checks">
+        <label class="st-check"><input id="gizliGoster" type="checkbox" /> <span data-i18n="s5.show"></span></label>
+      </div>
+      <div class="st-actions">
+        <button type="button" id="kickTest" class="st-btn" data-i18n="s5.test"></button>
+        <button type="button" id="yerelIndir" class="st-btn" data-i18n="s5.download"></button>
+      </div>
+      <p id="kick-durum" class="st-status" role="status"></p>
+      <p class="st-hint" data-i18n="s5.hint"></p>
+    </section>
 
-        <h3>Overlay notları</h3>
-        <dl class="st-notes">
-          <div>
-            <dt>⚙ AYARLAR.js → kanal</dt>
-            <dd>Kanal adı boş. Overlay ağ isteği yapmaz; AYARLAR.js içinde kanal adını yazın.</dd>
-          </div>
-          <div>
-            <dt>Kick uygulama bilgisi hatalı — AYARLAR.local.js</dt>
-            <dd>Client ID veya Secret yanlış ya da yetkisiz. Bilgileri kontrol edip OBS'de kaynağa sağ tıklayıp Yenile'yi seçin.</dd>
-          </div>
-          <div>
-            <dt>Kick'e ulaşılamadı, son değer gösteriliyor</dt>
-            <dd>Geçici bağlantı sorunu ya da istek sınırı. Overlay son başarılı değeri tutar; genellikle kendiliğinden düzelir.</dd>
-          </div>
-          <div>
-            <dt>Kick bu kanal için abone verisi döndürmedi</dt>
-            <dd>Kick bu kanal için abone bilgisi vermiyor. Sayı 0 görünebilir; manuel abone sayısı bu durumda kullanılmaz.</dd>
-          </div>
-          <div>
-            <dt>Canlı sohbet köprüsüne bağlanılamadı</dt>
-            <dd>Sohbet, yerel relay üzerinden gelir. <code>node relay/server.js</code> çalışıyor mu? Çalışmıyorsa sohbet kutusu boş kalır ve sahte mesaj gösterilmez. Kurulum için README'deki Canlı sohbet bölümüne bakın.</dd>
-          </div>
-          <div>
-            <dt>bağlanıyor…</dt>
-            <dd>Sohbet bağlantısı kuruluyor ya da yeniden deneniyor. Birkaç saniye bekleyin.</dd>
-          </div>
-        </dl>
-      </section>
+    <!-- 6. Help -->
+    <section class="st-section" aria-labelledby="s6">
+      <h2 id="s6"><span class="st-num">6</span><span data-i18n="s6.title"></span></h2>
+      <details class="st-group">
+        <summary><span data-i18n="help.check.title"></span></summary>
+        <div class="st-group-body"><ul class="st-list" id="yardim-liste"></ul></div>
+      </details>
+      <details class="st-group">
+        <summary><span data-i18n="help.notes.title"></span></summary>
+        <div class="st-group-body"><dl class="st-notes" id="yardim-notlar"></dl></div>
+      </details>
+    </section>
 
-    </div>
   </div>
-</div>
+
+  <!-- Right column: sticky preview -->
+  <aside class="st-col st-preview" aria-labelledby="pv-title">
+    <section class="st-section">
+      <h2 id="pv-title" class="st-h" data-i18n="pv.title"></h2>
+      <div class="st-tabs" id="sekmeler" role="tablist" data-i18n-aria="pv.tabs"></div>
+      <div class="st-stage" id="sahne" data-bg="checker" role="tabpanel" aria-live="off">
+        <div class="st-fit" id="sigdir"><iframe id="onizleme" width="520" height="90" title="Preview"></iframe></div>
+      </div>
+      <div class="st-pv-meta">
+        <span class="st-chip" id="pv-boyut"></span>
+        <span class="st-chip" id="pv-veri"></span>
+        <span class="st-grow"></span>
+        <a class="st-btn st-btn--small st-btn--ghost" id="pv-ac" target="_blank" rel="noopener" data-i18n="pv.open"></a>
+      </div>
+      <div class="st-pv-meta">
+        <span id="bg-label" data-i18n="pv.bg"></span>
+        <span class="st-bgs" id="arkaplanlar" role="group" aria-labelledby="bg-label"></span>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<footer class="st-foot">
+  <span data-i18n="foot.notAffiliated"></span>
+  <span>© 2026 𝓐.𝓒.𝓑</span>
+  <a href="https://github.com/IACBI/kick-streamer-overlays" target="_blank" rel="noopener">GitHub</a>
+  <a href="LICENSE" target="_blank" rel="noopener" data-i18n="foot.license"></a>
+</footer>
+
+<div class="st-toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
-/* Kick Overlay Stüdyo. Classic script. Network use is limited to the Kick
-   calls the core makes when "Bağlantıyı test et" is pressed. */
+/* Kick Overlay Studio. Classic script. Network use is limited to the Kick calls the
+   core makes when "Test connection" is pressed. */
 (function () {
   'use strict';
 
   var K = window.KickOverlay;
   var DRAFT_KEY = 'kickOverlayStudio.taslak';
-  var DEBOUNCE_MS = 300;
+  var UI_KEY = 'kickOverlayStudio.arayuz';
+  var DEBOUNCE_MS = 250;
   var HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
-  // UI labels. Values not listed here fall back to the raw enum value.
-  var LABELS = {
-    stil: {
-      glass: 'Cam', vivid: 'Canlı', soft: 'Yumuşak', cinema: 'Sinema', neon: 'Neon', minimal: 'Minimal',
-      pastel: 'Pastel', terminal: 'Terminal', aurora: 'Kuzey Işığı', holo: 'Holografik', ember: 'Kor',
-      paper: 'Kâğıt', retro: 'Piksel'
+  // ---- Text: every visible string, Turkish and English ------------------------
+
+  var I18N = {
+    tr: {
+      'skip': 'İçeriğe geç',
+      'brand.title': 'Kick Overlay Stüdyo',
+      'brand.lead': 'Görünümü seç, önizle, bağlantıyı kopyala ve OBS’e yapıştır.',
+      'lang.aria': 'Dil',
+      'how.1': 'Kanalını ve görünümü seç',
+      'how.2': 'Overlay’in bağlantısını kopyala',
+      'how.3': 'OBS’te Tarayıcı kaynağına yapıştır',
+      'tag.optional': 'isteğe bağlı',
+      's1.title': 'Kanal',
+      'f.kanal': 'Kick kanal adı',
+      'h.kanal': 'Kanal adresindeki kick.com/ sonrasındaki ad. Boşsa önizlemede örnek veri görürsün; OBS’te ise kurulum ipucu çıkar.',
+      's2.title': 'Görünüm',
+      'presets.label': 'Hazır görünümler',
+      'presets.hint': 'Tema, şekil, yazı tipi, hareket ve vurgu rengini birlikte değiştirir.',
+      'preset.minimal': 'Minimal', 'preset.neon': 'Neon', 'preset.pastel': 'Pastel', 'preset.gece': 'Gece', 'preset.kagit': 'Kâğıt',
+      'f.stil': 'Tema',
+      'f.sekil': 'Köşe şekli',
+      'f.dil': 'Etiket dili',
+      'f.animasyon': 'Hareket',
+      'f.yaziTipi': 'Yazı tipi',
+      'f.renk': 'Vurgu rengi',
+      'f.renkHex': 'Vurgu rengi, hex kodu',
+      'f.yuzdeGoster': 'Hedefin yüzdesini göster',
+      'f.oturumFarkiGoster': 'Abone artışını göster (bu yayında +N)',
+      'reset': 'Tüm ayarları sıfırla (kanal kalır)',
+      's3.title': 'Sayılar ve içerik',
+      's3.intro': 'Hedeflerini, sohbeti, geri sayımı ve duyuruları buradan ayarla. Önizlemede seçtiğin overlay’in bölümü kendiliğinden açılır.',
+      'g.goals': 'Hedefler ve sayılar',
+      'g.goals.for': 'takipçi, abone, birleşik çubuk, yayın paneli',
+      'g.chat': 'Sohbet',
+      'g.countdown': 'Geri sayım',
+      'g.ticker': 'Duyuru çubuğu',
+      'f.takipciHedefi': 'Takipçi hedefi',
+      'f.takipciYedek': 'Yedek takipçi sayısı',
+      'h.takipciYedek': 'Kick’e ulaşılamazsa gösterilir.',
+      'f.aboneHedefi': 'Abone hedefi',
+      'f.aboneSayisi': 'Elle abone sayısı',
+      'h.aboneSayisi': 'Kick uygulaması yoksa bu sayı gösterilir; varsa canlı toplam kullanılır.',
+      'f.yenilemeSn': 'Yenileme aralığı (saniye)',
+      'h.yenilemeSn': '10 ile 600 arası.',
+      'f.sohbetMaksMesaj': 'Ekranda en çok mesaj',
+      'h.sohbetMaksMesaj': '3 ile 20 arası.',
+      'f.yayinciYazisi': 'Yayıncı etiketi',
+      'h.yayinciYazisi': 'Sohbette senin adının yanında görünür.',
+      'f.geriSayimDk': 'Süre (dakika)',
+      'h.geriSayimDk': 'Kaynak yüklenince başlar. 1 ile 720 arası.',
+      'f.geriSayimBaslik': 'Başlık',
+      'h.geriSayimBaslik': 'Boşsa “Birazdan başlıyoruz” yazar.',
+      'f.duyuruMetinleri': 'Duyuru metinleri',
+      'ph.duyuruMetinleri': 'Takip et | !discord | Her cuma yeni video',
+      'h.duyuruMetinleri': 'Satırları | işaretiyle ayır (en çok 12).',
+      'f.duyuruSn': 'Her duyurunun süresi (saniye)',
+      'h.duyuruSn': '3 ile 60 arası.',
+      's4.title': 'OBS’e ekle',
+      's4.step1': 'OBS’te Kaynaklar → + → Tarayıcı ile yeni bir kaynak ekle.',
+      's4.step2': '“Yerel dosya” kutusunu kapat ve aşağıdaki bağlantıyı URL kutusuna yapıştır.',
+      's4.step3': 'Genişlik ve yüksekliği kartta yazan boyuta ayarla.',
+      's4.again': 'Bir ayarı değiştirirsen bağlantıyı yeniden kopyala. Bağlantı, bu stüdyonun açık olduğu klasördeki dosyayı gösterir; klasörü taşırsan bağlantıları yenile.',
+      'card.copy': 'Bağlantıyı kopyala',
+      'card.preview': 'Önizle',
+      'card.needChannel': 'Kanal adı boş: bu overlay OBS’te kurulum ipucu gösterir.',
+      'ov.follower': 'Takipçi çubuğu', 'ov.follower.d': 'Takipçi hedefi ve sayısı',
+      'ov.subscriber': 'Abone çubuğu', 'ov.subscriber.d': 'Abone hedefi ve sayısı',
+      'ov.combined': 'Birleşik çubuk', 'ov.combined.d': 'Takipçi ve abone tek panelde',
+      'ov.info': 'Yayın paneli', 'ov.info.d': 'İzleyici sayısı ve yayın süresi, yalnızca yayındayken',
+      'ov.countdown': 'Geri sayım', 'ov.countdown.d': '“Birazdan başlıyoruz” sahnesi için',
+      'ov.ticker': 'Duyuru çubuğu', 'ov.ticker.d': 'Sosyal medya, komut ve duyuruları sırayla gösterir',
+      'ov.chat': 'Sohbet', 'ov.chat.d': 'Canlı sohbet. Yerel relay gerektirir (bkz. Sorun giderme)',
+      'file.title': 'Ayar dosyası yöntemi',
+      'file.sub': 'AYARLAR.js',
+      'file.intro': 'Bağlantı yerine OBS’in “Yerel dosya” seçeneğini kullanmak istersen: aşağıdaki dosyayı indirip proje klasöründeki AYARLAR.js’in yerine koy, sonra kaynağa sağ tıklayıp Yenile’yi seç.',
+      'file.aria': 'Oluşturulan AYARLAR.js içeriği',
+      'file.download': 'AYARLAR.js indir',
+      'file.copy': 'Kopyala',
+      's5.title': 'Kick uygulaması',
+      's5.intro': 'Aktif abone sayısını Kick’ten canlı çekmek için kendi Kick uygulamanın bilgileri gerekir. Bilgiler yalnızca bu sayfanın belleğinde tutulur: kaydedilmez, bağlantılara ya da AYARLAR.js çıktısına yazılmaz.',
+      's5.show': 'Bilgileri göster',
+      's5.test': 'Bağlantıyı test et',
+      's5.download': 'AYARLAR.local.js indir',
+      's5.hint': 'AYARLAR.local.js dosyasını AYARLAR.js ile aynı klasöre koy. Bu dosyayı kimseyle paylaşma ve commit etme.',
+      's6.title': 'Sorun giderme',
+      'help.check.title': 'Kontrol listesi',
+      'help.notes.title': 'Overlay’de gördüğün notlar',
+      'pv.title': 'Canlı önizleme',
+      'pv.tabs': 'Overlay seç',
+      'pv.open': 'Yeni sekmede aç',
+      'pv.bg': 'Arka plan',
+      'pv.sample': 'Örnek veri',
+      'pv.live': 'Canlı veri',
+      'bg.checker': 'Dama', 'bg.dark': 'Koyu', 'bg.light': 'Açık', 'bg.scene': 'Sahne',
+      'foot.notAffiliated': 'Bu proje Kick ile bağlantılı değildir.',
+      'foot.license': 'Lisans',
+      'toast.linkCopied': 'Bağlantı kopyalandı.',
+      'toast.linkFail': 'Kopyalanamadı. Bağlantıyı seçip elle kopyala.',
+      'out.copied': 'Panoya kopyalandı.',
+      'out.copyFail': 'Panoya kopyalanamadı. Metin seçildi; Ctrl+C ile kopyala.',
+      'out.downloaded': 'AYARLAR.js indirildi.',
+      'out.dlFail': 'İndirme başlatılamadı.',
+      'core.fail': 'shared/kick-core.js yüklenemedi. Dosya yolunu kontrol et.',
+      'e.noCreds': 'Önce Client ID ve Client Secret alanlarını doldur.',
+      'e.noChannel': 'Önce kanal adını yaz (1. adım).',
+      'e.checking': 'Kick ile bağlantı kontrol ediliyor…',
+      'e.tokenBad': 'Client ID veya Client Secret hatalı (HTTP {status}).',
+      'e.tokenHttp': 'Kick kimlik sunucusu hata döndürdü (HTTP {status}).',
+      'e.tokenTimeout': 'Zaman aşımı: Kick kimlik sunucusuna ulaşılamadı.',
+      'e.tokenNet': 'Ağ hatası: Kick kimlik sunucusuna ulaşılamadı. İnternet bağlantını kontrol et.',
+      'e.tokenOther': 'Kick beklenmeyen bir yanıt döndürdü; erişim anahtarı alınamadı.',
+      'e.chanAuth': 'Kick uygulaması bu kanal verisine erişemiyor (HTTP {status}). Uygulama yetkilerini kontrol et.',
+      'e.rate': 'Çok fazla istek gönderildi. Birkaç dakika sonra tekrar dene.',
+      'e.empty': 'Kick bu kanal için veri döndürmedi. Kanal adını kontrol et.',
+      'e.chanTimeout': 'Zaman aşımı: Kick API yanıt vermedi.',
+      'e.chanNet': 'Ağ hatası: Kick API’ye ulaşılamadı.',
+      'e.chanOther': 'Kanal bilgisi alınamadı.',
+      'e.noSubs': 'Kanal bulundu ancak Kick abone verisi döndürmedi.',
+      'e.ok': 'Bağlantı başarılı. Aktif abone: {n}{live}.',
+      'e.live': ' · Yayında',
+      'e.offline': ' · Yayında değil',
+      'e.unexpected': 'Beklenmeyen bir hata oluştu.',
+      'e.localNeed': 'AYARLAR.local.js için Client ID ve Client Secret alanlarını doldur.',
+      'e.localDone': 'AYARLAR.local.js indirildi.',
+      'localFile': 'Kick uygulama bilgileri. Bu dosya gizlidir: paylaşma ve commit etme.\n   AYARLAR.js ile aynı klasöre koy.',
+      'help.c1': 'Kanal alanına yalnızca kanal adını yazdın mı? (kick.com/ sonrası)',
+      'help.c2': 'Bir ayarı değiştirdikten sonra bağlantıyı yeniden kopyalayıp OBS’teki URL kutusuna yapıştırdın mı? (Dosya yöntemini kullanıyorsan kaynağa sağ tıklayıp Yenile’yi seç.)',
+      'help.c3': 'OBS kaynağının genişlik ve yüksekliği, kartta yazan boyutla aynı mı?',
+      'help.c4': 'Canlı abone sayısı istiyorsan Kick uygulama bilgilerini girip “Bağlantıyı test et” ile doğruladın mı?',
+      'help.n1.t': '⚙ AYARLAR.js → kanal', 'help.n1.d': 'Kanal adı boş. Overlay ağ isteği yapmaz; kanal adını yaz.',
+      'help.n2.t': 'Kick uygulama bilgisi hatalı — AYARLAR.local.js', 'help.n2.d': 'Client ID veya Secret yanlış ya da yetkisiz. Bilgileri kontrol edip kaynağı yenile.',
+      'help.n3.t': 'Kick’e ulaşılamadı, son değer gösteriliyor', 'help.n3.d': 'Geçici bağlantı sorunu ya da istek sınırı. Overlay son başarılı değeri tutar; genellikle kendiliğinden düzelir.',
+      'help.n4.t': 'Kick bu kanal için abone verisi döndürmedi', 'help.n4.d': 'Kick bu kanal için abone bilgisi vermiyor. Sayı 0 görünebilir; elle girilen abone sayısı bu durumda kullanılmaz.',
+      'help.n5.t': 'Canlı sohbet köprüsüne bağlanılamadı', 'help.n5.d': 'Sohbet, yerel relay üzerinden gelir. “node relay/server.js” çalışıyor mu? Çalışmıyorsa sohbet kutusu boş kalır ve sahte mesaj gösterilmez. Kurulum için README’deki Canlı sohbet bölümüne bak.',
+      'help.n6.t': '⚙ AYARLAR.js → duyuruMetinleri', 'help.n6.d': 'Duyuru metni boş. Sayılar ve içerik bölümünde Duyuru çubuğu alanını doldur.',
+      'help.n7.t': 'Geri sayım baştan başladı', 'help.n7.d': 'Sayım kaynak yüklenince başlar. Kaynağı yenilemek ya da OBS’te “Shutdown source when not visible” açıkken sahne değiştirmek onu baştan başlatır.'
     },
-    sekil: { pill: 'Hap', rounded: 'Yuvarlak', square: 'Kare' },
-    yaziTipi: { inter: 'Inter', poppins: 'Poppins', nunito: 'Nunito', mono: 'Mono' },
-    dil: { tr: 'Türkçe', en: 'İngilizce', both: 'İkisi birden' },
-    animasyon: { normal: 'Normal', low: 'Az', off: 'Kapalı' }
+    en: {
+      'skip': 'Skip to content',
+      'brand.title': 'Kick Overlay Studio',
+      'brand.lead': 'Pick a look, preview it, copy the link and paste it into OBS.',
+      'lang.aria': 'Language',
+      'how.1': 'Choose your channel and look',
+      'how.2': 'Copy the overlay link',
+      'how.3': 'Paste it into an OBS Browser source',
+      'tag.optional': 'optional',
+      's1.title': 'Channel',
+      'f.kanal': 'Kick channel name',
+      'h.kanal': 'The name after kick.com/ in your channel address. Left empty, the preview shows sample data and OBS shows a setup hint.',
+      's2.title': 'Look',
+      'presets.label': 'Quick looks',
+      'presets.hint': 'Sets theme, shape, font, motion and accent color together.',
+      'preset.minimal': 'Minimal', 'preset.neon': 'Neon', 'preset.pastel': 'Pastel', 'preset.gece': 'Night', 'preset.kagit': 'Paper',
+      'f.stil': 'Theme',
+      'f.sekil': 'Corner shape',
+      'f.dil': 'Label language',
+      'f.animasyon': 'Motion',
+      'f.yaziTipi': 'Font',
+      'f.renk': 'Accent color',
+      'f.renkHex': 'Accent color, hex code',
+      'f.yuzdeGoster': 'Show the percentage of the goal',
+      'f.oturumFarkiGoster': 'Show the subscriber gain (+N this stream)',
+      'reset': 'Reset all settings (channel stays)',
+      's3.title': 'Numbers and content',
+      's3.intro': 'Set your goals, chat, countdown and announcements here. The group of the overlay you are previewing opens by itself.',
+      'g.goals': 'Goals and numbers',
+      'g.goals.for': 'follower, subscriber, combined bar, info panel',
+      'g.chat': 'Chat',
+      'g.countdown': 'Countdown',
+      'g.ticker': 'Announcement bar',
+      'f.takipciHedefi': 'Follower goal',
+      'f.takipciYedek': 'Fallback follower count',
+      'h.takipciYedek': 'Shown when Kick cannot be reached.',
+      'f.aboneHedefi': 'Subscriber goal',
+      'f.aboneSayisi': 'Manual subscriber count',
+      'h.aboneSayisi': 'Shown when no Kick app is set; with one, the live total is used.',
+      'f.yenilemeSn': 'Refresh interval (seconds)',
+      'h.yenilemeSn': '10 to 600.',
+      'f.sohbetMaksMesaj': 'Most messages on screen',
+      'h.sohbetMaksMesaj': '3 to 20.',
+      'f.yayinciYazisi': 'Streamer label',
+      'h.yayinciYazisi': 'Shown next to your name in chat.',
+      'f.geriSayimDk': 'Length (minutes)',
+      'h.geriSayimDk': 'Starts when the source loads. 1 to 720.',
+      'f.geriSayimBaslik': 'Title',
+      'h.geriSayimBaslik': 'Empty shows “Starting soon” in your label language.',
+      'f.duyuruMetinleri': 'Announcements',
+      'ph.duyuruMetinleri': 'Follow for more | !discord | New video every Friday',
+      'h.duyuruMetinleri': 'Separate lines with | (up to 12).',
+      'f.duyuruSn': 'Seconds per announcement',
+      'h.duyuruSn': '3 to 60.',
+      's4.title': 'Add to OBS',
+      's4.step1': 'In OBS choose Sources → + → Browser to add a new source.',
+      's4.step2': 'Turn off “Local file” and paste the link below into the URL box.',
+      's4.step3': 'Set the width and height to the size shown on the card.',
+      's4.again': 'Changed a setting? Copy the link again. The link points to the files in the folder this studio was opened from; if you move the folder, copy the links again.',
+      'card.copy': 'Copy link',
+      'card.preview': 'Preview',
+      'card.needChannel': 'Channel name is empty: this overlay will show a setup hint in OBS.',
+      'ov.follower': 'Follower bar', 'ov.follower.d': 'Follower goal and count',
+      'ov.subscriber': 'Subscriber bar', 'ov.subscriber.d': 'Subscriber goal and count',
+      'ov.combined': 'Combined bar', 'ov.combined.d': 'Followers and subscribers in one panel',
+      'ov.info': 'Info panel', 'ov.info.d': 'Viewers and uptime, only while live',
+      'ov.countdown': 'Countdown', 'ov.countdown.d': 'For your “starting soon” scene',
+      'ov.ticker': 'Announcement bar', 'ov.ticker.d': 'Rotates your socials, commands and news',
+      'ov.chat': 'Chat', 'ov.chat.d': 'Live chat. Needs the local relay (see Help)',
+      'file.title': 'Settings file method',
+      'file.sub': 'AYARLAR.js',
+      'file.intro': 'Prefer OBS’s “Local file” option over a link? Download the file below, replace AYARLAR.js in the project folder, then right-click the source and choose Refresh.',
+      'file.aria': 'Generated AYARLAR.js content',
+      'file.download': 'Download AYARLAR.js',
+      'file.copy': 'Copy',
+      's5.title': 'Kick app',
+      's5.intro': 'To pull the live active subscriber count from Kick you need the credentials of your own Kick app. They stay in this page’s memory only: they are not saved and never written into links or the AYARLAR.js output.',
+      's5.show': 'Show credentials',
+      's5.test': 'Test connection',
+      's5.download': 'Download AYARLAR.local.js',
+      's5.hint': 'Put AYARLAR.local.js in the same folder as AYARLAR.js. Do not share it or commit it.',
+      's6.title': 'Help',
+      'help.check.title': 'Checklist',
+      'help.notes.title': 'Notes you may see on an overlay',
+      'pv.title': 'Live preview',
+      'pv.tabs': 'Choose an overlay',
+      'pv.open': 'Open in a new tab',
+      'pv.bg': 'Background',
+      'pv.sample': 'Sample data',
+      'pv.live': 'Live data',
+      'bg.checker': 'Checker', 'bg.dark': 'Dark', 'bg.light': 'Light', 'bg.scene': 'Scene',
+      'foot.notAffiliated': 'This project is not affiliated with Kick.',
+      'foot.license': 'License',
+      'toast.linkCopied': 'Link copied.',
+      'toast.linkFail': 'Could not copy. Select the link and copy it by hand.',
+      'out.copied': 'Copied to the clipboard.',
+      'out.copyFail': 'Could not copy. The text is selected; press Ctrl+C.',
+      'out.downloaded': 'AYARLAR.js downloaded.',
+      'out.dlFail': 'Could not start the download.',
+      'core.fail': 'shared/kick-core.js could not be loaded. Check the file path.',
+      'e.noCreds': 'Fill in Client ID and Client Secret first.',
+      'e.noChannel': 'Enter the channel name first (step 1).',
+      'e.checking': 'Checking the connection to Kick…',
+      'e.tokenBad': 'Client ID or Client Secret is wrong (HTTP {status}).',
+      'e.tokenHttp': 'Kick’s login server returned an error (HTTP {status}).',
+      'e.tokenTimeout': 'Timed out: Kick’s login server did not answer.',
+      'e.tokenNet': 'Network error: could not reach Kick’s login server. Check your internet connection.',
+      'e.tokenOther': 'Kick sent an unexpected answer; no access token was received.',
+      'e.chanAuth': 'The Kick app cannot read this channel (HTTP {status}). Check the app’s permissions.',
+      'e.rate': 'Too many requests. Try again in a few minutes.',
+      'e.empty': 'Kick returned no data for this channel. Check the channel name.',
+      'e.chanTimeout': 'Timed out: the Kick API did not answer.',
+      'e.chanNet': 'Network error: could not reach the Kick API.',
+      'e.chanOther': 'Could not read the channel.',
+      'e.noSubs': 'Channel found, but Kick returned no subscriber data.',
+      'e.ok': 'Connected. Active subscribers: {n}{live}.',
+      'e.live': ' · Live',
+      'e.offline': ' · Not live',
+      'e.unexpected': 'An unexpected error occurred.',
+      'e.localNeed': 'Fill in Client ID and Client Secret to create AYARLAR.local.js.',
+      'e.localDone': 'AYARLAR.local.js downloaded.',
+      'localFile': 'Kick app credentials. This file is private: do not share it or commit it.\n   Put it in the same folder as AYARLAR.js.',
+      'help.c1': 'Did you enter only the channel name (the part after kick.com/)?',
+      'help.c2': 'After changing a setting, did you copy the link again and paste it into the URL box in OBS? (With the file method, right-click the source and choose Refresh.)',
+      'help.c3': 'Are the width and height of the OBS source the same as the size on the card?',
+      'help.c4': 'For the live subscriber count, did you enter your Kick app credentials and confirm them with “Test connection”?',
+      'help.n1.t': '⚙ AYARLAR.js → kanal', 'help.n1.d': 'The channel name is empty. The overlay makes no network request; enter the channel name.',
+      'help.n2.t': 'Kick app credentials rejected — AYARLAR.local.js', 'help.n2.d': 'Client ID or Secret is wrong or not authorised. Check them, then refresh the source.',
+      'help.n3.t': 'Kick unreachable, showing the last value', 'help.n3.d': 'A temporary connection problem or a rate limit. The overlay keeps the last good value and usually recovers by itself.',
+      'help.n4.t': 'Kick returned no subscriber data for this channel', 'help.n4.d': 'Kick does not give subscriber data for this channel. The count may show 0; the manual count is not used in this case.',
+      'help.n5.t': 'Cannot reach the chat relay', 'help.n5.d': 'Chat arrives through the local relay. Is “node relay/server.js” running? If not, the chat stays empty and no fake messages are shown. See the Live chat section of the README for setup.',
+      'help.n6.t': '⚙ AYARLAR.js → duyuruMetinleri', 'help.n6.d': 'The announcement text is empty. Fill in the Announcement bar field under Numbers and content.',
+      'help.n7.t': 'The countdown started over', 'help.n7.d': 'It starts when the source loads. Refreshing the source, or switching scenes while “Shutdown source when not visible” is on in OBS, restarts it.'
+    }
+  };
+
+  // Enum labels per language. Values not listed fall back to the raw enum value.
+  var LABELS = {
+    tr: {
+      stil: { glass: 'Cam', vivid: 'Canlı', soft: 'Yumuşak', cinema: 'Sinema', neon: 'Neon', minimal: 'Minimal', pastel: 'Pastel', terminal: 'Terminal', aurora: 'Kuzey Işığı', holo: 'Holografik', ember: 'Kor', paper: 'Kâğıt', retro: 'Piksel' },
+      sekil: { pill: 'Hap', rounded: 'Yuvarlak', square: 'Kare' },
+      yaziTipi: { inter: 'Inter', poppins: 'Poppins', nunito: 'Nunito', mono: 'Mono' },
+      dil: { tr: 'Türkçe', en: 'İngilizce', both: 'İkisi birden' },
+      animasyon: { normal: 'Normal', low: 'Az', off: 'Kapalı' }
+    },
+    en: {
+      stil: { glass: 'Glass', vivid: 'Vivid', soft: 'Soft', cinema: 'Cinema', neon: 'Neon', minimal: 'Minimal', pastel: 'Pastel', terminal: 'Terminal', aurora: 'Aurora', holo: 'Holo', ember: 'Ember', paper: 'Paper', retro: 'Retro' },
+      sekil: { pill: 'Pill', rounded: 'Rounded', square: 'Square' },
+      yaziTipi: { inter: 'Inter', poppins: 'Poppins', nunito: 'Nunito', mono: 'Mono' },
+      dil: { tr: 'Turkish', en: 'English', both: 'Both' },
+      animasyon: { normal: 'Normal', low: 'Low', off: 'Off' }
+    }
   };
 
   // Presets only set public keys. Every value still passes through K.normalize.
@@ -718,6 +954,20 @@
     gece: { stil: 'aurora', sekil: 'rounded', yaziTipi: 'poppins', animasyon: 'low', renk: '#5eead4' },
     kagit: { stil: 'paper', sekil: 'rounded', yaziTipi: 'nunito', animasyon: 'normal', renk: '#c2410c' }
   };
+
+  // The overlays: file, OBS size, the settings each one reads (besides the common look keys),
+  // the settings group that opens when it is previewed, and whether it needs a channel name.
+  var COMMON = ['kanal', 'stil', 'sekil', 'yaziTipi', 'dil', 'animasyon', 'renk'];
+  var OVERLAYS = [
+    { id: 'follower', file: 'follower-bar.html', w: 520, h: 90, group: 'g-goals', needsChannel: true, keys: ['takipciHedefi', 'takipciYedek', 'yuzdeGoster', 'yenilemeSn'] },
+    { id: 'subscriber', file: 'subscriber-bar.html', w: 520, h: 90, group: 'g-goals', needsChannel: false, keys: ['aboneHedefi', 'aboneSayisi', 'oturumFarkiGoster', 'yuzdeGoster', 'yenilemeSn'] },
+    { id: 'combined', file: 'combined-bar.html', w: 520, h: 180, group: 'g-goals', needsChannel: true, keys: ['takipciHedefi', 'takipciYedek', 'aboneHedefi', 'aboneSayisi', 'oturumFarkiGoster', 'yuzdeGoster', 'yenilemeSn'] },
+    { id: 'info', file: 'info-panel.html', w: 300, h: 80, group: 'g-goals', needsChannel: true, keys: ['yenilemeSn'] },
+    { id: 'countdown', file: 'countdown.html', w: 520, h: 190, group: 'g-countdown', needsChannel: false, keys: ['geriSayimDk', 'geriSayimBaslik'] },
+    { id: 'ticker', file: 'ticker.html', w: 760, h: 80, group: 'g-ticker', needsChannel: false, keys: ['duyuruMetinleri', 'duyuruSn'] },
+    { id: 'chat', file: 'chat.html', w: 460, h: 760, group: 'g-chat', needsChannel: true, sampleOnly: true, keys: ['sohbetMaksMesaj', 'yayinciYazisi'] }
+  ];
+  var BACKGROUNDS = ['checker', 'dark', 'light', 'scene'];
 
   // Output file layout, mirroring AYARLAR.js. Order and comments match the shipped file.
   // A function so the theme list comes from the core enums, not a copy.
@@ -746,8 +996,17 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
+  var lang = 'en';
+  function t(key, vars) {
+    var table = I18N[lang] || I18N.en;
+    var s = Object.prototype.hasOwnProperty.call(table, key) ? table[key] : (I18N.en[key] || key);
+    if (vars) Object.keys(vars).forEach(function (k) { s = s.split('{' + k + '}').join(String(vars[k])); });
+    return s;
+  }
+
   if (!K) {
-    $('cikti').value = 'shared/kick-core.js yüklenemedi. Dosya yolunu kontrol edin.';
+    document.documentElement.lang = 'en';
+    $('cikti').value = I18N.en['core.fail'];
     return;
   }
 
@@ -756,27 +1015,26 @@
   var outStatus = $('cikti-durum');
   var kickStatus = $('kick-durum');
   var kickTestBtn = $('kickTest');
-  var previews = Array.prototype.map.call(document.querySelectorAll('[data-overlay]'), function (fig) {
-    var note = document.createElement('p');
-    note.className = 'st-pv-note';
-    note.setAttribute('aria-live', 'polite');
-    fig.appendChild(note);
-    return {
-      file: fig.getAttribute('data-overlay'),
-      w: Number(fig.getAttribute('data-w')),
-      h: Number(fig.getAttribute('data-h')),
-      stage: fig.querySelector('.st-stage'),
-      fit: fig.querySelector('.st-fit'),
-      frame: fig.querySelector('iframe'),
-      note: note
-    };
-  });
+  var frame = $('onizleme');
+  var stage = $('sahne');
+  var fit = $('sigdir');
+  var activeId = 'follower';
+  var background = 'checker';
 
   // ---- Small helpers ------------------------------------------------------
 
   function say(el, kind, text) {
     el.textContent = text;
     el.className = 'st-status' + (kind ? ' is-' + kind : '');
+  }
+
+  var toastTimer = 0;
+  function toast(text, isErr) {
+    var el = $('toast');
+    el.textContent = text;
+    el.className = 'st-toast is-on' + (isErr ? ' is-err' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.className = 'st-toast' + (isErr ? ' is-err' : ''); }, 2200);
   }
 
   function hex6(h) {
@@ -787,9 +1045,7 @@
     return v;
   }
 
-  function currentSettings() {
-    return K.normalize(readRaw());
-  }
+  function currentSettings() { return K.normalize(readRaw()); }
 
   // Reads public fields only. Secret inputs live outside the form and are never read here.
   function readRaw() {
@@ -812,17 +1068,70 @@
     $('renkMetin').value = s.renk;
   }
 
+  // Every setting, for the preview frame.
   function toQuery(s) {
     var q = new URLSearchParams();
     K.schemaKeys().forEach(function (key) { q.set(key, String(s[key])); });
     return q.toString();
   }
 
-  // ---- Choice controls built from the core enums --------------------------
+  function overlayById(id) {
+    for (var i = 0; i < OVERLAYS.length; i++) if (OVERLAYS[i].id === id) return OVERLAYS[i];
+    return OVERLAYS[0];
+  }
+
+  // The link for OBS: only the settings that overlay reads, and only those that differ from the defaults.
+  function overlayUrl(o, s) {
+    var defaults = K.normalize({});
+    var q = new URLSearchParams();
+    COMMON.concat(o.keys).forEach(function (key) {
+      if (s[key] !== defaults[key]) q.set(key, String(s[key]));
+    });
+    var url = new URL(o.file, window.location.href);
+    url.search = q.toString();
+    url.hash = '';
+    return url.href;
+  }
+
+  // ---- Language -------------------------------------------------------------
 
   function labelOf(name, value) {
-    return (LABELS[name] && LABELS[name][value]) || value;
+    var table = LABELS[lang] || LABELS.en;
+    return (table[name] && table[name][value]) || value;
   }
+
+  function applyI18n() {
+    document.documentElement.lang = lang;
+    document.title = t('brand.title');
+    document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
+    document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
+    document.querySelectorAll('[data-i18n-aria]').forEach(function (el) { el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria'))); });
+    document.querySelectorAll('[data-lang]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-lang') === lang ? 'true' : 'false'); });
+    document.querySelectorAll('[data-label-name]').forEach(function (el) {
+      el.textContent = labelOf(el.getAttribute('data-label-name'), el.getAttribute('data-label-value'));
+    });
+    document.querySelectorAll('[data-preset]').forEach(function (b) { b.querySelector('span:last-child').textContent = t('preset.' + b.getAttribute('data-preset')); });
+    document.querySelectorAll('[data-tab]').forEach(function (b) { b.textContent = t('ov.' + b.getAttribute('data-tab')); });
+    document.querySelectorAll('[data-card]').forEach(function (c) {
+      var id = c.getAttribute('data-card');
+      c.querySelector('.st-card-name').textContent = t('ov.' + id);
+      c.querySelector('.st-card-desc').textContent = t('ov.' + id + '.d');
+      c.querySelector('[data-copy]').lastChild.textContent = t('card.copy');
+      c.querySelector('[data-show]').textContent = t('card.preview');
+      c.querySelector('.st-card-warn').textContent = t('card.needChannel');
+    });
+    document.querySelectorAll('[data-bg]').forEach(function (b) { if (b.tagName === 'BUTTON') b.textContent = t('bg.' + b.getAttribute('data-bg')); });
+    buildHelp();
+  }
+
+  function setLang(next) {
+    lang = next === 'tr' ? 'tr' : 'en';
+    applyI18n();
+    update();
+    saveUi();
+  }
+
+  // ---- Choice controls built from the core enums --------------------------
 
   function addChoice(container, name, value, kind) {
     var lab = document.createElement('label');
@@ -845,7 +1154,8 @@
 
     var text = document.createElement('span');
     text.className = 'st-opt-text';
-    text.textContent = labelOf(name, value);
+    text.setAttribute('data-label-name', name);
+    text.setAttribute('data-label-value', value);
     lab.appendChild(text);
 
     container.appendChild(lab);
@@ -861,8 +1171,27 @@
     K.enums('yaziTipi').forEach(function (v) {
       var opt = document.createElement('option');
       opt.value = v;
-      opt.textContent = labelOf('yaziTipi', v);
+      opt.setAttribute('data-label-name', 'yaziTipi');
+      opt.setAttribute('data-label-value', v);
       select.appendChild(opt);
+    });
+  }
+
+  function buildPresets() {
+    var box = $('presets');
+    Object.keys(PRESETS).forEach(function (id) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'st-btn st-btn--small';
+      b.setAttribute('data-preset', id);
+      var dot = document.createElement('span');
+      dot.className = 'st-dot';
+      dot.style.background = PRESETS[id].renk;
+      dot.setAttribute('aria-hidden', 'true');
+      var label = document.createElement('span');
+      b.appendChild(dot);
+      b.appendChild(label);
+      box.appendChild(b);
     });
   }
 
@@ -870,6 +1199,210 @@
     form.querySelectorAll('.st-opt').forEach(function (lab) {
       lab.classList.toggle('is-checked', lab.querySelector('input').checked);
     });
+  }
+
+  // ---- Preview tabs and backgrounds ------------------------------------------
+
+  function buildTabs() {
+    var box = $('sekmeler');
+    OVERLAYS.forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'st-tab';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('data-tab', o.id);
+      b.id = 'tab-' + o.id;
+      b.addEventListener('click', function () { selectTab(o.id, true); });
+      b.addEventListener('keydown', onTabKey);
+      box.appendChild(b);
+    });
+    var bgBox = $('arkaplanlar');
+    BACKGROUNDS.forEach(function (id) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('data-bg', id);
+      b.addEventListener('click', function () { setBackground(id); saveUi(); });
+      bgBox.appendChild(b);
+    });
+  }
+
+  function onTabKey(e) {
+    var keys = { ArrowRight: 1, ArrowLeft: -1, Home: 'first', End: 'last' };
+    if (!(e.key in keys)) return;
+    e.preventDefault();
+    var i = OVERLAYS.findIndex(function (o) { return o.id === activeId; });
+    var n = keys[e.key] === 'first' ? 0 : keys[e.key] === 'last' ? OVERLAYS.length - 1 : (i + keys[e.key] + OVERLAYS.length) % OVERLAYS.length;
+    selectTab(OVERLAYS[n].id, true);
+    $('tab-' + OVERLAYS[n].id).focus();
+  }
+
+  function selectTab(id, openGroup) {
+    activeId = overlayById(id).id;
+    document.querySelectorAll('[data-tab]').forEach(function (b) {
+      var on = b.getAttribute('data-tab') === activeId;
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+    });
+    stage.setAttribute('aria-labelledby', 'tab-' + activeId);
+    if (openGroup) {
+      var g = $(overlayById(activeId).group);
+      if (g && !g.open) g.open = true;
+    }
+    renderFrame();
+    fitPreview();
+    saveUi();
+  }
+
+  function setBackground(id) {
+    background = BACKGROUNDS.indexOf(id) >= 0 ? id : 'checker';
+    stage.setAttribute('data-bg', background);
+    document.querySelectorAll('#arkaplanlar [data-bg]').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-bg') === background ? 'true' : 'false');
+    });
+  }
+
+  var frameTimer = 0;
+  function scheduleFrame() {
+    clearTimeout(frameTimer);
+    frameTimer = setTimeout(renderFrame, DEBOUNCE_MS);
+  }
+
+  // Without a channel the overlays show sample data (onizleme=1). Public settings only in the URL.
+  function renderFrame() {
+    var o = overlayById(activeId);
+    var s = currentSettings();
+    var query = toQuery(s);
+    // Chat is live only through the local relay, so the studio always shows sample messages for its design.
+    var sample = !s.kanal || o.sampleOnly === true;
+    if (sample) query += '&onizleme=1';
+    var url = o.file + '?' + query;
+    if (frame.getAttribute('src') !== url) frame.setAttribute('src', url);
+    frame.setAttribute('width', String(o.w));
+    frame.setAttribute('height', String(o.h));
+    frame.setAttribute('title', t('ov.' + o.id));
+    $('pv-ac').setAttribute('href', url);
+    $('pv-boyut').textContent = o.w + ' × ' + o.h;
+    $('pv-veri').textContent = sample ? t('pv.sample') : t('pv.live');
+  }
+
+  // Scales the frame to fit the stage in width and height. It keeps its real OBS size inside.
+  function fitPreview() {
+    var o = overlayById(activeId);
+    var availW = stage.clientWidth - 24;
+    var compact = window.innerWidth < 1000;
+    var maxH = compact ? Math.max(90, window.innerHeight * 0.26) : Math.max(180, window.innerHeight * 0.62);
+    var k = Math.min(1, availW > 0 ? availW / o.w : 1, maxH / o.h);
+    fit.style.width = Math.round(o.w * k) + 'px';
+    fit.style.height = Math.round(o.h * k) + 'px';
+    frame.style.transform = 'scale(' + k + ')';
+  }
+
+  // ---- OBS link cards ----------------------------------------------------------
+
+  var COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
+
+  function buildCards() {
+    var box = $('kartlar');
+    OVERLAYS.forEach(function (o) {
+      var card = document.createElement('div');
+      card.className = 'st-card';
+      card.setAttribute('data-card', o.id);
+
+      var head = document.createElement('div');
+      head.className = 'st-card-head';
+      var name = document.createElement('span');
+      name.className = 'st-card-name';
+      var size = document.createElement('span');
+      size.className = 'st-card-size';
+      size.textContent = o.w + ' × ' + o.h;
+      head.appendChild(name);
+      head.appendChild(size);
+
+      var desc = document.createElement('p');
+      desc.className = 'st-card-desc';
+
+      var row = document.createElement('div');
+      row.className = 'st-card-row';
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.readOnly = true;
+      input.setAttribute('data-url', o.id);
+      input.setAttribute('aria-label', o.file);
+      input.addEventListener('focus', function () { input.select(); });
+      var copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'st-btn st-btn--small st-btn--primary';
+      copy.setAttribute('data-copy', o.id);
+      copy.innerHTML = COPY_ICON;
+      copy.appendChild(document.createTextNode(''));
+      copy.addEventListener('click', function () { copyLink(o, input); });
+      var show = document.createElement('button');
+      show.type = 'button';
+      show.className = 'st-btn st-btn--small st-btn--ghost';
+      show.setAttribute('data-show', o.id);
+      show.addEventListener('click', function () {
+        selectTab(o.id, true);
+        $('pv-title').scrollIntoView({ block: 'nearest' });
+      });
+      row.appendChild(input);
+      row.appendChild(copy);
+      row.appendChild(show);
+
+      var warn = document.createElement('p');
+      warn.className = 'st-card-warn';
+      warn.hidden = true;
+
+      card.appendChild(head);
+      card.appendChild(desc);
+      card.appendChild(row);
+      card.appendChild(warn);
+      box.appendChild(card);
+    });
+  }
+
+  function refreshCards(s) {
+    OVERLAYS.forEach(function (o) {
+      var card = document.querySelector('[data-card="' + o.id + '"]');
+      var input = card.querySelector('[data-url]');
+      var url = overlayUrl(o, s);
+      if (input.value !== url) input.value = url;
+      card.querySelector('.st-card-warn').hidden = !(o.needsChannel && !s.kanal);
+    });
+  }
+
+  async function copyLink(o, input) {
+    try {
+      await navigator.clipboard.writeText(input.value);
+      toast(t('toast.linkCopied'));
+    } catch (e) {
+      input.focus();
+      input.select();
+      toast(t('toast.linkFail'), true);
+    }
+  }
+
+  // ---- Help ------------------------------------------------------------------
+
+  function buildHelp() {
+    var list = $('yardim-liste');
+    list.textContent = '';
+    ['help.c1', 'help.c2', 'help.c3', 'help.c4'].forEach(function (k) {
+      var li = document.createElement('li');
+      li.textContent = t(k);
+      list.appendChild(li);
+    });
+    var dl = $('yardim-notlar');
+    dl.textContent = '';
+    for (var i = 1; i <= 7; i++) {
+      var wrap = document.createElement('div');
+      var dt = document.createElement('dt');
+      dt.textContent = t('help.n' + i + '.t');
+      var dd = document.createElement('dd');
+      dd.textContent = t('help.n' + i + '.d');
+      wrap.appendChild(dt);
+      wrap.appendChild(dd);
+      dl.appendChild(wrap);
+    }
   }
 
   // ---- Output file ----------------------------------------------------------
@@ -916,11 +1449,11 @@
   async function copyOutput() {
     try {
       await navigator.clipboard.writeText(out.value);
-      say(outStatus, 'ok', 'Panoya kopyalandı.');
+      say(outStatus, 'ok', t('out.copied'));
     } catch (e) {
       out.focus();
       out.select();
-      say(outStatus, 'err', 'Panoya kopyalanamadı. Metin seçildi; Ctrl+C ile kopyalayın.');
+      say(outStatus, 'err', t('out.copyFail'));
     }
   }
 
@@ -928,56 +1461,46 @@
 
   function tokenMessage(r) {
     switch (r.error) {
-      case 'no-credentials': return 'Client ID ve Client Secret alanlarını doldurun.';
+      case 'no-credentials': return t('e.noCreds');
       case 'http':
-        if (r.status === 400 || r.status === 401 || r.status === 403) {
-          return 'Client ID veya Client Secret hatalı (HTTP ' + r.status + ').';
-        }
-        return 'Kick kimlik sunucusu hata döndürdü (HTTP ' + r.status + ').';
-      case 'timeout': return 'Zaman aşımı: Kick kimlik sunucusuna ulaşılamadı.';
-      case 'network': return 'Ağ hatası: Kick kimlik sunucusuna ulaşılamadı. İnternet bağlantınızı kontrol edin.';
-      default: return 'Kick beklenmeyen bir yanıt döndürdü; erişim anahtarı alınamadı.';
+        if (r.status === 400 || r.status === 401 || r.status === 403) return t('e.tokenBad', { status: r.status });
+        return t('e.tokenHttp', { status: r.status });
+      case 'timeout': return t('e.tokenTimeout');
+      case 'network': return t('e.tokenNet');
+      default: return t('e.tokenOther');
     }
   }
 
   function channelMessage(r) {
-    if (r.status === 401 || r.status === 403) {
-      return 'Kick uygulaması bu kanal verisine erişemiyor (HTTP ' + r.status + '). Uygulama yetkilerini kontrol edin.';
-    }
-    if (r.status === 429) return 'Çok fazla istek gönderildi. Birkaç dakika sonra tekrar deneyin.';
-    if (r.error === 'empty') return 'Kick bu kanal için veri döndürmedi. Kanal adını kontrol edin.';
-    if (r.error === 'timeout') return 'Zaman aşımı: Kick API yanıt vermedi.';
-    if (r.error === 'network') return 'Ağ hatası: Kick API\'ye ulaşılamadı.';
-    return 'Kanal bilgisi alınamadı.';
+    if (r.status === 401 || r.status === 403) return t('e.chanAuth', { status: r.status });
+    if (r.status === 429) return t('e.rate');
+    if (r.error === 'empty') return t('e.empty');
+    if (r.error === 'timeout') return t('e.chanTimeout');
+    if (r.error === 'network') return t('e.chanNet');
+    return t('e.chanOther');
   }
 
   async function testKick() {
     var id = $('kickClientId').value.trim();
     var secret = $('kickClientSecret').value.trim();
-    if (!id || !secret) {
-      say(kickStatus, 'err', 'Önce Client ID ve Client Secret alanlarını doldurun.');
-      return;
-    }
+    if (!id || !secret) { say(kickStatus, 'err', t('e.noCreds')); return; }
     var s = Object.assign({}, currentSettings(), K.normalizeLocal({ kickClientId: id, kickClientSecret: secret }));
-    if (!s.kanal) {
-      say(kickStatus, 'err', 'Önce "Kick kanal adı" alanını (1. bölüm) doldurun.');
-      return;
-    }
+    if (!s.kanal) { say(kickStatus, 'err', t('e.noChannel')); return; }
 
     kickTestBtn.disabled = true;
-    say(kickStatus, '', 'Kick ile bağlantı kontrol ediliyor…');
+    say(kickStatus, '', t('e.checking'));
     try {
-      var t = await K.official.token(s);
-      if (!t.ok) { say(kickStatus, 'err', tokenMessage(t)); return; }
+      var tok = await K.official.token(s);
+      if (!tok.ok) { say(kickStatus, 'err', tokenMessage(tok)); return; }
 
-      var o = await K.official.channel(s, t.token);
+      var o = await K.official.channel(s, tok.token);
       if (!o.ok) { say(kickStatus, 'err', channelMessage(o)); return; }
-      if (o.subs === null) { say(kickStatus, 'err', 'Kanal bulundu ancak Kick abone verisi döndürmedi.'); return; }
+      if (o.subs === null) { say(kickStatus, 'err', t('e.noSubs')); return; }
 
-      var live = o.live === true ? ' · Yayında' : (o.live === false ? ' · Yayında değil' : '');
-      say(kickStatus, 'ok', 'Bağlantı başarılı. Aktif abone: ' + K.fmt(o.subs) + live + '.');
+      var live = o.live === true ? t('e.live') : (o.live === false ? t('e.offline') : '');
+      say(kickStatus, 'ok', t('e.ok', { n: K.fmt(o.subs), live: live }));
     } catch (e) {
-      say(kickStatus, 'err', 'Beklenmeyen bir hata oluştu.');
+      say(kickStatus, 'err', t('e.unexpected'));
     } finally {
       kickTestBtn.disabled = false;
     }
@@ -986,65 +1509,21 @@
   function downloadLocal() {
     var id = $('kickClientId').value.trim();
     var secret = $('kickClientSecret').value.trim();
-    if (!id || !secret) {
-      say(kickStatus, 'err', 'AYARLAR.local.js için Client ID ve Client Secret alanlarını doldurun.');
-      return;
-    }
+    if (!id || !secret) { say(kickStatus, 'err', t('e.localNeed')); return; }
     var text = [
-      '/* Kick uygulama bilgileri. Bu dosya gizlidir: paylaşmayın ve commit etmeyin.',
-      '   AYARLAR.js ile aynı klasöre koyun. */',
+      '/* ' + t('localFile') + ' */',
       'window.KICK_OVERLAY_YEREL = { kickClientId: ' + JSON.stringify(id) +
         ', kickClientSecret: ' + JSON.stringify(secret) + ' };',
       ''
     ].join('\n');
     download('AYARLAR.local.js', text, 'text/javascript;charset=utf-8');
-    say(kickStatus, 'ok', 'AYARLAR.local.js indirildi.');
+    say(kickStatus, 'ok', t('e.localDone'));
   }
 
-  // ---- Previews -------------------------------------------------------------
-
-  var frameTimer = 0;
-
-  function scheduleFrames() {
-    clearTimeout(frameTimer);
-    frameTimer = setTimeout(renderFrames, DEBOUNCE_MS);
-  }
-
-  // Without a channel the overlays show sample data (onizleme=1). Public settings only in the URL.
-  function renderFrames() {
-    var s = currentSettings();
-    var query = toQuery(s);
-    if (!s.kanal) query += '&onizleme=1';
-    previews.forEach(function (p) {
-      var url = p.file + '?' + query;
-      if (p.frame.getAttribute('src') !== url) p.frame.setAttribute('src', url);
-    });
-  }
-
-  function syncCaptions(s) {
-    var text = s.kanal ? 'canlı veri' : 'örnek veri';
-    previews.forEach(function (p) {
-      if (p.note.textContent !== text) p.note.textContent = text;
-    });
-  }
-
-  // Scales each iframe down to fit its column. The iframe keeps its real OBS size inside.
-  function fitPreviews() {
-    previews.forEach(function (p) {
-      var avail = p.stage.clientWidth - 24;
-      var k = avail > 0 ? Math.min(1, avail / p.w) : 1;
-      p.fit.style.width = Math.round(p.w * k) + 'px';
-      p.fit.style.height = Math.round(p.h * k) + 'px';
-      p.frame.style.transform = 'scale(' + k + ')';
-    });
-  }
-
-  // ---- Drafts (public values only, never secrets) -------------------------
+  // ---- Saved state (public values only, never secrets) ----------------------
 
   function saveDraft() {
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(readRaw()));
-    } catch (e) { /* storage blocked: drafts are optional */ }
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(readRaw())); } catch (e) { /* storage blocked: optional */ }
   }
 
   function loadDraft() {
@@ -1054,6 +1533,19 @@
     } catch (e) { /* storage blocked or corrupt draft: keep defaults */ }
   }
 
+  function saveUi() {
+    try { localStorage.setItem(UI_KEY, JSON.stringify({ lang: lang, tab: activeId, bg: background })); } catch (e) { /* optional */ }
+  }
+
+  function loadUi() {
+    var ui = null;
+    try { ui = JSON.parse(localStorage.getItem(UI_KEY) || 'null'); } catch (e) { ui = null; }
+    var guess = /^tr\b/i.test((navigator.language || '')) ? 'tr' : 'en';
+    lang = ui && (ui.lang === 'tr' || ui.lang === 'en') ? ui.lang : guess;
+    if (ui && typeof ui.tab === 'string') activeId = overlayById(ui.tab).id;
+    if (ui && typeof ui.bg === 'string') background = BACKGROUNDS.indexOf(ui.bg) >= 0 ? ui.bg : 'checker';
+  }
+
   // ---- Main update ----------------------------------------------------------
 
   function update() {
@@ -1061,9 +1553,9 @@
     document.documentElement.style.setProperty('--st-accent', s.renk);
     paintChoices();
     out.value = buildAyarlar(s);
-    syncCaptions(s);
+    refreshCards(s);
     saveDraft();
-    scheduleFrames();
+    scheduleFrame();
   }
 
   // ---- Events ---------------------------------------------------------------
@@ -1072,11 +1564,11 @@
     form.addEventListener('submit', function (e) { e.preventDefault(); });
 
     form.addEventListener('input', function (e) {
-      var t = e.target;
-      if (t.id === 'renk') {
-        $('renkMetin').value = t.value;
-      } else if (t.id === 'renkMetin') {
-        var v = t.value.trim();
+      var el = e.target;
+      if (el.id === 'renk') {
+        $('renkMetin').value = el.value;
+      } else if (el.id === 'renkMetin') {
+        var v = el.value.trim();
         var h = v.charAt(0) === '#' ? v : '#' + v;
         if (HEX_RE.test(h)) $('renk').value = hex6(h).toLowerCase();
       }
@@ -1098,6 +1590,16 @@
       });
     });
 
+    $('sifirla').addEventListener('click', function () {
+      var keep = currentSettings().kanal;
+      writeForm(K.normalize({ kanal: keep }));
+      update();
+    });
+
+    document.querySelectorAll('[data-lang]').forEach(function (b) {
+      b.addEventListener('click', function () { setLang(b.getAttribute('data-lang')); });
+    });
+
     $('gizliGoster').addEventListener('change', function (e) {
       var type = e.target.checked ? 'text' : 'password';
       $('kickClientId').type = type;
@@ -1112,9 +1614,9 @@
     $('indir').addEventListener('click', function () {
       try {
         download('AYARLAR.js', out.value, 'text/javascript;charset=utf-8');
-        say(outStatus, 'ok', 'AYARLAR.js indirildi.');
+        say(outStatus, 'ok', t('out.downloaded'));
       } catch (e) {
-        say(outStatus, 'err', 'İndirme başlatılamadı.');
+        say(outStatus, 'err', t('out.dlFail'));
       }
     });
 
@@ -1122,18 +1624,25 @@
     kickTestBtn.addEventListener('click', testKick);
     $('yerelIndir').addEventListener('click', downloadLocal);
 
-    window.addEventListener('resize', fitPreviews);
+    window.addEventListener('resize', fitPreview);
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fitPreview).observe(stage);
   }
 
   // ---- Init -----------------------------------------------------------------
 
+  loadUi();
   buildChoices();
+  buildPresets();
+  buildTabs();
+  buildCards();
   writeForm(K.normalize({}));
   loadDraft();
   bindEvents();
-  renderFrames();
+  applyI18n();
+  setBackground(background);
+  selectTab(activeId, false);
   update();
-  fitPreviews();
+  fitPreview();
 })();
 </script>
 </body>

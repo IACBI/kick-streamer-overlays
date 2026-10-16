@@ -427,7 +427,7 @@
   function schemaKeys() { return Object.keys(SCHEMA); }
 
   global.KickOverlay = {
-    version: '2.1.1',
+    version: '2.2.0',
     enums: enumsOf,
     schemaKeys: schemaKeys,
     normalize: normalize,
