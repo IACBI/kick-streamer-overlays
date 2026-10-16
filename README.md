@@ -22,7 +22,7 @@ Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime p
 
 Open `studio.html`, enter your channel name, pick a look, and copy the link of each overlay into an OBS Browser source. The overlays read Kick's public channel data directly.
 
-<p align="center"><img src="screenshots/studio.png" alt="The studio: channel, look and theme choices on the left, a live preview with overlay tabs on the right" width="860"></p>
+<p align="center"><img src="screenshots/studio-en.png" alt="The studio: channel, look and theme choices on the left, a live preview with overlay tabs on the right" width="860"></p>
 
 | Feature | Status (checked 2026-10-16) |
 |---|---|
@@ -217,7 +217,7 @@ Free for everyone, including commercial streaming. Attribution is appreciated bu
 
 `studio.html` dosyasını aç, kanal adını yaz, bir görünüm seç ve her overlay'in bağlantısını OBS'te bir Tarayıcı kaynağına yapıştır. Overlay'ler Kick'in herkese açık kanal verisini doğrudan okur.
 
-<p align="center"><img src="screenshots/studio.png" alt="Stüdyo: solda kanal, görünüm ve tema seçimi, sağda overlay sekmeli canlı önizleme" width="860"></p>
+<p align="center"><img src="screenshots/studio-tr.png" alt="Stüdyo: solda kanal, görünüm ve tema seçimi, sağda overlay sekmeli canlı önizleme" width="860"></p>
 
 | Özellik | Durum (2026-10-16 kontrolü) |
 |---|---|

@@ -83,9 +83,12 @@ const SCENES = {
     w: 800, h: 120, seconds: 10, colors: 96,
     html: `<iframe width="760" height="80" style="left:20px;top:20px" src="${fileUrl('ticker.html', '?onizleme=1&stil=neon&duyuruSn=3')}"></iframe>`
   },
-  // The studio itself: a still of the real page, English, dark.
-  studio: {
-    w: 1360, h: 900, seconds: 3, still: true, direct: 'studio.html', scheme: 'dark'
+  // The studio itself: a still of the real page, dark, once per interface language.
+  'studio-en': {
+    w: 1360, h: 900, seconds: 3, still: true, direct: 'studio.html', scheme: 'dark', lang: 'en'
+  },
+  'studio-tr': {
+    w: 1360, h: 900, seconds: 3, still: true, direct: 'studio.html', scheme: 'dark', lang: 'tr'
   },
   hero: {
     w: 1280, h: 640, seconds: 11, still: true,
@@ -132,6 +135,8 @@ async function record(name, scene, chromePath, tmp, port) {
     });
 
     await send('Page.enable');
+    // The studio remembers its language; seed it so the image does not depend on the machine's locale.
+    if (scene.lang) await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('kickOverlayStudio.arayuz', JSON.stringify({ lang: '${scene.lang}' })); } catch (e) {}` });
     if (scene.scheme) await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scene.scheme }] });
     await send('Emulation.setDeviceMetricsOverride', { width: scene.w, height: scene.h, deviceScaleFactor: 1, mobile: false });
     // Warm the font cache first, then load the stage again and record from its start.

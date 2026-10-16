@@ -2,6 +2,11 @@
 
 All notable changes to this project are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The README shows the studio in English in the English section and in Turkish in the Turkish section (`screenshots/studio-en.png`, `screenshots/studio-tr.png`).
+
 ## [2.2.0] - 2026-10-16
 
 ### Added
