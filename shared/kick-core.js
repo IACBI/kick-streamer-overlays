@@ -251,8 +251,16 @@
     root.style.setProperty('--accent-rgb', rgb.join(' '));
     // Chip text is whichever of near-black or white contrasts more with the accent; computed here
     // because CSS relative colours are not available in older OBS browsers.
+    var ct = chipText(rgb), cbg = rgb;
+    // White chip text on a mid-tone accent (e.g. #e11d48) only reaches ~4.7:1; darken the pill until it clears 6:1.
+    if (ct === '#ffffff') {
+      for (var i = 0; i < 20 && 1.05 / (relLum(cbg) + 0.05) < 6; i++) {
+        cbg = cbg.map(function (v) { return Math.round(v * 0.94); });
+      }
+    }
     root.style.setProperty('--chip-bg', s.renk);
-    root.style.setProperty('--chip-text', chipText(rgb));
+    root.style.setProperty('--chip-fill', cbg === rgb ? s.renk : 'rgb(' + cbg.join(' ') + ')');
+    root.style.setProperty('--chip-text', ct);
   }
 
   function reducedMotion() {
@@ -877,7 +885,7 @@
   function schemaKeys() { return Object.keys(SCHEMA); }
 
   global.KickOverlay = {
-    version: '2.3.1',
+    version: '2.3.2',
     enums: enumsOf,
     schemaKeys: schemaKeys,
     normalize: normalize,

@@ -12,19 +12,19 @@
   --chip-text: #0b0b0d;
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --text: #ffffff;
-  --muted: rgba(255, 255, 255, 0.78);
-  --text-shadow: 0 0 3px rgb(0 0 0 / 90%), 0 1px 2px rgb(0 0 0 / 95%), 0 0 9px rgb(0 0 0 / 65%);
+  --muted: rgba(255, 255, 255, 0.9);
+  --text-shadow: 0 0 2px rgb(0 0 0 / 85%), 0 0 3px rgb(0 0 0 / 90%), 0 1px 2px rgb(0 0 0 / 95%), 0 0 9px rgb(0 0 0 / 65%);
   --surface: rgba(255, 255, 255, 0.07);
   --surface-border: rgba(255, 255, 255, 0.14);
   /* A real scrim under every translucent surface, so text survives light footage in every motion mode. */
-  --surface-boost: rgb(10 12 18 / 64%);
+  --surface-boost: rgb(10 12 18 / 70%);
   --blur: 10px;
   /* A zero-size shadow instead of none, so shadow lists in the keyframes and in .is-goal stay valid. */
   --shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
   --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 52%, #000), color-mix(in srgb, var(--accent) 88%, #000));
   --fill-glow: 0 0 20px rgb(var(--accent-rgb) / 55%);
   /* Darkens the band the text sits on, over fill and track alike; fades to the bar edges so the colour stays alive. */
-  --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 10%), rgb(0 0 0 / 40%) 30%, rgb(0 0 0 / 40%) 70%, rgb(0 0 0 / 10%));
+  --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 10%), rgb(0 0 0 / 46%) 30%, rgb(0 0 0 / 46%) 70%, rgb(0 0 0 / 10%));
   /* var() resolves where it is declared, so each theme that changes --muted re-declares --track-bg. */
   --track-bg: color-mix(in srgb, var(--muted) 22%, transparent);
   --bar-h: 50px;
@@ -72,11 +72,11 @@ body.theme-glass {
 
 body.theme-vivid {
   --surface: rgb(var(--accent-rgb) / 14%);
-  --surface-boost: rgb(6 8 12 / 62%);
+  --surface-boost: rgb(6 8 12 / 70%);
   --surface-border: rgb(var(--accent-rgb) / 55%);
   --fill-glow: 0 0 30px rgb(var(--accent-rgb) / 80%);
   --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 58%, #000), color-mix(in srgb, var(--accent) 88%, #000));
-  --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 8%), rgb(0 0 0 / 36%) 30%, rgb(0 0 0 / 36%) 70%, rgb(0 0 0 / 8%));
+  --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 10%), rgb(0 0 0 / 46%) 30%, rgb(0 0 0 / 46%) 70%, rgb(0 0 0 / 10%));
   --msg-bg: linear-gradient(135deg, rgb(var(--accent-rgb) / 20%), rgb(var(--accent-rgb) / 8%)), rgb(6 8 12 / 82%);
   --msg-border: rgb(var(--accent-rgb) / 60%);
   --msg-shadow: 0 0 18px rgb(var(--accent-rgb) / 25%);
@@ -103,11 +103,12 @@ body.theme-cinema {
   --surface-boost: transparent;
   --blur: 0px;
   --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 64%, #000), color-mix(in srgb, var(--accent) 96%, #000));
+  --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 12%), rgb(0 0 0 / 50%) 30%, rgb(0 0 0 / 50%) 70%, rgb(0 0 0 / 12%));
   /* Chat has no bubbles in this look, but a dark plate keeps the lines readable on any footage. */
   --msg-bg: linear-gradient(90deg, rgb(0 0 0 / 72%), rgb(0 0 0 / 62%));
   --msg-border: transparent;
   --msg-text: rgba(255, 255, 255, 0.94);
-  --text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 3px rgb(0 0 0 / 90%), 0 0 8px rgba(0, 0, 0, 0.6);
+  --text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 2px rgb(0 0 0 / 90%), 0 0 3px rgb(0 0 0 / 90%), 0 0 8px rgba(0, 0, 0, 0.6);
 }
 
 body.theme-neon {
@@ -118,6 +119,7 @@ body.theme-neon {
   --shadow: 0 0 18px rgb(var(--accent-rgb) / 45%);
   --fill-bg: color-mix(in srgb, var(--accent) 92%, #000);
   --fill-glow: 0 0 22px var(--accent), inset 0 0 12px rgb(255 255 255 / 20%);
+  --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 14%), rgb(0 0 0 / 54%) 30%, rgb(0 0 0 / 54%) 70%, rgb(0 0 0 / 14%));
   --text: #f4fff0;
   --msg-bg: rgba(4, 6, 10, 0.88);
   --msg-border: var(--accent);
@@ -127,14 +129,14 @@ body.theme-neon {
 body.theme-minimal {
   --surface: rgba(255, 255, 255, 0.04);
   --surface-border: transparent;
-  --surface-boost: rgb(0 0 0 / 58%);
+  --surface-boost: rgb(0 0 0 / 66%);
   --blur: 0px;
   --shadow: 0 0 0 0 transparent;
   --fill-bg: color-mix(in srgb, var(--accent) 62%, #000);
   --fill-glow: none;
-  --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 8%), rgb(0 0 0 / 24%) 30%, rgb(0 0 0 / 24%) 70%, rgb(0 0 0 / 8%));
+  --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 8%), rgb(0 0 0 / 34%) 30%, rgb(0 0 0 / 34%) 70%, rgb(0 0 0 / 8%));
   --bar-h: 34px;
-  --muted: rgba(255, 255, 255, 0.78);
+  --muted: rgba(255, 255, 255, 0.9);
   --track-bg: color-mix(in srgb, var(--muted) 22%, transparent);
   --size-val: 16px;
   --size-lbl: 13px;
@@ -162,19 +164,19 @@ body.theme-pastel {
 }
 
 body.theme-terminal {
-  --surface: rgba(6, 12, 8, 0.92);
+  --surface: rgba(6, 12, 8, 0.97);
   --surface-border: rgb(var(--accent-rgb) / 60%);
   --surface-boost: transparent;
   --blur: 0px;
   --shadow: 0 0 0 0 transparent;
-  --fill-bg: repeating-linear-gradient(90deg, rgb(var(--accent-rgb) / 42%) 0 8px, rgb(var(--accent-rgb) / 18%) 8px 11px);
+  --fill-bg: repeating-linear-gradient(90deg, rgb(var(--accent-rgb) / 36%) 0 8px, rgb(var(--accent-rgb) / 16%) 8px 11px);
   --fill-glow: none;
   --bar-scrim: none;
   --text: #e6ffe0;
   /* Dark accents (violet, red) would vanish on near-black, so the secondary text is the accent lifted toward white. */
   --muted: color-mix(in srgb, var(--accent) 45%, #fff);
   --track-bg: color-mix(in srgb, var(--muted) 22%, transparent);
-  --text-shadow: 0 1px 2px rgb(0 0 0 / 80%);
+  --text-shadow: 0 0 2px rgb(0 0 0 / 90%), 0 1px 2px rgb(0 0 0 / 90%);
   --msg-bg: rgba(6, 12, 8, 0.92);
   --msg-border: rgb(var(--accent-rgb) / 60%);
   --msg-text: #d7ffd0;
@@ -200,6 +202,7 @@ body.theme-aurora {
   --fill-glow: 0 0 22px rgb(45 212 191 / 35%);
   --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 8%), rgb(0 0 0 / 30%) 30%, rgb(0 0 0 / 30%) 70%, rgb(0 0 0 / 8%));
   --chip-bg: #99f6e4;
+  --chip-fill: #99f6e4;
   --chip-text: #042f2e;
   --text: #f0f9ff;
   --muted: rgb(226 232 240 / 88%);
@@ -238,6 +241,7 @@ body.theme-holo {
   --fill-glow: 0 0 16px rgb(196 181 253 / 40%);
   --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 8%), rgb(0 0 0 / 36%) 30%, rgb(0 0 0 / 36%) 70%, rgb(0 0 0 / 8%));
   --chip-bg: #ddd6fe;
+  --chip-fill: #ddd6fe;
   --chip-text: #1e1b4b;
   --text-shadow: 0 0 3px rgb(0 0 0 / 90%), 0 1px 2px rgb(0 0 0 / 85%), 0 0 9px rgb(0 0 0 / 60%);
   --msg-bg: rgb(16 14 26 / 86%);
@@ -278,6 +282,7 @@ body.theme-ember {
   --fill-glow: 0 0 18px rgb(234 88 12 / 45%);
   --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 8%), rgb(0 0 0 / 34%) 30%, rgb(0 0 0 / 34%) 70%, rgb(0 0 0 / 8%));
   --chip-bg: #fdba74;
+  --chip-fill: #fdba74;
   --chip-text: #431407;
   --text: #fff7ed;
   --muted: rgb(254 225 190 / 90%);
@@ -331,7 +336,7 @@ body.theme-paper .ko-fill::after { display: none; }
 body.theme-paper .ko-user,
 body.theme-pastel .ko-user { color: color-mix(in srgb, var(--name-color, var(--accent)) 38%, #14110d); }
 /* Dark surfaces: near-black Kick name colours would vanish, so lift them toward white. */
-body:not(.theme-pastel):not(.theme-paper) .ko-user { color: color-mix(in srgb, var(--name-color, var(--accent)) 48%, #fff); }
+body:not(.theme-pastel):not(.theme-paper) .ko-user { color: color-mix(in srgb, var(--name-color, var(--accent)) 38%, #fff); text-shadow: 0 1px 2px rgb(0 0 0 / 50%); }
 
 /* Retro: arcade pixels. Square corners, hard shadows, a dotted fill and a hard text shadow. */
 body.theme-retro {
@@ -487,7 +492,7 @@ body.motion-off .ko-msg { backdrop-filter: none; -webkit-backdrop-filter: none; 
 .ko-label .ko-sep { font-weight: 400; color: var(--muted); }
 .ko-chip {
   display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px;
-  font-size: 12px; font-weight: 800; color: var(--chip-text); background: var(--chip-bg);
+  font-size: 12px; font-weight: 800; color: var(--chip-text); background: var(--chip-fill, var(--chip-bg));
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 30%);
   font-variant-numeric: tabular-nums; vertical-align: middle; text-shadow: none;
 }
@@ -568,11 +573,11 @@ body.theme-paper .ko-stat svg { filter: none; }
 .ko-badge svg { width: 13px; height: 13px; display: block; }
 .ko-badge img { height: 18px; width: auto; display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .45)); }
 .ko-badge .ko-count { font-size: 11px; font-weight: 800; margin: 0 1px 0 2px; line-height: 1; font-variant-numeric: tabular-nums; }
-/* Stops are dark enough that white text keeps at least 4.8:1 on each. The gradient is static: an infinite
+/* Stops are dark enough that white text keeps at least 6:1 on each. The gradient is static: an infinite
    background-position loop repainted the badge on every frame. */
 .ko-bcast {
   padding: 1px 7px; border-radius: 5px; font-weight: 800; font-size: 12px; letter-spacing: .2px; color: #fff;
-  background-image: linear-gradient(90deg, #dc2626, #c2410c, #a16207, #15803d, #0e7490, #4f46e5, #7e22ce, #be185d);
+  background-image: linear-gradient(90deg, #c81e1e, #b23a0a, #8f5206, #136f35, #0c6580, #4338ca, #6d1fa8, #a9174f);
   text-shadow: 0 1px 2px rgba(0, 0, 0, .6); box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
 }
 

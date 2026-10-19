@@ -4,6 +4,16 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [2.3.2] - 2026-10-20
+
+### Changed
+- More contrast headroom for OBS scaling and stream compression: small text (labels, titles, chips, chat) now measures at least 5.3:1 and large numbers at least 4.5:1 in every theme and accent, over light, dark and busy footage. Chip backgrounds darken by themselves until their text clears 6:1.
+- Chat slides are cheaper: positions are measured once per frame for the whole burst, only visible rows move, and a ban that removes several messages no longer forces a layout per message. Under heavy CPU load a new message runs at about 55 fps instead of about 49.
+
+### Fixed
+- The gift badge count in chat is readable on every theme (7.6:1).
+- `tools/visual-qa.js` and `tools/motion-qa.js` pick a free port, use a throwaway Chrome profile, and always close Chrome and their servers, even after a crash. A scenario that times out is retried once and listed at the end instead of stopping the run.
+
 ## [2.3.1] - 2026-10-19
 
 ### Fixed

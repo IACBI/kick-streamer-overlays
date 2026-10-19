@@ -26,7 +26,8 @@
  *   --only <list>      shots phase: only sequences whose name contains one of these words (fill-grid is the static fill table)
  *   --no-fonts         block Google Fonts (the system font is used, text metrics differ from OBS)
  *   --chrome <path>    Chrome or Edge executable (or CHROME_PATH)
- *   --port <n>         DevTools port (default 9444)
+ *   --step-timeout <s> seconds one DevTools call may take before it fails (default 30). A timeout retries the
+ *                      scenario once; a failure is listed at the end and the exit code is 1.
  *
  * What it drives (all through the real page code, nothing is patched in the project):
  *   - goal bars: createGoalBar is wrapped before the page script runs, so the tool calls the very
@@ -43,7 +44,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const http = require('http');
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const argv = process.argv.slice(2);
@@ -70,11 +71,84 @@ const CHROME = arg('chrome', process.env.CHROME_PATH) || [
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   '/usr/bin/google-chrome', '/usr/bin/chromium', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 ].find((p) => fs.existsSync(p));
-const PORT = Number(arg('port', 9444));
-const DEVTOOLS = `http://127.0.0.1:${PORT}`;
+const STEP_MS = Number(arg('step-timeout', 30)) * 1000;
+const FAILURES = [];
+let DEVTOOLS = null; // set by launchChrome: Chrome picks a free port for each run
 const THROTTLE = Number(arg('throttle', 4));
 const QUICK = flag('quick');
 const FONTS = !flag('no-fonts');
+
+// ---------------------------------------------------------------- process hygiene
+// Every Chrome (with its temp profile) and the static server are registered here and torn down on every exit
+// path. A watchdog child also kills Chrome if this process is killed hard (taskkill /F runs no handlers).
+
+const cleanups = [];
+let cleaned = false;
+function runCleanups() {
+  if (cleaned) return;
+  cleaned = true;
+  while (cleanups.length) { try { cleanups.pop()(); } catch (e) { /* keep tearing down the rest */ } }
+}
+
+function sleepSync(ms) { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); }
+
+function killTree(pid) {
+  try {
+    if (process.platform === 'win32') execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+    else process.kill(-pid, 'SIGKILL');
+  } catch (e) { /* already exited */ }
+  // Chrome holds its profile files until the browser process is really gone, so wait for that first.
+  for (let i = 0; i < 40; i++) { try { process.kill(pid, 0); sleepSync(250); } catch (e) { break; } }
+}
+
+// Chrome releases files a moment after it exits, so retry for up to about 15 s.
+function removeProfile(dir) {
+  for (let i = 0; i < 50 && fs.existsSync(dir); i++) {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { /* still locked */ }
+    sleepSync(300);
+  }
+}
+
+// Runs as `node -e` in a detached child: once the parent is gone, it kills Chrome and removes the profile.
+function watchdogMain() {
+  const fs = require('fs');
+  const { execFileSync } = require('child_process');
+  const [parent, chrome, profile] = process.argv.slice(1);
+  const alive = (pid) => { try { process.kill(Number(pid), 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  const timer = setInterval(() => {
+    if (alive(parent)) return;
+    clearInterval(timer);
+    try {
+      if (process.platform === 'win32') execFileSync('taskkill', ['/PID', chrome, '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+      else process.kill(-Number(chrome), 'SIGKILL');
+    } catch (e) { /* already exited */ }
+    for (let i = 0; i < 40 && alive(chrome); i++) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
+    for (let i = 0; i < 50 && fs.existsSync(profile); i++) {
+      try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) { /* still locked */ }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300);
+    }
+    process.exit(0);
+  }, 500);
+}
+
+function track(child, profile) {
+  const watchdog = spawn(process.execPath, ['-e', `(${watchdogMain.toString()})()`, String(process.pid), String(child.pid), profile],
+    { detached: true, stdio: 'ignore', windowsHide: true });
+  watchdog.on('error', () => {});
+  watchdog.unref();
+  cleanups.push(() => { killTree(child.pid); removeProfile(profile); });
+}
+
+function installExitHandlers() {
+  process.on('exit', runCleanups);
+  const stop = (sig, code) => process.on(sig, () => { console.error(`\n${sig}: stopping Chrome and the local server`); runCleanups(); process.exit(code); });
+  stop('SIGINT', 130);
+  stop('SIGTERM', 143);
+  if (process.platform === 'win32') stop('SIGBREAK', 149);
+  const crash = (e) => { console.error('motion-qa crashed:', (e && e.stack) || e); runCleanups(); process.exit(1); };
+  process.on('uncaughtException', crash);
+  process.on('unhandledRejection', crash);
+}
 
 // ---------------------------------------------------------------- server (static + mock relay)
 
@@ -137,10 +211,11 @@ function cdp(wsUrl) {
   };
   return new Promise((resolve, reject) => {
     ws.onopen = () => resolve({
-      send: (method, params = {}) => new Promise((ok, bad) => {
+      send: (method, params = {}, ms = STEP_MS) => new Promise((ok, bad) => {
         const id = ++nextId;
-        pending.set(id, { resolve: ok, reject: bad });
-        ws.send(JSON.stringify({ id, method, params }));
+        const t = setTimeout(() => { pending.delete(id); bad(new Error(`timeout after ${ms / 1000}s in ${method}`)); }, ms);
+        pending.set(id, { resolve: (v) => { clearTimeout(t); ok(v); }, reject: (e) => { clearTimeout(t); bad(e); } });
+        try { ws.send(JSON.stringify({ id, method, params })); } catch (e) { clearTimeout(t); pending.delete(id); bad(e); }
       }),
       on: (f) => { listeners.add(f); return () => listeners.delete(f); },
       once: (method, ms = 15000) => new Promise((ok, bad) => {
@@ -150,24 +225,35 @@ function cdp(wsUrl) {
       close: () => { try { ws.close(); } catch (e) { /* closed */ } }
     });
     ws.onerror = () => reject(new Error('CDP websocket failed'));
+    ws.onclose = () => { for (const p of pending.values()) p.reject(new Error('DevTools connection closed (Chrome exited?)')); pending.clear(); };
   });
 }
 
+// Port 0: Chrome picks a free port and writes it to DevToolsActivePort in the fresh temp profile.
 async function launchChrome() {
   if (!CHROME) throw new Error('Chrome or Edge not found. Use --chrome or CHROME_PATH.');
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'kick-motion-'));
   const proc = spawn(CHROME, [
-    '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`,
+    '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
     '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--mute-audio',
     '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
     '--window-size=1280,900', 'about:blank'
-  ], { stdio: 'ignore' });
-  for (let i = 0; i < 80; i++) {
-    try { const r = await fetch(`${DEVTOOLS}/json/version`); if (r.ok) return { proc, profile, version: (await r.json()).Browser }; } catch (e) { /* not up yet */ }
+  ], { stdio: 'ignore', windowsHide: true, detached: process.platform !== 'win32' });
+  proc.on('error', () => {});
+  track(proc, profile);
+  const portFile = path.join(profile, 'DevToolsActivePort');
+  for (let i = 0; i < 100 && proc.exitCode === null; i++) {
+    try {
+      const port = Number(fs.readFileSync(portFile, 'utf8').split(/\r?\n/)[0]);
+      if (port) {
+        DEVTOOLS = `http://127.0.0.1:${port}`;
+        const r = await fetch(`${DEVTOOLS}/json/version`, { signal: AbortSignal.timeout(2000) });
+        if (r.ok) return { proc, profile, version: (await r.json()).Browser };
+      }
+    } catch (e) { /* not written yet, or Chrome still starting */ }
     await sleep(200);
   }
-  proc.kill();
-  throw new Error('Chrome DevTools did not start');
+  throw new Error(`Chrome did not expose DevTools${proc.exitCode !== null ? ` (exited with ${proc.exitCode})` : ''}`);
 }
 
 // Runs in every page before its own scripts. Provides the probes and the hooks the scenarios use.
@@ -213,7 +299,7 @@ const TRACE_CATEGORIES = [
 
 // A page ready for a scenario. Emulation is set before the first navigation.
 async function newPage(srv, o = {}) {
-  const target = await (await fetch(`${DEVTOOLS}/json/new?about:blank`, { method: 'PUT' })).json();
+  const target = await (await fetch(`${DEVTOOLS}/json/new?about:blank`, { method: 'PUT', signal: AbortSignal.timeout(STEP_MS) })).json();
   const c = await cdp(target.webSocketDebuggerUrl);
   const logs = [];
   c.on((m) => {
@@ -440,14 +526,15 @@ async function runAudit(srv, outDir, overlays, themes) {
     while (next < jobs.length) {
       const j = jobs[next++];
       const reduced = j.mode === 'reduced';
-      if (!slot.p || slot.size !== j.v.size.join('x') || slot.reduced !== reduced) {
-        if (slot.p) await slot.p.close();
-        slot.p = await newPage(srv, { size: j.v.size, reduced });
-        slot.size = j.v.size.join('x');
-        slot.reduced = reduced;
-      }
       const q = `stil=${j.theme}&animasyon=${reduced ? 'normal' : j.mode}`;
       try {
+        if (!slot.p || slot.size !== j.v.size.join('x') || slot.reduced !== reduced) {
+          if (slot.p) await slot.p.close();
+          slot.p = null;
+          slot.p = await newPage(srv, { size: j.v.size, reduced });
+          slot.size = j.v.size.join('x');
+          slot.reduced = reduced;
+        }
         await slot.p.goto(j.v.url(q));
         if (j.v.shift) { await sleep(150); await slot.p.eval(`__qa.dateShift = ${j.v.shift}`); await sleep(700); }
         await sleep(800);
@@ -456,13 +543,14 @@ async function runAudit(srv, outDir, overlays, themes) {
         rows.push({ overlay: j.name, variant: j.v.id, theme: j.theme, mode: j.mode, bodyClass: classes, animations: anims, errors: slot.p.logs.splice(0) });
       } catch (e) {
         rows.push({ overlay: j.name, variant: j.v.id, theme: j.theme, mode: j.mode, error: e.message, animations: [] });
-        try { await slot.p.close(); } catch (x) { /* ignore */ }
+        if (slot.p) { try { await slot.p.close(); } catch (x) { /* ignore */ } }
         slot.p = null;
       }
     }
     if (slot.p) await slot.p.close();
   }
   await Promise.all(pages.map(worker));
+  for (const r of rows) if (r.error) FAILURES.push(`audit ${r.overlay}/${r.variant} ${r.theme} ${r.mode}: ${r.error}`);
   rows.sort((a, b) => (a.overlay + a.variant + a.theme + a.mode).localeCompare(b.overlay + b.variant + b.theme + b.mode));
   fs.writeFileSync(path.join(outDir, 'audit.json'), JSON.stringify(rows, null, 1));
 
@@ -602,10 +690,11 @@ async function runShots(srv, outDir, overlays, themes) {
     if (!overlays.includes(sq.overlay)) continue;
     if (only && !only.some((k) => sq.name.includes(k))) continue;
     const o = OVERLAYS[sq.overlay];
-    const p = await newPage(srv, { size: sq.size, dpr: sq.dpr });
-    await p.c.send('Page.addScriptToEvaluateOnNewDocument', { source: BACKDROP_JS });
+    let p = null;
     const url = srv.url(o.file, `stil=${sq.theme}&animasyon=normal&${sq.query}`);
     try {
+      p = await newPage(srv, { size: sq.size, dpr: sq.dpr });
+      await p.c.send('Page.addScriptToEvaluateOnNewDocument', { source: BACKDROP_JS });
       let cast, t0;
       if (sq.fromLoad) {
         cast = await startCast(p, sq.size, sq.dpr);
@@ -627,10 +716,14 @@ async function runShots(srv, outDir, overlays, themes) {
       console.log(`${sq.name}: ${frames.length} frames`);
     } catch (e) {
       console.log(sq.name + ': ' + e.message);
+      FAILURES.push(`shot ${sq.name}: ${e.message}`);
+    } finally {
+      if (p) await p.close();
     }
-    await p.close();
   }
-  if (!only || only.includes('fill-grid')) await fillGrid(srv, dir, themes);
+  if (!only || only.includes('fill-grid')) {
+    try { await fillGrid(srv, dir, themes); } catch (e) { console.log('fill-grid: ' + e.message); FAILURES.push('shot fill-grid: ' + e.message); }
+  }
 }
 
 // Static fills at 2 / 6 / 25 / 50 / 100 %: how the scaled fill ends, and how patterns and tips look when squeezed.
@@ -757,7 +850,6 @@ function windowFor(sc) { return QUICK ? Math.min(sc.ms, 3000) : sc.ms; }
 async function perfRun(srv, name, sc, ctx) {
   const o = OVERLAYS[name];
   const reduced = ctx.mode === 'reduced';
-  const p = await newPage(srv, { size: o.size, reduced, throttle: ctx.throttle });
   let own;
   if (o.goals || name === 'info-panel') own = 'onizleme=1';
   else if (name === 'chat') own = sc.live ? 'kanal=qa' : 'onizleme=1';
@@ -765,7 +857,9 @@ async function perfRun(srv, name, sc, ctx) {
   const query = [`stil=${ctx.theme}`, `animasyon=${reduced ? 'normal' : ctx.mode}`, own, sc.query].filter(Boolean).join('&');
   const url = srv.url(o.file, query);
   const res = { overlay: name, scenario: sc.id, theme: ctx.theme, mode: ctx.mode, throttle: ctx.throttle, pass: ctx.noProbe ? 'no-probe' : 'probe' };
+  let p = null;
   try {
+    p = await newPage(srv, { size: o.size, reduced, throttle: ctx.throttle });
     if (sc.traceLoad) {
       await p.c.send('Page.addScriptToEvaluateOnNewDocument', { source: '__qa.start()' });
       await traceStart(p);
@@ -792,8 +886,9 @@ async function perfRun(srv, name, sc, ctx) {
     if (p.logs.length) res.errors = p.logs.slice(0, 3);
   } catch (e) {
     res.error = e.message;
+  } finally {
+    if (p) await p.close();
   }
-  await p.close();
   return res;
 }
 
@@ -822,7 +917,14 @@ async function runPerf(srv, outDir, overlays, themes) {
   fs.writeFileSync(jsonl, '');
   const all = [];
   const run = async (name, sc, ctx) => {
-    const r = await perfRun(srv, name, sc, ctx);
+    let r = await perfRun(srv, name, sc, ctx);
+    // A DevTools timeout (a stalled trace or hung page) gets one more try. A second failure is recorded, not fatal.
+    if (r.error && /timeout/i.test(r.error)) {
+      console.log(`retry ${name}/${sc.id} ${ctx.theme} ${ctx.mode}: ${r.error}`);
+      r = await perfRun(srv, name, sc, ctx);
+      r.attempts = 2;
+    }
+    if (r.error) FAILURES.push(`perf ${name}/${sc.id} ${ctx.theme} ${ctx.mode} ${ctx.throttle}x: ${r.error}`);
     all.push(r);
     fs.appendFileSync(jsonl, JSON.stringify(r) + '\n');
     console.log(fmtRow(r));
@@ -878,18 +980,24 @@ if (require.main === module) {
     const phases = list(arg('phase'), ['audit', 'perf', 'shots']);
     const overlays = list(arg('overlays'), Object.keys(OVERLAYS));
     const themes = list(arg('themes'), THEMES);
+    installExitHandlers();
     const chrome = await launchChrome();
     const srv = await startServer();
-    console.log(`Chrome ${chrome.version}, server on ${srv.port}, throttle ${THROTTLE}x, fonts ${FONTS ? 'online' : 'blocked'}`);
+    cleanups.push(() => srv.close());
+    console.log(`Chrome ${chrome.version} on ${DEVTOOLS}, server on ${srv.port}, throttle ${THROTTLE}x, fonts ${FONTS ? 'online' : 'blocked'}`);
     try {
       if (phases.includes('audit')) await runAudit(srv, out, overlays, themes);
       if (phases.includes('perf')) await runPerf(srv, out, overlays, themes);
       if (phases.includes('shots')) await runShots(srv, out, overlays, themes);
     } finally {
-      srv.close();
-      chrome.proc.kill();
-      await sleep(500);
-      try { fs.rmSync(chrome.profile, { recursive: true, force: true }); } catch (e) { /* locked, ignore */ }
+      runCleanups();
     }
-  })().catch((e) => { console.error('motion-qa aborted:', e.stack || e.message); process.exit(1); });
+    if (FAILURES.length) {
+      console.error(`\n${FAILURES.length} failed:`);
+      for (const f of FAILURES) console.error('  - ' + f);
+      process.exit(1);
+    }
+    console.log('\nNo failed scenarios.');
+    process.exit(0);
+  })().catch((e) => { console.error('motion-qa aborted:', e.stack || e.message); runCleanups(); process.exit(1); });
 }

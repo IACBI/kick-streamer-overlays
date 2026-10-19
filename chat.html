@@ -30,7 +30,7 @@
   const S = K.readSettings();
   const PREVIEW = K.isPreview();
   K.applyLook(S);
-  K.loadFont(S);
+  const fontLink = K.loadFont(S);
   const T = K.text(S);
 
   const feed = document.getElementById('feed');
@@ -73,7 +73,7 @@
   };
   const BADGE_COLOR = {
     moderator:'#16c172', vip:'#ec4899', og:'#f0b429', founder:'#ef5350',
-    subscriber:'#4f46e5', sub_gifter:'#0f766e', verified:'#2aa3ff', staff:'#0b8f3a'
+    subscriber:'#4f46e5', sub_gifter:'#115e59', verified:'#2aa3ff', staff:'#0b8f3a'
   };
 
   const seen = new Set();   // dedupe guard; a Set keeps insertion order, so the oldest key is evicted first
@@ -272,67 +272,104 @@
     else if(img.dataset.kind === 'role') wrap.replaceWith(pill(img.dataset.type, Number(img.dataset.count) || 0));
   }, true);
 
-  // Moving the rest of the feed is a transform animation (FLIP), so a message that is added or removed
-  // slides its neighbours instead of snapping them. Off for animasyon=off and prefers-reduced-motion.
+  // Moving the rest of the feed is a transform animation, so a message that is added or removed slides its
+  // neighbours instead of snapping them. Off for animasyon=off and prefers-reduced-motion.
   function flipOn(){
     return S.animasyon !== 'off' && !(reduceMq && reduceMq.matches) && typeof Element.prototype.animate === 'function';
   }
 
-  // Visual tops before a change. A running animation is part of both readings, so only the layout shift is left.
-  function tops(){
-    const m = new Map();
-    for(const el of feed.children) m.set(el, el.getBoundingClientRect().top);
-    return m;
-  }
-
-  // The separate "translate" property composes with the transform of the enter/leave animation and can run on the
-  // compositor; engines without it fall back to an additive transform animation.
+  // Every row below the change moves by a distance known from the new/removed rows' own heights, so nothing is
+  // measured before the DOM changes. Changes queue up and one flush per frame does all reads, then all writes.
+  // The slide is additive: a running slide is never cancelled or read, a new one just stacks on it.
   const HAS_TRANSLATE = !!(window.CSS && CSS.supports && CSS.supports('translate', '0 1px'));
-  const flips = new WeakMap();   // element -> its running slide, so a new slide continues from where it is
+  const addedQ = [];     // appended rows waiting for their slide
+  const removedQ = [];   // rows to take out of the feed in the next flush
+  let flushRaf = 0, flushTimer = 0;
+  let rowGap = -1;
 
-  function slide(before){
-    if(!before) return;
-    const ms = S.animasyon === 'low' ? 200 : 300;
+  function queueFlush(){
+    if(flushRaf || flushTimer) return;
+    // rAF runs before the frame is painted, so the slide exists before the shifted rows are ever shown.
+    // The timer covers a page whose rAF is paused (hidden tab), so a removal is never left pending.
+    flushRaf = requestAnimationFrame(flush);
+    flushTimer = setTimeout(flush, 120);
+  }
+
+  function flush(){
+    cancelAnimationFrame(flushRaf);
+    clearTimeout(flushTimer);
+    flushRaf = flushTimer = 0;
+    const added = new Set(addedQ.filter(el => el.isConnected));
+    const gone = removedQ.filter(el => el.isConnected);
+    addedQ.length = 0;
+    removedQ.length = 0;
+    if(!added.size && !gone.length) return;
+    if(!flipOn()){ gone.forEach(el => el.remove()); return; }
+
+    // ---- reads: the layout is clean from here until the first write ----
+    if(rowGap < 0) rowGap = parseFloat(window.getComputedStyle(feed).rowGap) || 0;
+    const feedTop = feed.getBoundingClientRect().top;
+    let up = 0;                      // total height the added rows put under the old ones
+    added.forEach(el => { up += el.offsetHeight + rowGap; });
+    const goneSet = new Set(gone);
+    const drop = new Map();          // removed row -> the height it frees
+    let down = 0;
+    gone.forEach(el => { const d = el.offsetHeight + rowGap; drop.set(el, d); down += d; });
+    const reach = Math.max(up, down);
     const jobs = [];
-    for(const [el, top] of before){
-      if(!el.isConnected) continue;
-      const d = top - el.getBoundingClientRect().top;
-      if(Math.abs(d) < 0.5) continue;
-      let cur = 0;
-      const prev = flips.get(el);
-      if(HAS_TRANSLATE && prev && prev.playState === 'running') cur = parseFloat((window.getComputedStyle(el).translate || '').split(' ')[1]) || 0;
-      jobs.push([el, d, cur]);
+    let freed = 0;                   // freed height of removed rows below the current row
+    const rows = feed.children;
+    for(let i = rows.length - 1; i >= 0; i--){
+      const el = rows[i];
+      if(added.has(el)) continue;
+      if(goneSet.has(el)){ freed += drop.get(el); continue; }
+      const d = up - freed;
+      // Only rows that can be seen while they move are animated; the rest are above the mask.
+      if(el.getBoundingClientRect().bottom + reach < feedTop) break;
+      if(Math.abs(d) >= 0.5) jobs.push([el, d]);
     }
-    for(const [el, d, cur] of jobs){
-      const prev = flips.get(el);
-      if(HAS_TRANSLATE && prev) prev.cancel();
-      const anim = HAS_TRANSLATE
-        ? el.animate([{ translate: '0 ' + (d + cur) + 'px' }, { translate: '0 0' }], { duration: ms, easing: FLIP_EASE })
-        : el.animate([{ transform: 'translateY(' + d + 'px)' }, { transform: 'translateY(0)' }], { duration: ms, easing: FLIP_EASE, composite: 'add' });
-      flips.set(el, anim);
+
+    // ---- writes ----
+    gone.forEach(el => el.remove());
+    const ms = S.animasyon === 'low' ? 200 : 300;
+    for(const [el, d] of jobs){
+      el.animate(HAS_TRANSLATE
+        ? [{ translate: '0 ' + d + 'px' }, { translate: '0 0' }]
+        : [{ transform: 'translateY(' + d + 'px)' }, { transform: 'translateY(0)' }],
+      { duration: ms, easing: FLIP_EASE, composite: 'add' });
     }
   }
 
-  // Runs a DOM change and slides whatever it moved.
-  function withSlide(change){
-    const before = flipOn() ? tops() : null;
-    change();
-    slide(before);
+  // Appends rows now (the DOM stays in step with the events); the slide of the rows above follows in the flush.
+  function appendRow(el){
+    feed.appendChild(el);
+    if(flipOn()){ addedQ.push(el); queueFlush(); }
   }
+
+  const animCache = new Map();   // class -> animation length, read once; the motion setting does not change mid-page
+  if(reduceMq && reduceMq.addEventListener) reduceMq.addEventListener('change', () => animCache.clear());
 
   // The element's own animation length, so the timer follows themes.css and the motion setting.
-  function animMs(el, fallback){
+  function animMs(el, cls, fallback){
+    if(animCache.has(cls)) return animCache.get(cls);
     const parts = (window.getComputedStyle(el).animationDuration || '').split(',')
       .map(x => parseFloat(x) * (/ms\s*$/.test(x) ? 1 : 1000));
     const ms = Math.max.apply(null, parts);
-    return Number.isFinite(ms) && ms > 0 ? ms : fallback;
+    const val = Number.isFinite(ms) && ms > 0 ? ms : fallback;
+    animCache.set(cls, val);
+    return val;
   }
 
   // The message plays its leave/fade animation, then goes and the feed closes the gap smoothly.
   function dismiss(el, cls, fallback){
     el.classList.add(cls);
-    const wait = S.animasyon === 'off' ? 0 : animMs(el, fallback);
-    setTimeout(() => withSlide(() => el.remove()), wait);
+    const wait = S.animasyon === 'off' ? 0 : animMs(el, cls, fallback);
+    setTimeout(() => {
+      if(!el.isConnected) return;
+      if(!flipOn()){ el.remove(); return; }
+      removedQ.push(el);
+      queueFlush();
+    }, wait);
   }
 
   // Messages of a banned user fade out before they are removed.
@@ -361,7 +398,41 @@
     return S.sohbetKomutGizle && String(ev.message || '').trimStart().startsWith('!');
   }
 
+  // The first message would otherwise be laid out in the fallback font and relaid out when the web font arrives,
+  // one long frame in front of the viewers. Messages wait (at most FONT_WAIT_MS) until the faces they use are in.
+  const FONT_WAIT_MS = 1500;
+  const heldEvents = [];
+  let fontsReady = !(document.fonts && document.fonts.load && fontLink);
+  if(!fontsReady){
+    const family = (window.getComputedStyle(document.body).fontFamily.split(',')[0] || '').trim();
+    const release = () => {
+      if(fontsReady) return;
+      fontsReady = true;
+      clearTimeout(fontTimer);
+      warmUp();
+      heldEvents.splice(0).forEach(addMessage);
+    };
+    const fontTimer = setTimeout(release, FONT_WAIT_MS);
+    const loadFaces = () => Promise.all(['400 18px ', '700 16px ', '800 11px '].map(w => document.fonts.load(w + family, 'Aa Çğİşöü'))).then(release, release);
+    if(fontLink.sheet) loadFaces();
+    else { fontLink.addEventListener('load', loadFaces); fontLink.addEventListener('error', release); }
+  }
+
+  // Shapes the three text styles once, off screen, so the first real message does not pay for font decoding
+  // and fallback lookup inside an animation frame.
+  function warmUp(){
+    const box = document.createElement('div');
+    box.className = 'ko-msg';
+    box.setAttribute('aria-hidden', 'true');
+    box.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;animation:none';
+    box.innerHTML = '<span class="ko-user">Aa Çğİşöü</span><span class="ko-text"> Aa Çğİşöü 👋</span><span class="ko-badge"><span class="ko-count">12</span></span>';
+    document.body.appendChild(box);
+    box.offsetWidth;
+    box.remove();
+  }
+
   function addMessage(ev){
+    if(!fontsReady){ heldEvents.push(ev); return; }
     const id = ev.id != null && ev.id !== '' ? String(ev.id) : '';
     const username = String(ev.username || '?');
     if(hidden(ev, username)) return;
@@ -395,10 +466,8 @@
     appendBody(text, String(ev.message || ''));
     el.appendChild(text);
 
-    withSlide(() => {
-      makeRoom();
-      feed.appendChild(el);
-    });
+    makeRoom();
+    appendRow(el);
     msgTotal += 1;
     K.debug({ messages: msgTotal });
   }
