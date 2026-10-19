@@ -13,10 +13,14 @@
   --text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.6);
   --surface: rgba(255, 255, 255, 0.07);
   --surface-border: rgba(255, 255, 255, 0.14);
+  /* Solid veil added under surfaces when backdrop blur is off (motion-low/off). */
+  --surface-boost: rgb(12 14 20 / 30%);
   --blur: 10px;
   --shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
   --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 45%, #000), var(--accent));
   --fill-glow: 0 0 20px rgb(var(--accent-rgb) / 55%);
+  /* var() resolves where it is declared, so each theme that changes --muted re-declares --track-bg. */
+  --track-bg: color-mix(in srgb, var(--muted) 22%, transparent);
   --bar-h: 50px;
   --r-bar: 25px;
   --r-card: 16px;
@@ -58,8 +62,8 @@ body.theme-soft {
   --surface: rgba(255, 255, 255, 0.1);
   --surface-border: rgba(255, 255, 255, 0.06);
   --shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
-  /* White text sits on this fill, so it stays at or below the accent's own lightness. */
-  --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 78%, #000), color-mix(in srgb, var(--accent) 92%, #000));
+  /* White text sits on this fill: both stops stay dark enough for at least 4.8:1 on a green accent. */
+  --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 48%, #000), color-mix(in srgb, var(--accent) 52%, #000));
   --text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 0 10px rgba(0, 0, 0, 0.3);
   --bar-h: 54px;
   --msg-bg: rgba(255, 255, 255, 0.1);
@@ -70,6 +74,7 @@ body.theme-soft {
 body.theme-cinema {
   --surface: rgba(0, 0, 0, 0.45);
   --surface-border: rgba(255, 255, 255, 0.1);
+  --surface-boost: transparent;
   --blur: 0px;
   --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, #000), var(--accent));
   --msg-bg: transparent;
@@ -81,6 +86,7 @@ body.theme-cinema {
 body.theme-neon {
   --surface: rgba(4, 6, 10, 0.85);
   --surface-border: var(--accent);
+  --surface-boost: transparent;
   --blur: 0px;
   --shadow: 0 0 18px rgb(var(--accent-rgb) / 45%);
   --fill-bg: var(--accent);
@@ -91,16 +97,18 @@ body.theme-neon {
   --msg-shadow: 0 0 14px rgb(var(--accent-rgb) / 40%);
 }
 
+/* Flat accent fill, so it is darkened under the white text: the bare accent is about 1.4:1 with white. */
 body.theme-minimal {
   --surface: rgba(255, 255, 255, 0.04);
   --surface-border: transparent;
+  --surface-boost: transparent;
   --blur: 0px;
   --shadow: none;
-  --fill-bg: var(--accent);
+  --fill-bg: color-mix(in srgb, var(--accent) 52%, #000);
   --fill-glow: none;
   --bar-h: 34px;
-  --text-shadow: none;
   --muted: rgba(255, 255, 255, 0.55);
+  --track-bg: color-mix(in srgb, var(--muted) 22%, transparent);
   --size-val: 16px;
   --size-lbl: 13px;
   --msg-bg: rgba(0, 0, 0, 0.35);
@@ -110,11 +118,13 @@ body.theme-minimal {
 body.theme-pastel {
   --surface: rgba(255, 255, 255, 0.82);
   --surface-border: rgba(255, 255, 255, 0.9);
+  --surface-boost: rgb(255 255 255 / 40%);
   --shadow: 0 6px 20px rgba(60, 40, 90, 0.18);
   --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 35%, #fff), color-mix(in srgb, var(--accent) 75%, #fff));
   --fill-glow: none;
   --text: #1f2937;
   --muted: #4b5563;
+  --track-bg: color-mix(in srgb, var(--muted) 22%, transparent);
   --text-shadow: none;
   --msg-bg: rgba(255, 255, 255, 0.88);
   --msg-border: rgba(255, 255, 255, 0.95);
@@ -125,12 +135,14 @@ body.theme-pastel {
 body.theme-terminal {
   --surface: rgba(6, 12, 8, 0.9);
   --surface-border: rgb(var(--accent-rgb) / 60%);
+  --surface-boost: transparent;
   --blur: 0px;
   --shadow: none;
   --fill-bg: repeating-linear-gradient(90deg, rgb(var(--accent-rgb) / 42%) 0 8px, rgb(var(--accent-rgb) / 18%) 8px 11px);
   --fill-glow: none;
   --text: #e6ffe0;
   --muted: rgb(var(--accent-rgb) / 70%);
+  --track-bg: color-mix(in srgb, var(--muted) 22%, transparent);
   --text-shadow: none;
   --msg-bg: rgba(6, 12, 8, 0.9);
   --msg-border: rgb(var(--accent-rgb) / 60%);
@@ -155,6 +167,7 @@ body.theme-aurora {
   --fill-glow: 0 0 22px rgb(45 212 191 / 35%);
   --text: #f0f9ff;
   --muted: rgb(203 213 225 / 80%);
+  --track-bg: color-mix(in srgb, var(--muted) 22%, transparent);
   --msg-bg: rgb(8 14 40 / 62%);
   --msg-border: transparent;
   --msg-shadow: 0 4px 16px rgb(2 6 23 / 35%);
@@ -168,7 +181,7 @@ body.theme-aurora .ko-msg {
 body.theme-aurora .ko-fill { overflow: hidden; }
 /* The sweep rests off the left edge of the fill, so it is invisible when animation is off. */
 body.theme-aurora .ko-fill::after {
-  inset: 0; width: auto;
+  inset: 0; width: auto; opacity: 1;
   background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 30%) 50%, transparent 65%);
   transform: translate3d(-100%, 0, 0);
   will-change: transform;
@@ -223,6 +236,7 @@ body.theme-ember {
   --fill-glow: 0 0 18px rgb(234 88 12 / 45%);
   --text: #fff7ed;
   --muted: rgb(254 215 170 / 80%);
+  --track-bg: color-mix(in srgb, var(--muted) 22%, transparent);
   --msg-bg: rgb(20 10 6 / 85%);
   --msg-border: rgb(255 110 40 / 35%);
   --msg-text: #ffedd5;
@@ -230,7 +244,7 @@ body.theme-ember {
 }
 /* The glowing tip sits on the fill's right edge and breathes by opacity only. */
 body.theme-ember .ko-fill::after {
-  inset: 0 -12px 0 auto; width: 36px;
+  inset: 0 -12px 0 auto; width: 36px; opacity: 1;
   background: radial-gradient(closest-side, rgb(255 244 200 / 95%), rgb(255 150 40 / 55%) 50%, transparent);
   animation: ko-ember-breathe 2.4s ease-in-out infinite;
 }
@@ -244,12 +258,14 @@ body.theme-ember .ko-dot { background: #fb923c; box-shadow: 0 0 8px #fb923c; }
 body.theme-paper {
   --surface: #fbf6ea;
   --surface-border: rgb(92 64 38 / 22%);
+  --surface-boost: transparent;
   --blur: 0px;
   --shadow: 0 1px 2px rgb(90 60 30 / 12%), 0 6px 18px rgb(90 60 30 / 12%);
   --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent));
   --fill-glow: none;
   --text: #2b2118;
   --muted: #6b5844;
+  --track-bg: color-mix(in srgb, var(--muted) 22%, transparent);
   --text-shadow: none;
   --msg-bg: #fffdf7;
   --msg-border: rgb(92 64 38 / 20%);
@@ -266,12 +282,15 @@ body.theme-paper .ko-fill::after { display: none; }
 /* Light surfaces: darken the name colour (Kick colours or the accent) so it stays readable. */
 body.theme-paper .ko-user,
 body.theme-pastel .ko-user { color: color-mix(in srgb, var(--name-color, var(--accent)) 50%, #14110d); }
+/* Dark surfaces: near-black Kick name colours would vanish, so lift them toward white. */
+body:not(.theme-pastel):not(.theme-paper) .ko-user { color: color-mix(in srgb, var(--name-color, var(--accent)) 65%, #fff); }
 
 /* Retro: arcade pixels. Square corners, hard shadows, a dotted fill and a hard text shadow. */
 body.theme-retro {
   --r-bar: 0; --r-card: 0; --r-msg: 0;
   --surface: #0d0d1a;
   --surface-border: var(--accent);
+  --surface-boost: transparent;
   --blur: 0px;
   --shadow: 4px 4px 0 #000;
   --fill-bg: radial-gradient(circle, rgb(0 0 0 / 35%) 1.2px, transparent 1.6px) 0 0 / 6px 6px,
@@ -290,22 +309,43 @@ body.theme-retro .ko-badge { border-radius: 0; }
 body.theme-retro .ko-fill::after { display: none; }
 
 /* ---- motion ---- */
+/* Off: nothing animates, and messages appear or leave at once. */
 body.motion-off *,
 body.motion-off *::before,
 body.motion-off *::after { animation: none !important; transition: none !important; }
 body.motion-off .ko-msg { opacity: 1; transform: none; }
-body.motion-off .ko-msg.is-leaving { opacity: 0; }
+body.motion-off .ko-msg.is-leaving,
+body.motion-off .ko-msg.is-fading { opacity: 0; }
 
-body.motion-low .ko-fill,
-body.motion-low .ko-fill::after,
-body.motion-low .ko-bcast { animation: none; }
+/* Low: only the message enter and leave survive, shortened. Loops and flourishes stop. */
+body.motion-low *:not(.ko-msg),
+body.motion-low *:not(.ko-msg)::before,
+body.motion-low *:not(.ko-msg)::after { animation: none !important; }
 body.motion-low .ko-msg { animation-duration: .2s; }
 
+/* Without the blur, surfaces get a solid veil so the text keeps its contrast. */
+body.motion-low .ko-bar,
+body.motion-low .ko-panel,
+body.motion-low .ko-msg,
+body.motion-off .ko-bar,
+body.motion-off .ko-panel,
+body.motion-off .ko-msg { backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.motion-low .ko-bar,
+body.motion-low .ko-panel,
+body.motion-off .ko-bar,
+body.motion-off .ko-panel { background: linear-gradient(var(--surface-boost), var(--surface-boost)), var(--surface); }
+body.motion-low .ko-msg,
+body.motion-off .ko-msg { background: linear-gradient(var(--surface-boost), var(--surface-boost)), var(--msg-bg); }
+/* The aurora edge gradient is a background layer, which the veil replaces; a solid edge stands in for it. */
+body.motion-low.theme-aurora .ko-msg,
+body.motion-off.theme-aurora .ko-msg { border-color: rgb(45 212 191 / 40%); }
+
+/* Reduced motion from the OS applies to every motion setting. */
 @media (prefers-reduced-motion: reduce) {
-  body.motion-normal .ko-fill,
-  body.motion-normal .ko-fill::after,
-  body.motion-normal .ko-bcast { animation: none; }
-  body.motion-normal .ko-msg { animation-duration: .2s; }
+  body *:not(.ko-msg),
+  body *:not(.ko-msg)::before,
+  body *:not(.ko-msg)::after { animation: none !important; }
+  body .ko-msg { animation-duration: .2s; }
 }
 
 /* ==========================================================================
@@ -321,21 +361,38 @@ body.motion-low .ko-msg { animation-duration: .2s; }
   box-shadow: var(--shadow);
   animation: ko-rise-in .6s cubic-bezier(.2, .8, .2, 1) both;
 }
-.ko-fill {
-  position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit;
-  background: var(--fill-bg); box-shadow: var(--fill-glow);
-  transition: width 1.5s cubic-bezier(.22, 1, .36, 1);
+/* Goal reached: the accent edge and glow mark the bar, and the goal value is shown at full strength. */
+.ko-bar.is-goal {
+  border-color: rgb(var(--accent-rgb) / 70%);
+  box-shadow: var(--shadow), 0 0 18px rgb(var(--accent-rgb) / 45%);
 }
+.ko-bar.is-goal .ko-goal { opacity: 1; }
+/* The fill is full width and scaled from the left, so the bar animates by transform only. */
+.ko-fill {
+  position: absolute; inset: 0;
+  transform: scaleX(var(--fill, 0)); transform-origin: left; border-radius: inherit;
+  background: var(--fill-bg); box-shadow: var(--fill-glow);
+  transition: transform 1.5s cubic-bezier(.22, 1, .36, 1);
+}
+/* Opacity is 0 unless the shimmer runs, so a static (motion-low/off) fill shows no stray glint. */
 .ko-fill::after {
-  content: ''; position: absolute; inset: 0 auto 0 0; width: 70px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .5), transparent);
+  content: ''; position: absolute; inset: 0; opacity: 0;
+  background: linear-gradient(90deg, transparent 42%, rgba(255, 255, 255, .5) 50%, transparent 58%);
   animation: ko-shimmer 150s linear infinite;
 }
+/* The sweep is in percentages of the fill, so it crosses the fill at any fill level. */
 @keyframes ko-shimmer {
-  0%   { transform: translateX(-90px); opacity: 0; }
+  0%   { transform: translateX(-50%); opacity: 0; }
   0.4% { opacity: 1; }
-  1.2% { transform: translateX(560px); opacity: 1; }
-  1.5%, 100% { transform: translateX(560px); opacity: 0; }
+  1.2% { transform: translateX(50%); opacity: 1; }
+  1.5%, 100% { transform: translateX(50%); opacity: 0; }
+}
+/* Milestone at 25 / 50 / 75 %: a short pulse on the bar; the bar's entrance is kept in the list. */
+.ko-milestone { animation: ko-milestone 1.2s ease-out; }
+.ko-bar.ko-milestone { animation: ko-rise-in .6s cubic-bezier(.2, .8, .2, 1) both, ko-milestone 1.2s ease-out; }
+@keyframes ko-milestone {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  40%      { transform: scale(1.02); opacity: .85; }
 }
 .ko-row {
   position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between;
@@ -354,7 +411,7 @@ body.motion-low .ko-msg { animation-duration: .2s; }
 .ko-chip {
   display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px;
   font-size: 12px; font-weight: 800; color: #0b0b0d; background: var(--accent);
-  font-variant-numeric: tabular-nums; vertical-align: middle;
+  font-variant-numeric: tabular-nums; vertical-align: middle; text-shadow: none;
 }
 .ko-chip.is-neg { background: #ef4444; color: #fff; }
 /* One-time entrance on page load. The bump keeps the entrance name in its list, so adding or
@@ -404,9 +461,15 @@ body.motion-low .ko-msg { animation-duration: .2s; }
   opacity: 0; transform: translateY(14px);
   animation: ko-enter .45s cubic-bezier(.2, .8, .2, 1) forwards;
 }
+/* Leave and fade set opacity and transform only, and start from the visible state (the base is opacity 0). */
 .ko-msg.is-leaving { animation: ko-leave .4s ease forwards; }
+.ko-msg.is-fading { animation: ko-fade .6s ease forwards; }
 @keyframes ko-enter { to { opacity: 1; transform: none; } }
-@keyframes ko-leave { to { opacity: 0; transform: translateY(-12px); height: 0; margin: 0; padding: 0; border-width: 0; } }
+@keyframes ko-leave {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-12px); }
+}
+@keyframes ko-fade { from { opacity: 1; } to { opacity: 0; } }
 .ko-user { font-weight: 700; font-size: 16px; color: var(--name-color, var(--accent)); margin-right: 4px; }
 .ko-text { font-size: 18px; color: var(--msg-text); }
 .ko-emote { height: 1.4em; vertical-align: middle; margin: 0 1px; }
@@ -418,13 +481,24 @@ body.motion-low .ko-msg { animation-duration: .2s; }
 .ko-badge svg { width: 13px; height: 13px; display: block; }
 .ko-badge img { height: 18px; width: auto; display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .45)); }
 .ko-badge .ko-count { font-size: 10px; font-weight: 800; margin: 0 1px 0 2px; line-height: 1; }
+/* Stops are dark enough that white text keeps at least 4.8:1 on each. */
 .ko-bcast {
   padding: 1px 7px; border-radius: 5px; font-weight: 800; font-size: 12px; letter-spacing: .2px; color: #fff;
-  background-image: linear-gradient(90deg, #e5484d, #f08a24, #d9a400, #2fae5b, #1c9bd6, #5b6cf0, #a24be0, #d6407a, #e5484d);
+  background-image: linear-gradient(90deg, #dc2626, #c2410c, #a16207, #15803d, #0e7490, #4f46e5, #7e22ce, #be185d, #dc2626);
   background-size: 220% 100%; text-shadow: 0 1px 2px rgba(0, 0, 0, .6); box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
   animation: ko-flow 9s linear infinite;
 }
 @keyframes ko-flow { to { background-position: 220% 0; } }
+
+/* Long single-line text (ticker, title). Static with an ellipsis; scrolls only at full motion. */
+.ko-marquee { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+@media (prefers-reduced-motion: no-preference) {
+  body.motion-normal .ko-marquee > span {
+    display: inline-block; padding-left: 100%;
+    animation: ko-marquee var(--mq-ms, 14s) linear infinite;
+  }
+}
+@keyframes ko-marquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }
 
 /* ---- status / hints ---- */
 .ko-note {
@@ -436,4 +510,10 @@ body.motion-low .ko-msg { animation-duration: .2s; }
   position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
   padding: 0 16px; text-align: center; font-size: 13px; color: #fff;
   background: rgba(0, 0, 0, .6); border-radius: inherit;
+}
+/* Debug overlay (?debug=1): small, monospace, kept above the rest of the page. */
+.ko-debug {
+  position: fixed; left: 6px; bottom: 6px; z-index: 1000; max-width: calc(100% - 12px);
+  padding: 4px 7px; border-radius: 6px; background: rgb(0 0 0 / 72%); color: #d1fae5;
+  font: 11px/1.45 ui-monospace, Consolas, monospace; white-space: pre; pointer-events: none;
 }

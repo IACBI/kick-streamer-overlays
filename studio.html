@@ -22,7 +22,7 @@
     --st-raised: #0f1219;
     --st-field: #0a0c11;
     --st-line: #242a38;
-    --st-line-strong: #3a4358;
+    --st-line-strong: #66738f; /* control borders: at least 3:1 against field, panel and raised surfaces */
     --st-text: #e7eaf2;
     --st-muted: #98a2b8;
     --st-focus: #7aa7ff;
@@ -45,7 +45,7 @@
       --st-raised: #f6f7fb;
       --st-field: #ffffff;
       --st-line: #d9deea;
-      --st-line-strong: #b6bed0;
+      --st-line-strong: #7a859c;
       --st-text: #151a26;
       --st-muted: #566079;
       --st-focus: #2f5fd0;
@@ -87,6 +87,7 @@
     background: var(--st-primary); color: var(--st-on-primary); font-weight: 700; text-decoration: none;
   }
   .st-skip:focus { top: 12px; }
+  .st-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
   /* ---- Top bar ---- */
   .st-top {
@@ -102,9 +103,9 @@
   h1 { font-size: 21px; font-weight: 800; letter-spacing: -0.015em; }
   .st-lead { color: var(--st-muted); font-size: 14px; }
 
-  .st-langs { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--st-line); border-radius: 999px; background: var(--st-panel); }
+  .st-langs { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--st-line-strong); border-radius: 999px; background: var(--st-panel); }
   .st-langs button {
-    min-width: 44px; min-height: 32px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent;
+    min-width: 44px; min-height: 40px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent;
     color: var(--st-muted); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
   }
   .st-langs button[aria-pressed="true"] { background: var(--st-primary); color: var(--st-on-primary); }
@@ -177,15 +178,15 @@
 
   input[type="text"], input[type="number"], input[type="password"], select, textarea {
     width: 100%; min-height: 42px; padding: 8px 12px; font: inherit; color: var(--st-text);
-    background: var(--st-field); border: 1px solid var(--st-line); border-radius: 10px;
+    background: var(--st-field); border: 1px solid var(--st-line-strong); border-radius: 10px;
     transition: border-color .15s;
   }
-  input:hover, select:hover, textarea:hover { border-color: var(--st-line-strong); }
+  input:hover, select:hover, textarea:hover { border-color: var(--st-muted); }
   input[type="number"] { font-variant-numeric: tabular-nums; }
   select { appearance: auto; }
   input::placeholder { color: var(--st-muted); opacity: .7; }
   input[type="color"] {
-    width: 48px; height: 42px; padding: 3px; background: var(--st-field); border: 1px solid var(--st-line);
+    width: 48px; height: 42px; padding: 3px; background: var(--st-field); border: 1px solid var(--st-line-strong);
     border-radius: 10px; cursor: pointer; flex: 0 0 auto;
   }
   textarea { min-height: 300px; resize: vertical; font-family: 'Roboto Mono', ui-monospace, Consolas, monospace; font-size: 12.5px; line-height: 1.55; white-space: pre; overflow: auto; }
@@ -204,10 +205,10 @@
   .st-seg-group { display: flex; flex-wrap: wrap; gap: 8px; }
   .st-opt {
     position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px;
-    padding: 8px 12px; border: 1px solid var(--st-line); border-radius: 10px; background: var(--st-raised);
+    padding: 8px 12px; border: 1px solid var(--st-line-strong); border-radius: 10px; background: var(--st-raised);
     cursor: pointer; font-size: 14px; font-weight: 500; transition: border-color .15s, background .15s;
   }
-  .st-opt:hover { border-color: var(--st-line-strong); }
+  .st-opt:hover { border-color: var(--st-muted); }
   .st-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
   .st-opt:focus-within { outline: 2px solid var(--st-focus); outline-offset: 2px; }
   .st-opt.is-checked { border-color: var(--st-focus); background: var(--st-sel-bg); box-shadow: inset 0 0 0 1px var(--st-focus); font-weight: 700; }
@@ -247,17 +248,20 @@
   .st-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
   .st-btn {
     min-height: 40px; padding: 0 16px; font: inherit; font-size: 14px; font-weight: 600; color: var(--st-text);
-    background: var(--st-raised); border: 1px solid var(--st-line); border-radius: 10px; cursor: pointer;
+    background: var(--st-raised); border: 1px solid var(--st-line-strong); border-radius: 10px; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;
     transition: background .15s, border-color .15s, transform .08s;
   }
-  .st-btn:hover:not(:disabled) { border-color: var(--st-line-strong); background: var(--st-sel-bg); }
+  .st-btn:hover:not(:disabled) { border-color: var(--st-muted); background: var(--st-sel-bg); }
   .st-btn:active:not(:disabled) { transform: translateY(1px); }
   .st-btn:disabled { opacity: .5; cursor: not-allowed; }
   .st-btn--primary { background: var(--st-primary); border-color: transparent; color: var(--st-on-primary); }
   .st-btn--primary:hover:not(:disabled) { background: var(--st-primary-hover); border-color: transparent; }
   .st-btn--ghost { background: transparent; }
-  .st-btn--small { min-height: 34px; padding: 0 12px; font-size: 13px; }
+  .st-btn--small { min-height: 40px; padding: 0 12px; font-size: 13px; }
+  .st-btn.is-done { background: var(--st-ok); border-color: transparent; color: #07130a; }
+  .st-btn.is-done:hover:not(:disabled) { background: var(--st-ok); }
+  .st-btn[aria-pressed="true"] { background: var(--st-sel-bg); border-color: var(--st-focus); box-shadow: inset 0 0 0 1px var(--st-focus); }
   .st-btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
 
   .st-presets { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -280,6 +284,13 @@
   .st-card-row .st-btn { white-space: nowrap; }
   .st-card-warn { font-size: 12.5px; color: var(--st-warn); }
   .st-card-warn[hidden] { display: none; }
+  .st-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--st-warn); border-radius: 10px; }
+  .st-confirm[hidden] { display: none; }
+  .st-confirm p { flex: 1 1 220px; font-size: 14px; font-weight: 600; }
+  .st-warnline { font-size: 13px; color: var(--st-warn); margin-top: 6px; }
+  .st-warnline[hidden] { display: none; }
+  .st-pv-meta[hidden], .st-chip[hidden], .st-btn[hidden] { display: none; }
+  .st-btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 
   .st-steps { margin: 0 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
   .st-note { font-size: 13px; color: var(--st-muted); margin-top: 12px; }
@@ -288,10 +299,10 @@
   .st-preview { min-width: 0; }
   .st-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 10px; scrollbar-width: thin; }
   .st-tab {
-    flex: 0 0 auto; min-height: 34px; padding: 0 12px; border: 1px solid var(--st-line); border-radius: 999px;
+    flex: 0 0 auto; min-height: 40px; padding: 0 14px; border: 1px solid var(--st-line-strong); border-radius: 999px;
     background: var(--st-raised); color: var(--st-muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
   }
-  .st-tab:hover { border-color: var(--st-line-strong); color: var(--st-text); }
+  .st-tab:hover { border-color: var(--st-muted); color: var(--st-text); }
   .st-tab[aria-selected="true"] { background: var(--st-sel-bg); border-color: var(--st-focus); color: var(--st-text); box-shadow: inset 0 0 0 1px var(--st-focus); }
 
   .st-stage {
@@ -317,9 +328,9 @@
   .st-pv-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--st-muted); }
   .st-pv-meta .st-grow { flex: 1 1 auto; }
   .st-chip { display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px; border: 1px solid var(--st-line); border-radius: 999px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .st-bgs { display: inline-flex; gap: 4px; }
+  .st-bgs { display: inline-flex; flex-wrap: wrap; gap: 4px; }
   .st-bgs button {
-    min-height: 28px; padding: 0 10px; border: 1px solid var(--st-line); border-radius: 8px; background: transparent;
+    min-height: 40px; min-width: 40px; padding: 0 10px; border: 1px solid var(--st-line-strong); border-radius: 8px; background: transparent;
     color: var(--st-muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
   }
   .st-bgs button[aria-pressed="true"] { background: var(--st-sel-bg); color: var(--st-text); border-color: var(--st-focus); }
@@ -348,7 +359,8 @@
     .st-layout { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
     .st-preview { order: -1; position: sticky; top: 0; z-index: 20; margin: 0 -14px; }
     .st-preview .st-section { padding: 8px 12px 10px; border-radius: 0 0 16px 16px; }
-    .st-preview #pv-title, .st-preview .st-pv-meta { display: none; }
+    .st-preview #pv-title, .st-preview #pv-boyut, .st-preview #bg-label { display: none; }
+    .st-preview .st-pv-meta { margin-top: 6px; gap: 6px; }
     .st-tabs { padding-bottom: 8px; }
     .st-stage { min-height: 96px; padding: 8px; }
   }
@@ -384,13 +396,14 @@
   </div>
 </header>
 
-<ol class="st-how" aria-label="how it works">
+<ol class="st-how" data-i18n-aria="how.aria">
   <li><b>1</b><span data-i18n="how.1"></span></li>
   <li><b>2</b><span data-i18n="how.2"></span></li>
   <li><b>3</b><span data-i18n="how.3"></span></li>
 </ol>
 
-<noscript><p class="st-foot">This studio needs JavaScript.</p></noscript>
+<!-- Without JavaScript the text table is not available, so both languages are written out. -->
+<noscript><p class="st-foot"><span lang="en">This studio needs JavaScript.</span> <span lang="tr">Bu stüdyo JavaScript gerektirir.</span></p></noscript>
 
 <main id="main" class="st-layout">
 
@@ -449,15 +462,22 @@
             <input id="renk" name="renk" type="color" value="#53fc18" aria-labelledby="renk-label" />
             <input id="renkMetin" type="text" maxlength="7" spellcheck="false" data-i18n-aria="f.renkHex" placeholder="#53fc18" />
           </div>
+          <p class="st-warnline" id="renk-uyari" role="status" hidden></p>
         </div>
 
         <div class="st-checks">
           <label class="st-check"><input type="checkbox" name="yuzdeGoster" /> <span data-i18n="f.yuzdeGoster"></span></label>
           <label class="st-check"><input type="checkbox" name="oturumFarkiGoster" /> <span data-i18n="f.oturumFarkiGoster"></span></label>
+          <label class="st-check"><input type="checkbox" name="hataNotu" /> <span data-i18n="f.hataNotu"></span></label>
         </div>
 
         <div class="st-actions">
           <button type="button" class="st-btn st-btn--ghost st-btn--small" id="sifirla" data-i18n="reset"></button>
+        </div>
+        <div class="st-confirm" id="sifirla-onay" role="alertdialog" aria-labelledby="sifirla-soru" hidden>
+          <p id="sifirla-soru" data-i18n="reset.confirm"></p>
+          <button type="button" class="st-btn st-btn--small" id="sifirlaEvet" data-i18n="reset.yes"></button>
+          <button type="button" class="st-btn st-btn--small st-btn--ghost" id="sifirlaIptal" data-i18n="reset.no"></button>
         </div>
       </section>
 
@@ -492,6 +512,10 @@
               <input id="yenilemeSn" name="yenilemeSn" type="number" min="10" max="600" step="1" inputmode="numeric" />
               <p class="st-hint" data-i18n="h.yenilemeSn"></p>
             </div>
+            <div class="st-field st-wide">
+              <label class="st-check"><input type="checkbox" name="hedefKutlama" /> <span data-i18n="f.hedefKutlama"></span></label>
+              <p class="st-hint" data-i18n="h.hedefKutlama"></p>
+            </div>
           </div>
         </details>
 
@@ -508,6 +532,20 @@
               <input id="yayinciYazisi" name="yayinciYazisi" type="text" maxlength="24" />
               <p class="st-hint" data-i18n="h.yayinciYazisi"></p>
             </div>
+            <div class="st-field">
+              <label class="st-label" for="sohbetSilinmeSn" data-i18n="f.sohbetSilinmeSn"></label>
+              <input id="sohbetSilinmeSn" name="sohbetSilinmeSn" type="number" min="0" max="600" step="1" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.sohbetSilinmeSn"></p>
+            </div>
+            <div class="st-field st-wide">
+              <label class="st-label" for="sohbetGizliKullanicilar" data-i18n="f.sohbetGizliKullanicilar"></label>
+              <input id="sohbetGizliKullanicilar" name="sohbetGizliKullanicilar" type="text" maxlength="300" spellcheck="false" autocapitalize="none" data-i18n-ph="ph.sohbetGizliKullanicilar" />
+              <p class="st-hint" data-i18n="h.sohbetGizliKullanicilar"></p>
+            </div>
+            <div class="st-field st-wide">
+              <label class="st-check"><input type="checkbox" name="sohbetKomutGizle" /> <span data-i18n="f.sohbetKomutGizle"></span></label>
+              <p class="st-hint" data-i18n="h.sohbetKomutGizle"></p>
+            </div>
           </div>
         </details>
 
@@ -518,6 +556,11 @@
               <label class="st-label" for="geriSayimDk" data-i18n="f.geriSayimDk"></label>
               <input id="geriSayimDk" name="geriSayimDk" type="number" min="1" max="720" step="1" inputmode="numeric" />
               <p class="st-hint" data-i18n="h.geriSayimDk"></p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="geriSayimSaat" data-i18n="f.geriSayimSaat"></label>
+              <input id="geriSayimSaat" name="geriSayimSaat" type="text" maxlength="5" inputmode="numeric" spellcheck="false" placeholder="21:30" />
+              <p class="st-hint" data-i18n="h.geriSayimSaat"></p>
             </div>
             <div class="st-field">
               <label class="st-label" for="geriSayimBaslik" data-i18n="f.geriSayimBaslik"></label>
@@ -542,6 +585,23 @@
             </div>
           </div>
         </details>
+
+        <details class="st-group" id="g-relay">
+          <summary><span data-i18n="g.relay"></span><small data-i18n="g.relay.for"></small></summary>
+          <div class="st-group-body st-grid">
+            <div class="st-field st-wide">
+              <label class="st-label" for="relayAdresi" data-i18n="f.relayAdresi"></label>
+              <input id="relayAdresi" name="relayAdresi" type="text" maxlength="200" spellcheck="false" autocapitalize="none" placeholder="http://127.0.0.1:8790" />
+              <p class="st-hint" data-i18n="h.relayAdresi"></p>
+            </div>
+            <div class="st-field st-wide">
+              <div class="st-actions" style="margin-top:0">
+                <button type="button" class="st-btn st-btn--small" id="relayKontrol" data-i18n="relay.check"></button>
+              </div>
+              <p id="relay-durum" class="st-status" role="status" style="margin-top:0"></p>
+            </div>
+          </div>
+        </details>
       </section>
 
     </form>
@@ -555,6 +615,12 @@
         <li data-i18n="s4.step3"></li>
       </ol>
       <div id="kartlar" class="st-cards"></div>
+      <div class="st-actions">
+        <button type="button" id="hepsiniKopyala" class="st-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
+          <span data-i18n="links.copyAll"></span>
+        </button>
+      </div>
       <p class="st-note" data-i18n="s4.again"></p>
 
       <details class="st-group" style="margin-top:16px">
@@ -564,9 +630,22 @@
           <textarea id="cikti" readonly spellcheck="false" data-i18n-aria="file.aria"></textarea>
           <div class="st-actions">
             <button type="button" id="indir" class="st-btn st-btn--primary" data-i18n="file.download"></button>
-            <button type="button" id="kopyala" class="st-btn" data-i18n="file.copy"></button>
+            <button type="button" id="kopyala" class="st-btn"><span data-i18n="file.copy"></span></button>
           </div>
           <p id="cikti-durum" class="st-status" role="status"></p>
+        </div>
+      </details>
+
+      <details class="st-group" style="margin-top:10px">
+        <summary><span data-i18n="backup.title"></span><small data-i18n="backup.sub"></small></summary>
+        <div class="st-group-body">
+          <p class="st-hint" style="margin-bottom:12px" data-i18n="backup.intro"></p>
+          <div class="st-actions" style="margin-top:0">
+            <button type="button" id="disaAktar" class="st-btn" data-i18n="backup.export"></button>
+            <button type="button" id="iceAktar" class="st-btn" data-i18n="backup.import"></button>
+            <input type="file" id="iceAktarDosya" class="st-sr" accept=".json,application/json" tabindex="-1" data-i18n-aria="backup.import" />
+          </div>
+          <p id="yedek-durum" class="st-status" role="status"></p>
         </div>
       </details>
     </section>
@@ -618,11 +697,12 @@
       <h2 id="pv-title" class="st-h" data-i18n="pv.title"></h2>
       <div class="st-tabs" id="sekmeler" role="tablist" data-i18n-aria="pv.tabs"></div>
       <div class="st-stage" id="sahne" data-bg="checker" role="tabpanel" aria-live="off">
-        <div class="st-fit" id="sigdir"><iframe id="onizleme" width="520" height="90" title="Preview"></iframe></div>
+        <div class="st-fit" id="sigdir"><iframe id="onizleme" width="520" height="90"></iframe></div>
       </div>
       <div class="st-pv-meta">
         <span class="st-chip" id="pv-boyut"></span>
         <span class="st-chip" id="pv-veri"></span>
+        <button type="button" class="st-btn st-btn--small" id="pv-canli" aria-pressed="false" data-i18n="pv.live"></button>
         <span class="st-grow"></span>
         <a class="st-btn st-btn--small st-btn--ghost" id="pv-ac" target="_blank" rel="noopener" data-i18n="pv.open"></a>
       </div>
@@ -642,6 +722,7 @@
 </footer>
 
 <div class="st-toast" id="toast" role="status" aria-live="polite"></div>
+<div class="st-sr" id="sr-canli" role="status" aria-live="polite"></div>
 
 <script>
 /* Kick Overlay Studio. Classic script. Network use is limited to the Kick calls the
@@ -790,7 +871,58 @@
       'help.n4.t': 'Kick bu kanal için abone verisi döndürmedi', 'help.n4.d': 'Kick bu kanal için abone bilgisi vermiyor. Sayı 0 görünebilir; elle girilen abone sayısı bu durumda kullanılmaz.',
       'help.n5.t': 'Canlı sohbet köprüsüne bağlanılamadı', 'help.n5.d': 'Sohbet, yerel relay üzerinden gelir. “node relay/server.js” çalışıyor mu? Çalışmıyorsa sohbet kutusu boş kalır ve sahte mesaj gösterilmez. Kurulum için README’deki Canlı sohbet bölümüne bak.',
       'help.n6.t': '⚙ AYARLAR.js → duyuruMetinleri', 'help.n6.d': 'Duyuru metni boş. Sayılar ve içerik bölümünde Duyuru çubuğu alanını doldur.',
-      'help.n7.t': 'Geri sayım baştan başladı', 'help.n7.d': 'Sayım kaynak yüklenince başlar. Kaynağı yenilemek ya da OBS’te “Shutdown source when not visible” açıkken sahne değiştirmek onu baştan başlatır.'
+      'help.n7.t': 'Geri sayım baştan başladı', 'help.n7.d': 'Sayım kaynak yüklenince başlar. Kaynağı yenilemek ya da OBS’te “Shutdown source when not visible” açıkken sahne değiştirmek onu baştan başlatır.',
+
+      // v2.3: new settings, preview, links, backup, relay
+      'how.aria': 'Nasıl çalışır',
+      'f.hataNotu': 'Overlay’lerde küçük durum ve hata notunu göster',
+      'f.hedefKutlama': 'Hedef kutlaması (%25, %50, %75 ve hedefe ulaşınca)',
+      'h.hedefKutlama': 'Çubuk her çeyrekte kısa bir parlama yapar; hedef dolunca “hedefe ulaşıldı” görünümüne geçer.',
+      'f.sohbetSilinmeSn': 'Mesajı şu kadar saniye sonra sil',
+      'h.sohbetSilinmeSn': '0 = hiç silinmez. En çok 600.',
+      'f.sohbetGizliKullanicilar': 'Gizlenecek kullanıcılar',
+      'ph.sohbetGizliKullanicilar': 'nightbot, botrix',
+      'h.sohbetGizliKullanicilar': 'Virgülle ayır; büyük/küçük harf fark etmez. Botları gizlemek için.',
+      'f.sohbetKomutGizle': '“!” ile başlayan komut mesajlarını gizle',
+      'h.sohbetKomutGizle': 'Örneğin !discord yazan mesajlar sohbette görünmez.',
+      'f.geriSayimSaat': 'Hedef saat (SS:DD)',
+      'h.geriSayimSaat': '24 saatlik yerel saat, örn. 21:30. Doluysa süreden (dakika) önceliklidir; saat bugün geçtiyse yarına sayar. Boş bırak = süreyi kullan.',
+      'g.relay': 'Gelişmiş: relay',
+      'g.relay.for': 'canlı sohbet köprüsü',
+      'f.relayAdresi': 'Relay adresi',
+      'h.relayAdresi': 'Yalnızca relay’i farklı bir adreste çalıştırıyorsan değiştir. Varsayılan dışındaysa AYARLAR.js dosyasına yazılır. Yalnızca https ya da 127.0.0.1 / localhost üzerinden http kabul edilir.',
+      'relay.check': 'Relay’i kontrol et',
+      'relay.checking': 'Relay kontrol ediliyor…',
+      'relay.ok': 'Relay çalışıyor (v{v}, {n} bağlantı). Özellikler: {feats}.',
+      'relay.down': 'Relay çalışmıyor ya da ulaşılamıyor ({url}). “node relay/server.js” ile başlat.',
+      'relay.bad': 'Relay beklenmeyen bir yanıt verdi (HTTP {status}).',
+      'relay.f.chat': 'sohbet',
+      'relay.f.channel': 'kanal',
+      'relay.f.subscribers': 'aboneler',
+      'links.copyAll': 'Tüm linkleri kopyala',
+      'links.copyAllDone': 'Tüm bağlantılar kopyalandı.',
+      'copy.done': 'Kopyalandı ✓',
+      'card.linkAria': '{name} bağlantısı',
+      'reset.confirm': 'Kanal dışındaki tüm ayarlar sıfırlanacak. Emin misin?',
+      'reset.yes': 'Evet, sıfırla',
+      'reset.no': 'Vazgeç',
+      'reset.done': 'Ayarlar sıfırlandı.',
+      'pv.liveOn': 'Önizleme gerçek Kick verisini kullanıyor.',
+      'pv.liveOff': 'Önizleme örnek veriye döndü.',
+      'pv.liveNeed': 'Canlı veri için önce kanal adını yaz.',
+      'backup.title': 'Yedekle ve içe aktar',
+      'backup.sub': 'JSON',
+      'backup.intro': 'Ayarlarını JSON dosyası olarak kaydet ya da daha önce kaydettiğin dosyayı yükle. Dosyada yalnızca herkese açık ayarlar bulunur; Client ID ve Secret asla yazılmaz.',
+      'backup.export': 'JSON olarak dışa aktar',
+      'backup.import': 'JSON içe aktar',
+      'backup.exported': 'Ayarlar kick-overlay-ayarlar.json olarak indirildi.',
+      'backup.imported': '{n} ayar içe aktarıldı.',
+      'backup.ignored': ' {n} bilinmeyen ya da gizli alan yok sayıldı.',
+      'backup.badFile': 'Dosya okunamadı: geçerli bir JSON nesnesi değil.',
+      'backup.empty': 'Dosyada tanınan bir ayar bulunamadı.',
+      'backup.tooBig': 'Dosya çok büyük (en çok 100 KB).',
+      'warn.accentDark': 'Bu vurgu rengi {theme} temasında çok koyu kalıyor (karşıtlık {ratio}:1). Daha açık bir renk dene.',
+      'warn.accentLight': 'Bu vurgu rengi {theme} temasında çok açık kalıyor (karşıtlık {ratio}:1). Daha koyu bir renk dene.'
     },
     en: {
       'skip': 'Skip to content',
@@ -924,7 +1056,58 @@
       'help.n4.t': 'Kick returned no subscriber data for this channel', 'help.n4.d': 'Kick does not give subscriber data for this channel. The count may show 0; the manual count is not used in this case.',
       'help.n5.t': 'Cannot reach the chat relay', 'help.n5.d': 'Chat arrives through the local relay. Is “node relay/server.js” running? If not, the chat stays empty and no fake messages are shown. See the Live chat section of the README for setup.',
       'help.n6.t': '⚙ AYARLAR.js → duyuruMetinleri', 'help.n6.d': 'The announcement text is empty. Fill in the Announcement bar field under Numbers and content.',
-      'help.n7.t': 'The countdown started over', 'help.n7.d': 'It starts when the source loads. Refreshing the source, or switching scenes while “Shutdown source when not visible” is on in OBS, restarts it.'
+      'help.n7.t': 'The countdown started over', 'help.n7.d': 'It starts when the source loads. Refreshing the source, or switching scenes while “Shutdown source when not visible” is on in OBS, restarts it.',
+
+      // v2.3: new settings, preview, links, backup, relay
+      'how.aria': 'How it works',
+      'f.hataNotu': 'Show the small status and error note on overlays',
+      'f.hedefKutlama': 'Goal celebration (at 25%, 50%, 75% and when the goal is reached)',
+      'h.hedefKutlama': 'The bar pulses briefly at each quarter and switches to a “goal reached” look when full.',
+      'f.sohbetSilinmeSn': 'Remove a message after (seconds)',
+      'h.sohbetSilinmeSn': '0 = never. Up to 600.',
+      'f.sohbetGizliKullanicilar': 'Hidden users',
+      'ph.sohbetGizliKullanicilar': 'nightbot, botrix',
+      'h.sohbetGizliKullanicilar': 'Separate with commas; not case-sensitive. Handy for bots.',
+      'f.sohbetKomutGizle': 'Hide command messages that start with “!”',
+      'h.sohbetKomutGizle': 'For example, messages saying !discord do not appear in chat.',
+      'f.geriSayimSaat': 'Target time (HH:MM)',
+      'h.geriSayimSaat': '24-hour local time, e.g. 21:30. When set it wins over the length in minutes; if the time has passed today it counts to tomorrow. Leave empty to use the length.',
+      'g.relay': 'Advanced: relay',
+      'g.relay.for': 'live chat bridge',
+      'f.relayAdresi': 'Relay address',
+      'h.relayAdresi': 'Change it only if you run the relay at a different address. If it differs from the default it is written to AYARLAR.js. Only https, or http on 127.0.0.1 / localhost, is accepted.',
+      'relay.check': 'Check relay',
+      'relay.checking': 'Checking the relay…',
+      'relay.ok': 'Relay is running (v{v}, {n} clients). Features: {feats}.',
+      'relay.down': 'Relay is not running or not reachable ({url}). Start it with “node relay/server.js”.',
+      'relay.bad': 'The relay gave an unexpected answer (HTTP {status}).',
+      'relay.f.chat': 'chat',
+      'relay.f.channel': 'channel',
+      'relay.f.subscribers': 'subscribers',
+      'links.copyAll': 'Copy all links',
+      'links.copyAllDone': 'All links copied.',
+      'copy.done': 'Copied ✓',
+      'card.linkAria': '{name} link',
+      'reset.confirm': 'Every setting except the channel will be reset. Are you sure?',
+      'reset.yes': 'Yes, reset',
+      'reset.no': 'Cancel',
+      'reset.done': 'Settings reset.',
+      'pv.liveOn': 'The preview now uses real Kick data.',
+      'pv.liveOff': 'The preview is back on sample data.',
+      'pv.liveNeed': 'Enter the channel name first to see live data.',
+      'backup.title': 'Back up and import',
+      'backup.sub': 'JSON',
+      'backup.intro': 'Save your settings as a JSON file, or load one you saved earlier. The file holds public settings only; Client ID and Secret are never written.',
+      'backup.export': 'Export as JSON',
+      'backup.import': 'Import JSON',
+      'backup.exported': 'Settings downloaded as kick-overlay-ayarlar.json.',
+      'backup.imported': '{n} settings imported.',
+      'backup.ignored': ' {n} unknown or private fields were ignored.',
+      'backup.badFile': 'Could not read the file: it is not a valid JSON object.',
+      'backup.empty': 'No recognised setting was found in the file.',
+      'backup.tooBig': 'The file is too large (100 KB at most).',
+      'warn.accentDark': 'This accent color is too dark on the {theme} theme (contrast {ratio}:1). Try a lighter color.',
+      'warn.accentLight': 'This accent color is too light on the {theme} theme (contrast {ratio}:1). Try a darker color.'
     }
   };
 
@@ -956,16 +1139,17 @@
   };
 
   // The overlays: file, OBS size, the settings each one reads (besides the common look keys),
-  // the settings group that opens when it is previewed, and whether it needs a channel name.
+  // the settings group that opens when it is previewed, whether it needs a channel name, and whether
+  // it can show real Kick data (data) at all: countdown and ticker have none, chat only through the relay.
   var COMMON = ['kanal', 'stil', 'sekil', 'yaziTipi', 'dil', 'animasyon', 'renk'];
   var OVERLAYS = [
-    { id: 'follower', file: 'follower-bar.html', w: 520, h: 90, group: 'g-goals', needsChannel: true, keys: ['takipciHedefi', 'takipciYedek', 'yuzdeGoster', 'yenilemeSn'] },
-    { id: 'subscriber', file: 'subscriber-bar.html', w: 520, h: 90, group: 'g-goals', needsChannel: false, keys: ['aboneHedefi', 'aboneSayisi', 'oturumFarkiGoster', 'yuzdeGoster', 'yenilemeSn'] },
-    { id: 'combined', file: 'combined-bar.html', w: 520, h: 180, group: 'g-goals', needsChannel: true, keys: ['takipciHedefi', 'takipciYedek', 'aboneHedefi', 'aboneSayisi', 'oturumFarkiGoster', 'yuzdeGoster', 'yenilemeSn'] },
-    { id: 'info', file: 'info-panel.html', w: 300, h: 80, group: 'g-goals', needsChannel: true, keys: ['yenilemeSn'] },
-    { id: 'countdown', file: 'countdown.html', w: 520, h: 190, group: 'g-countdown', needsChannel: false, keys: ['geriSayimDk', 'geriSayimBaslik'] },
-    { id: 'ticker', file: 'ticker.html', w: 760, h: 80, group: 'g-ticker', needsChannel: false, keys: ['duyuruMetinleri', 'duyuruSn'] },
-    { id: 'chat', file: 'chat.html', w: 460, h: 760, group: 'g-chat', needsChannel: true, sampleOnly: true, keys: ['sohbetMaksMesaj', 'yayinciYazisi'] }
+    { id: 'follower', file: 'follower-bar.html', w: 520, h: 90, group: 'g-goals', needsChannel: true, data: true, keys: ['takipciHedefi', 'takipciYedek', 'yuzdeGoster', 'yenilemeSn', 'hedefKutlama', 'hataNotu'] },
+    { id: 'subscriber', file: 'subscriber-bar.html', w: 520, h: 90, group: 'g-goals', needsChannel: false, data: true, keys: ['aboneHedefi', 'aboneSayisi', 'oturumFarkiGoster', 'yuzdeGoster', 'yenilemeSn', 'hedefKutlama', 'hataNotu'] },
+    { id: 'combined', file: 'combined-bar.html', w: 520, h: 180, group: 'g-goals', needsChannel: true, data: true, keys: ['takipciHedefi', 'takipciYedek', 'aboneHedefi', 'aboneSayisi', 'oturumFarkiGoster', 'yuzdeGoster', 'yenilemeSn', 'hedefKutlama', 'hataNotu'] },
+    { id: 'info', file: 'info-panel.html', w: 300, h: 80, group: 'g-goals', needsChannel: true, data: true, keys: ['yenilemeSn', 'hataNotu'] },
+    { id: 'countdown', file: 'countdown.html', w: 520, h: 190, group: 'g-countdown', needsChannel: false, keys: ['geriSayimDk', 'geriSayimSaat', 'geriSayimBaslik', 'hataNotu'] },
+    { id: 'ticker', file: 'ticker.html', w: 760, h: 80, group: 'g-ticker', needsChannel: false, keys: ['duyuruMetinleri', 'duyuruSn', 'hataNotu'] },
+    { id: 'chat', file: 'chat.html', w: 460, h: 760, group: 'g-chat', needsChannel: true, sampleOnly: true, keys: ['sohbetMaksMesaj', 'yayinciYazisi', 'sohbetKomutGizle', 'sohbetGizliKullanicilar', 'sohbetSilinmeSn', 'hataNotu'] }
   ];
   var BACKGROUNDS = ['checker', 'dark', 'light', 'scene'];
 
@@ -986,9 +1170,15 @@
     { key: 'aboneSayisi', note: 'Subscriber count used when no Kick app is set in AYARLAR.local.js.\nWith the app set, the live total from Kick is used instead.' },
     { key: 'oturumFarkiGoster', note: 'Show "+N this stream" next to the subscriber count' },
     { key: 'yuzdeGoster', note: 'Show the percentage of the goal' },
+    { key: 'hedefKutlama', note: 'Goal bars: pulse at 25 / 50 / 75 % and a "goal reached" look at 100 %' },
+    { key: 'hataNotu', note: 'Show the small status / error note on overlays' },
     { key: 'yenilemeSn', note: 'Refresh interval in seconds (10–600)' },
     { key: 'sohbetMaksMesaj', note: 'Maximum chat messages on screen (3–20)' },
+    { key: 'sohbetKomutGizle', note: 'Hide chat messages that start with "!" (commands)' },
+    { key: 'sohbetGizliKullanicilar', note: 'Usernames hidden from chat, separated by commas (not case-sensitive). Example: "nightbot, botrix"' },
+    { key: 'sohbetSilinmeSn', note: 'Chat messages fade out after this many seconds (0 = never, up to 600)' },
     { key: 'geriSayimDk', note: 'Countdown (countdown.html): minutes to count down from when the page loads' },
+    { key: 'geriSayimSaat', note: 'Countdown target time as 24-hour local HH:MM (e.g. "21:30").\nWhen set it wins over geriSayimDk; a time that has passed today means tomorrow. Empty = use minutes' },
     { key: 'geriSayimBaslik', note: 'Countdown title. Empty = "Starting soon" in your label language' },
     { key: 'duyuruMetinleri', note: 'Announcement bar (ticker.html): lines separated by |  (up to 12)\nExample: "Follow for more | !discord | New video every Friday"' },
     { key: 'duyuruSn', note: 'Seconds each announcement stays on screen (3–60)' }
@@ -1020,6 +1210,9 @@
   var fit = $('sigdir');
   var activeId = 'follower';
   var background = 'checker';
+  var live = false; // the preview shows real Kick data only after an explicit click; every edit session starts on sample data
+  var relayEl = $('relayAdresi');
+  var RELAY_DEFAULT = K.normalizeLocal({}).relayAdresi;
 
   // ---- Small helpers ------------------------------------------------------
 
@@ -1068,12 +1261,17 @@
     $('renkMetin').value = s.renk;
   }
 
-  // Every setting, for the preview frame.
-  function toQuery(s) {
+  // Only what that overlay reads, so edits to other overlays' settings never reload the frame.
+  function previewQuery(o, s, sample) {
     var q = new URLSearchParams();
-    K.schemaKeys().forEach(function (key) { q.set(key, String(s[key])); });
+    COMMON.concat(o.keys).forEach(function (key) {
+      if (s[key] !== undefined) q.set(key, String(s[key]));
+    });
+    if (sample) q.set('onizleme', '1');
     return q.toString();
   }
+
+  function relayValue() { return K.normalizeLocal({ relayAdresi: relayEl.value.trim() }).relayAdresi; }
 
   function overlayById(id) {
     for (var i = 0; i < OVERLAYS.length; i++) if (OVERLAYS[i].id === id) return OVERLAYS[i];
@@ -1116,7 +1314,7 @@
       var id = c.getAttribute('data-card');
       c.querySelector('.st-card-name').textContent = t('ov.' + id);
       c.querySelector('.st-card-desc').textContent = t('ov.' + id + '.d');
-      c.querySelector('[data-copy]').lastChild.textContent = t('card.copy');
+      c.querySelector('[data-url]').setAttribute('aria-label', t('card.linkAria', { name: t('ov.' + id) }));
       c.querySelector('[data-show]').textContent = t('card.preview');
       c.querySelector('.st-card-warn').textContent = t('card.needChannel');
     });
@@ -1237,7 +1435,9 @@
   }
 
   function selectTab(id, openGroup) {
-    activeId = overlayById(id).id;
+    var next = overlayById(id).id;
+    if (next !== activeId) live = false;
+    activeId = next;
     document.querySelectorAll('[data-tab]').forEach(function (b) {
       var on = b.getAttribute('data-tab') === activeId;
       b.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -1264,25 +1464,42 @@
   var frameTimer = 0;
   function scheduleFrame() {
     clearTimeout(frameTimer);
-    frameTimer = setTimeout(renderFrame, DEBOUNCE_MS);
+    // Live mode talks to Kick on every load, so wait longer while the user is still typing.
+    frameTimer = setTimeout(renderFrame, live ? 800 : DEBOUNCE_MS);
   }
 
-  // Without a channel the overlays show sample data (onizleme=1). Public settings only in the URL.
+  // Editing always previews sample data (onizleme=1); real data only after the "Live data" click.
+  // Public settings only in the URL. The frame is touched only when its URL really changes.
   function renderFrame() {
     var o = overlayById(activeId);
     var s = currentSettings();
-    var query = toQuery(s);
-    // Chat is live only through the local relay, so the studio always shows sample messages for its design.
-    var sample = !s.kanal || o.sampleOnly === true;
-    if (sample) query += '&onizleme=1';
-    var url = o.file + '?' + query;
+    var canLive = o.data === true && !!s.kanal;
+    if (!canLive) live = false;
+    var url = o.file + '?' + previewQuery(o, s, !live);
     if (frame.getAttribute('src') !== url) frame.setAttribute('src', url);
     frame.setAttribute('width', String(o.w));
     frame.setAttribute('height', String(o.h));
     frame.setAttribute('title', t('ov.' + o.id));
     $('pv-ac').setAttribute('href', url);
     $('pv-boyut').textContent = o.w + ' × ' + o.h;
-    $('pv-veri').textContent = sample ? t('pv.sample') : t('pv.live');
+    var chip = $('pv-veri');
+    chip.hidden = !o.data && !o.sampleOnly;
+    chip.textContent = live ? t('pv.live') : t('pv.sample');
+    var btn = $('pv-canli');
+    btn.hidden = o.data !== true;
+    btn.setAttribute('aria-pressed', live ? 'true' : 'false');
+    btn.setAttribute('aria-disabled', canLive ? 'false' : 'true');
+    if (canLive) btn.removeAttribute('title'); else btn.setAttribute('title', t('pv.liveNeed'));
+  }
+
+  function toggleLive() {
+    var o = overlayById(activeId);
+    if (o.data !== true) return;
+    if (!currentSettings().kanal) { toast(t('pv.liveNeed'), true); return; }
+    live = !live;
+    announce(t(live ? 'pv.liveOn' : 'pv.liveOff'));
+    clearTimeout(frameTimer);
+    renderFrame();
   }
 
   // Scales the frame to fit the stage in width and height. It keeps its real OBS size inside.
@@ -1290,7 +1507,7 @@
     var o = overlayById(activeId);
     var availW = stage.clientWidth - 24;
     var compact = window.innerWidth < 1000;
-    var maxH = compact ? Math.max(90, window.innerHeight * 0.26) : Math.max(180, window.innerHeight * 0.62);
+    var maxH = compact ? Math.max(90, window.innerHeight * 0.2) : Math.max(180, window.innerHeight * 0.62);
     var k = Math.min(1, availW > 0 ? availW / o.w : 1, maxH / o.h);
     fit.style.width = Math.round(o.w * k) + 'px';
     fit.style.height = Math.round(o.h * k) + 'px';
@@ -1327,22 +1544,26 @@
       input.type = 'text';
       input.readOnly = true;
       input.setAttribute('data-url', o.id);
-      input.setAttribute('aria-label', o.file);
       input.addEventListener('focus', function () { input.select(); });
       var copy = document.createElement('button');
       copy.type = 'button';
       copy.className = 'st-btn st-btn--small st-btn--primary';
       copy.setAttribute('data-copy', o.id);
       copy.innerHTML = COPY_ICON;
-      copy.appendChild(document.createTextNode(''));
-      copy.addEventListener('click', function () { copyLink(o, input); });
+      var copyLabel = document.createElement('span');
+      copyLabel.setAttribute('data-i18n', 'card.copy');
+      copy.appendChild(copyLabel);
+      copy.addEventListener('click', function () { copyLink(copy, input); });
       var show = document.createElement('button');
       show.type = 'button';
       show.className = 'st-btn st-btn--small st-btn--ghost';
       show.setAttribute('data-show', o.id);
       show.addEventListener('click', function () {
         selectTab(o.id, true);
-        $('pv-title').scrollIntoView({ block: 'nearest' });
+        // Below 1000 px the preview is pinned to the top and always visible, and its title is hidden:
+        // there is nothing to scroll to, so hand focus to the selected tab instead.
+        if (window.innerWidth < 1000) $('tab-' + o.id).focus({ preventScroll: true });
+        else document.querySelector('.st-preview').scrollIntoView({ block: 'nearest' });
       });
       row.appendChild(input);
       row.appendChild(copy);
@@ -1370,13 +1591,45 @@
     });
   }
 
-  async function copyLink(o, input) {
+  var announceTimer = 0;
+  function announce(text) {
+    var el = $('sr-canli');
+    el.textContent = '';
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(function () { el.textContent = text; }, 60);
+  }
+
+  // The button itself says "Copied" for a moment; no toast needed on success.
+  function flashCopied(btn) {
+    var label = btn.querySelector('[data-i18n]') || btn;
+    clearTimeout(btn._flash);
+    btn.classList.add('is-done');
+    label.textContent = t('copy.done');
+    announce(t('copy.done'));
+    btn._flash = setTimeout(function () {
+      btn.classList.remove('is-done');
+      label.textContent = t(label.getAttribute('data-i18n'));
+    }, 1600);
+  }
+
+  async function copyLink(btn, input) {
     try {
       await navigator.clipboard.writeText(input.value);
-      toast(t('toast.linkCopied'));
+      flashCopied(btn);
     } catch (e) {
       input.focus();
       input.select();
+      toast(t('toast.linkFail'), true);
+    }
+  }
+
+  async function copyAllLinks() {
+    var s = currentSettings();
+    var text = OVERLAYS.map(function (o) { return t('ov.' + o.id) + ': ' + overlayUrl(o, s); }).join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      flashCopied($('hepsiniKopyala'));
+    } catch (e) {
       toast(t('toast.linkFail'), true);
     }
   }
@@ -1420,13 +1673,19 @@
       ''
     ];
 
-    var doc = ayarDoc();
-    doc.forEach(function (item, i) {
+    // Keys the loaded core does not know are left out; relayAdresi only when it differs from the default.
+    var doc = ayarDoc().filter(function (item) { return s[item.key] !== undefined; });
+    var relay = relayValue();
+    var entries = doc.map(function (item) { return { key: item.key, note: item.note, value: s[item.key] }; });
+    if (relay !== RELAY_DEFAULT) {
+      entries.push({ key: 'relayAdresi', note: 'Chat relay address. Change it only if you run the relay somewhere else.', value: relay });
+    }
+    entries.forEach(function (item, i) {
       if (item.note) {
         item.note.split('\n').forEach(function (l) { lines.push('  // ' + l); });
       }
-      var last = i === doc.length - 1;
-      lines.push('  ' + item.key + ': ' + JSON.stringify(s[item.key]) + (last ? '' : ','));
+      var last = i === entries.length - 1;
+      lines.push('  ' + item.key + ': ' + JSON.stringify(item.value) + (last ? '' : ','));
       if (!last) lines.push('');
     });
 
@@ -1450,6 +1709,7 @@
     try {
       await navigator.clipboard.writeText(out.value);
       say(outStatus, 'ok', t('out.copied'));
+      flashCopied($('kopyala'));
     } catch (e) {
       out.focus();
       out.select();
@@ -1523,13 +1783,21 @@
   // ---- Saved state (public values only, never secrets) ----------------------
 
   function saveDraft() {
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(readRaw())); } catch (e) { /* storage blocked: optional */ }
+    try {
+      var raw = readRaw();
+      if (relayValue() !== RELAY_DEFAULT) raw.relayAdresi = relayValue();
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(raw));
+    } catch (e) { /* storage blocked: optional */ }
   }
 
   function loadDraft() {
     try {
       var saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
-      if (saved && typeof saved === 'object') writeForm(K.normalize(saved));
+      if (saved && typeof saved === 'object') {
+        writeForm(K.normalize(saved));
+        var r = K.normalizeLocal({ relayAdresi: saved.relayAdresi }).relayAdresi;
+        relayEl.value = r === RELAY_DEFAULT ? '' : r;
+      }
     } catch (e) { /* storage blocked or corrupt draft: keep defaults */ }
   }
 
@@ -1546,6 +1814,113 @@
     if (ui && typeof ui.bg === 'string') background = BACKGROUNDS.indexOf(ui.bg) >= 0 ? ui.bg : 'checker';
   }
 
+  // ---- Accent contrast ------------------------------------------------------
+
+  // Approximate bar surfaces: pastel and paper are light, every other theme sits on a dark surface.
+  var LIGHT_SURFACE = { pastel: '#ffffff', paper: '#fbf6ea' };
+  var DARK_SURFACE = '#14171f';
+
+  function luminance(hex) {
+    var h = hex6(hex).slice(1);
+    var c = [0, 2, 4].map(function (i) {
+      var v = parseInt(h.substr(i, 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+
+  function contrast(a, b) {
+    var x = luminance(a), y = luminance(b);
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  }
+
+  // Dark themes need an accent that stands out (3:1). Light themes tint the fill with the accent, so only a near-white one disappears.
+  function checkAccent(s) {
+    var warn = $('renk-uyari');
+    var light = Object.prototype.hasOwnProperty.call(LIGHT_SURFACE, s.stil);
+    var ratio = contrast(s.renk, light ? LIGHT_SURFACE[s.stil] : DARK_SURFACE);
+    var bad = light ? ratio < 1.6 : ratio < 3;
+    warn.hidden = !bad;
+    warn.textContent = bad ? t(light ? 'warn.accentLight' : 'warn.accentDark', { theme: labelOf('stil', s.stil), ratio: ratio.toFixed(1) }) : '';
+  }
+
+  // ---- Relay check -----------------------------------------------------------
+
+  async function checkRelay() {
+    var btn = $('relayKontrol');
+    var box = $('relay-durum');
+    var base = relayValue();
+    btn.disabled = true;
+    say(box, '', t('relay.checking'));
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 2000);
+    try {
+      var res = await fetch(base + '/health', { signal: ctl.signal, cache: 'no-store' });
+      var data = res.ok ? await res.json() : null;
+      if (!res.ok || !data || data.ok !== true) { say(box, 'err', t('relay.bad', { status: res.status })); return; }
+      var f = data.features && typeof data.features === 'object' ? data.features : {};
+      var feats = ['chat', 'channel', 'subscribers'].map(function (k) { return t('relay.f.' + k) + ' ' + (f[k] === true ? '✓' : '✗'); }).join(', ');
+      say(box, 'ok', t('relay.ok', { v: String(data.version || '?').slice(0, 20), n: Number(data.clients) || 0, feats: feats }));
+    } catch (e) {
+      say(box, 'err', t('relay.down', { url: base }));
+    } finally {
+      clearTimeout(timer);
+      btn.disabled = false;
+    }
+  }
+
+  // ---- Export and import (public settings only) ---------------------------------
+
+  var IMPORT_MAX = 100 * 1024;
+
+  function exportSettings() {
+    var s = currentSettings();
+    var settings = {};
+    K.schemaKeys().forEach(function (key) { settings[key] = s[key]; });
+    if (relayValue() !== RELAY_DEFAULT) settings.relayAdresi = relayValue();
+    var text = JSON.stringify({ app: 'kick-overlay-studio', version: 1, settings: settings }, null, 2) + '\n';
+    try {
+      download('kick-overlay-ayarlar.json', text, 'application/json;charset=utf-8');
+      say($('yedek-durum'), 'ok', t('backup.exported'));
+    } catch (e) {
+      say($('yedek-durum'), 'err', t('out.dlFail'));
+    }
+  }
+
+  function isPlainObject(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+
+  // Whitelist first, then K.normalize: unknown keys, credentials and non-primitive values never get in.
+  function importSettings(file) {
+    var box = $('yedek-durum');
+    if (!file) return;
+    if (file.size > IMPORT_MAX) { say(box, 'err', t('backup.tooBig')); return; }
+    var reader = new FileReader();
+    reader.onerror = function () { say(box, 'err', t('backup.badFile')); };
+    reader.onload = function () {
+      var data;
+      try { data = JSON.parse(String(reader.result)); } catch (e) { data = null; }
+      var src = isPlainObject(data) && isPlainObject(data.settings) ? data.settings : data;
+      if (!isPlainObject(src)) { say(box, 'err', t('backup.badFile')); return; }
+      var allowed = K.schemaKeys().concat(['relayAdresi']);
+      var picked = {};
+      var count = 0, ignored = 0;
+      Object.keys(src).forEach(function (key) {
+        var v = src[key];
+        var primitive = typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean';
+        if (allowed.indexOf(key) >= 0 && primitive) { picked[key] = v; count++; } else { ignored++; }
+      });
+      if (!count) { say(box, 'err', t('backup.empty')); return; }
+      writeForm(K.normalize(Object.assign(readRaw(), picked)));
+      if (Object.prototype.hasOwnProperty.call(picked, 'relayAdresi')) {
+        var r = K.normalizeLocal({ relayAdresi: picked.relayAdresi }).relayAdresi;
+        relayEl.value = r === RELAY_DEFAULT ? '' : r;
+      }
+      update();
+      say(box, 'ok', t('backup.imported', { n: count }) + (ignored ? t('backup.ignored', { n: ignored }) : ''));
+    };
+    reader.readAsText(file);
+  }
+
   // ---- Main update ----------------------------------------------------------
 
   function update() {
@@ -1554,6 +1929,7 @@
     paintChoices();
     out.value = buildAyarlar(s);
     refreshCards(s);
+    checkAccent(s);
     saveDraft();
     scheduleFrame();
   }
@@ -1578,6 +1954,7 @@
     // Blur or pick: write the normalized values back so the form shows what is used.
     form.addEventListener('change', function () {
       writeForm(currentSettings());
+      if (relayEl.value.trim()) relayEl.value = relayValue();
       update();
     });
 
@@ -1590,10 +1967,32 @@
       });
     });
 
+    // Two-step reset: an inline question instead of a native dialog, so keyboard and screen readers stay in the page.
+    var resetBox = $('sifirla-onay');
+    function closeReset() { resetBox.hidden = true; $('sifirla').focus(); }
     $('sifirla').addEventListener('click', function () {
+      resetBox.hidden = false;
+      $('sifirlaIptal').focus();
+    });
+    $('sifirlaIptal').addEventListener('click', closeReset);
+    resetBox.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeReset(); });
+    $('sifirlaEvet').addEventListener('click', function () {
       var keep = currentSettings().kanal;
       writeForm(K.normalize({ kanal: keep }));
+      relayEl.value = '';
       update();
+      closeReset();
+      toast(t('reset.done'));
+    });
+
+    $('pv-canli').addEventListener('click', toggleLive);
+    $('hepsiniKopyala').addEventListener('click', copyAllLinks);
+    $('relayKontrol').addEventListener('click', checkRelay);
+    $('disaAktar').addEventListener('click', exportSettings);
+    $('iceAktar').addEventListener('click', function () { $('iceAktarDosya').click(); });
+    $('iceAktarDosya').addEventListener('change', function (e) {
+      importSettings(e.target.files && e.target.files[0]);
+      e.target.value = '';
     });
 
     document.querySelectorAll('[data-lang]').forEach(function (b) {

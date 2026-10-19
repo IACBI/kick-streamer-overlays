@@ -7,7 +7,6 @@
 <!-- OBS Browser source (Local file): 520 x 180. Follower and subscriber goals in one panel. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.local.js"></script>
@@ -41,128 +40,125 @@
   </div>
   <div class="ko-hint" id="hint" hidden></div>
 </div>
-<div class="ko-note is-hidden" id="note"></div>
+<div class="ko-note is-hidden" id="note" aria-live="polite"></div>
 <script>
 (function(){
   const K = window.KickOverlay;
   const S = K.readSettings();
   const PREVIEW = K.isPreview();
   K.applyLook(S);
+  K.loadFont(S);
+  const T = K.text(S);
 
   const $ = (id) => document.getElementById(id);
   const note = $('note'), hint = $('hint');
-  const TICK = S.yenilemeSn * 1000;
-  const NOTES = {
-    auth: K.label(S, 'Kick uygulama bilgisi hatalı', 'Kick app credentials rejected') + ' — AYARLAR.local.js',
-    rate: K.label(S, "Kick'e ulaşılamadı, son değer gösteriliyor", 'Kick unreachable, showing the last value'),
-    error: K.label(S, "Kick'e ulaşılamadı, son değer gösteriliyor", 'Kick unreachable, showing the last value'),
-    'no-data': K.label(S, 'Kick bu kanal için abone verisi döndürmedi', 'Kick returned no subscriber data for this channel')
-  };
+  const INTERVAL = S.yenilemeSn * 1000;
+  // Poll statuses that are a normal answer; anything else backs the subscriber poller off.
+  const FINE = { ok: 1, manual: 1, 'no-data': 1, 'no-channel': 1 };
 
-  function makeRow(root, goal) {
+  function makeRow(root, goal, label) {
     const q = (sel) => root.querySelector(sel);
     q('[data-goal]').textContent = K.fmt(goal);
-    return {
-      root: root, goal: goal, shown: 0, cancel: null, lastTotal: null,
-      fill: q('[data-fill]'), val: q('[data-val]'), pct: q('[data-pct]'),
-      delta: q('[data-delta]'), lbl: q('[data-lbl]')
-    };
+    q('[data-lbl]').textContent = label;
+    const del = q('[data-delta]');
+    return K.createGoalBar({ bar: root, fill: q('[data-fill]'), val: q('[data-val]'), pct: q('[data-pct]'), delta: del }, goal, S);
   }
 
-  const followRow = makeRow($('followRow'), S.takipciHedefi);
-  const subRow = makeRow($('subRow'), S.aboneHedefi);
-  followRow.lbl.textContent = K.label(S, 'Takipçi', 'Follower');
-  subRow.lbl.textContent = K.label(S, 'Abone', 'Subscriber');
+  const followRow = makeRow($('followRow'), S.takipciHedefi, K.label(S, 'Takipçi', 'Follower'));
+  const subRow = makeRow($('subRow'), S.aboneHedefi, K.label(S, 'Abone', 'Subscriber'));
 
-  function setValue(r, total) {
-    r.fill.style.width = K.pct(total, r.goal) + '%';
-    if (r.cancel) r.cancel();
-    r.cancel = K.tween(r.shown, total, S.animasyon === 'off' ? 0 : 1300, function (v) {
-      r.shown = v;
-      r.val.textContent = K.fmt(v);
-    });
-    r.pct.hidden = !S.yuzdeGoster;
-    if (S.yuzdeGoster) r.pct.textContent = Math.round(K.pct(total, r.goal)) + '%';
+  // Both rows share one note; each source keeps its own message.
+  const msgs = { followers: '', subs: '' };
+  function setNote(which, text) {
+    msgs[which] = text;
+    K.note(note, S, [msgs.followers, msgs.subs].filter(Boolean).join(' · '));
   }
 
-  function bump(r) {
-    r.root.classList.remove('ko-bump');
-    void r.root.offsetWidth;
-    r.root.classList.add('ko-bump');
+  // total is null until the first real value; the note then says Kick could not be reached, not "last value".
+  function subsNote(r) {
+    switch (r.status) {
+      case 'auth': return T.auth;
+      case 'rate': return T.rate;
+      case 'error': return r.total === null ? T.unreachable : T.error;
+      case 'no-data':
+      case 'no-credentials': return T.noData;
+      default: return '';
+    }
   }
 
   function showSubs(r) {
-    const total = r.total === null ? 0 : r.total;
-    setValue(subRow, total);
-    if (subRow.lastTotal !== null && total > subRow.lastTotal) bump(subRow);
-    subRow.lastTotal = total;
-
-    const showDelta = S.oturumFarkiGoster && r.delta !== 0;
-    subRow.delta.hidden = !showDelta;
-    if (showDelta) {
-      subRow.delta.textContent = (r.delta > 0 ? '+' : '-') + K.fmt(Math.abs(r.delta));
-      subRow.delta.classList.toggle('is-neg', r.delta < 0);
-    }
-
-    const text = NOTES[r.status] || '';
-    note.textContent = text;
-    note.classList.toggle('is-hidden', !text);
+    subRow.set(r.total === null ? 0 : r.total, r.delta);
+    setNote('subs', subsNote(r));
   }
 
   // Preview (?onizleme=1): sample values for both rows, no source and no timer.
   if (PREVIEW) {
-    setValue(followRow, K.sample.followers);
+    followRow.set(K.sample.followers);
     showSubs({ total: K.sample.subs, delta: K.sample.delta, status: 'manual' });
+    K.debug({ mode: 'preview' });
     return;
   }
 
   if (!S.kanal) {
-    hint.textContent = '⚙ AYARLAR.js → kanal / set your channel';
+    hint.textContent = T.hint;
     hint.hidden = false;
   }
 
-  // ---- followers: public Kick endpoint, no token ----
-  let lastFollowers = null, fBusy = false;
+  // ---- followers: public Kick endpoint (via the relay when it runs), no token ----
+  let lastFollowers = null;
   async function pollFollowers() {
-    if (fBusy) return;
-    fBusy = true;
-    try {
-      const res = await K.kick.channel(S.kanal);
-      const n = res.ok ? K.parse.followers(res.data) : null;
-      if (n !== null) lastFollowers = n;
-      setValue(followRow, lastFollowers !== null ? lastFollowers : S.takipciYedek);
-    } finally { fBusy = false; }
+    const res = await K.kick.channel(S.kanal, S);
+    const n = res.ok ? K.parse.followers(res.data) : null;
+    if (n !== null) {
+      lastFollowers = n;
+      followRow.set(n);
+      setNote('followers', '');
+    } else {
+      // Fallback count only with a note saying so; later failures keep the last good value.
+      if (lastFollowers === null) followRow.set(S.takipciYedek);
+      setNote('followers', lastFollowers === null ? T.unreachable : res.status === 429 ? T.rate : T.error);
+    }
+    K.debug({
+      'followers src': res.src || '-',
+      followers: n !== null ? 'ok' : (res.status || res.error || 'error'),
+      'last poll': new Date().toLocaleTimeString()
+    });
+    return { ok: n !== null, retryAfterMs: res.retryAfterMs };
   }
 
-  // ---- subscribers: source decides token vs manual ----
+  // ---- subscribers: the source decides relay, token or manual ----
   const src = K.createSubscriberSource(S);
-  let sBusy = false;
-
   async function pollSubs() {
-    if (sBusy) return;
-    sBusy = true;
-    try { showSubs(await src.poll()); } finally { sBusy = false; }
+    const r = await src.poll();
+    showSubs(r);
+    K.debug({ 'subs src': r.mode, 'subs': r.status });
+    return { ok: !!FINE[r.status], retryAfterMs: r.retryAfterMs };
   }
 
-  // One interval drives both sources.
-  function refresh() {
-    pollFollowers();
-    if (src.mode === 'token') pollSubs();
-  }
-
-  let timer = null;
-  if (S.kanal) {
-    refresh();
-    timer = setInterval(refresh, TICK);
-    if (src.mode === 'manual') pollSubs();
-  } else {
-    setValue(followRow, S.takipciYedek);
+  // Without a channel nothing is requested: the fallback follower count and a manual sub count show once.
+  if (!S.kanal) {
+    followRow.set(S.takipciYedek);
     pollSubs();
+    return;
+  }
+
+  const pollers = [
+    K.poller(pollFollowers, { intervalMs: INTERVAL }),
+    K.poller(pollSubs, { intervalMs: INTERVAL })
+  ];
+  pollers.forEach((p) => p.start());
+  let debugTimer = null;
+  if (K.isDebug()) {
+    debugTimer = setInterval(function () {
+      const secs = (p) => { const ms = p.nextInMs(); return ms === null ? '-' : Math.ceil(ms / 1000) + 's'; };
+      K.debug({ 'next poll': secs(pollers[0]) + ' / ' + secs(pollers[1]) });
+    }, 1000);
   }
   window.addEventListener('pagehide', function () {
-    if (timer !== null) clearInterval(timer);
-    if (followRow.cancel) followRow.cancel();
-    if (subRow.cancel) subRow.cancel();
+    pollers.forEach((p) => p.stop());
+    followRow.destroy();
+    subRow.destroy();
+    if (debugTimer !== null) clearInterval(debugTimer);
   });
 })();
 </script>

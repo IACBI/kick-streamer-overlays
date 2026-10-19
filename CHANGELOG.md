@@ -4,8 +4,39 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-19
+
+### Added
+- Relay endpoints: `GET /health` (version and features), `GET /channel?slug=` (cached Kick channel data, v2 with a v1 fallback) and `GET /subscribers?slug=` (official subscriber total, using the app credentials the relay holds).
+- The relay finds your broadcaster ID from `kanal`, so chat works without `RELAY_BROADCASTER_ID`. The variable still works and takes precedence.
+- Settings: `geriSayimSaat` (countdown to a clock time), `sohbetKomutGizle` (hide `!` commands), `sohbetGizliKullanicilar` (hide named users, e.g. bots), `sohbetSilinmeSn` (chat messages fade after N seconds), `hataNotu` (show or hide the on-screen status note) and `hedefKutlama` (goal milestones at 25, 50 and 75 %, and a goal-reached state).
+- `relayAdresi` can be set in `AYARLAR.js`.
+- `kanal` accepts a full `kick.com` link or an `@name`. Boolean settings accept `yes`, `no`, `on` and `off` as well.
+- `?debug=1` shows a small status box in each overlay: data source, status, last poll and time to the next one.
+- The info panel shows peak viewers and a note when its data may be out of date. Long ticker lines scroll as a marquee.
+- Chat reconnects by itself after the relay restarts or the connection drops, with backoff.
+- Studio: the new settings, copy-all-links, JSON export and import of the look (secrets are never included), an accent contrast warning, a relay health check and a confirmation before reset.
+- CI runs on Node.js 24 as well, and checks the syntax of every tracked `.js` file. Dependabot keeps the pinned actions up to date.
+
 ### Changed
-- The README shows the studio in English in the English section and in Turkish in the Turkish section (`screenshots/studio-en.png`, `screenshots/studio-tr.png`).
+- Overlays poll with jitter, exponential backoff and `Retry-After`, and pause while the page is hidden.
+- Overlays read Kick data through the relay when it is running, and go to Kick directly when it is not.
+- Only the selected font is loaded.
+- The goal bar fill uses a transform instead of animating width.
+- Reduced motion is respected everywhere: `prefers-reduced-motion`, `animasyon` set to `low` or `off`.
+- The studio preview no longer reloads on every edit. It shows sample data until you press "Live data".
+- **Upgrade note:** `AYARLAR.local.js` is now loaded only by `subscriber-bar.html` and `combined-bar.html`. If you set `relayAdresi` in `AYARLAR.local.js`, move it to `AYARLAR.js`.
+
+### Fixed
+- Contrast of the `minimal` and `soft` themes, the broadcaster badge, and chat names on light backgrounds.
+- Accessibility fixes in the studio (labels, focus, keyboard use).
+
+### Security
+- The relay no longer sends `Access-Control-Allow-Origin: *`. It accepts requests with no origin, `Origin: null` (files opened from disk) or a loopback origin (`127.0.0.1`, `localhost`, `[::1]`). Any other origin gets 403.
+- The Kick client secret stays in the relay (from `KICK_CLIENT_SECRET` or `AYARLAR.local.js`). The subscriber bars use it directly only when the relay is not running.
+- Kick app credentials (`kickClientId`, `kickClientSecret`) are read only from `AYARLAR.local.js`. Values placed in `AYARLAR.js` are ignored.
+- Chat events are accepted only for the broadcaster's user ID. `RELAY_ALLOW_ANY_BROADCASTER=1` turns this check off.
+- Relay requests to Kick have timeouts and caching, and the relay answers 429 with `Retry-After` when Kick limits it. Webhook timestamps and bodies are validated more strictly.
 
 ## [2.2.0] - 2026-10-16
 

@@ -7,7 +7,6 @@
 <!-- OBS Browser source (Local file): 520 x 90. Subscriber goal bar. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.local.js"></script>
@@ -32,91 +31,84 @@
     <div class="ko-hint" id="hint" hidden></div>
   </div>
 </div>
-<div class="ko-note is-hidden" id="note"></div>
+<div class="ko-note is-hidden" id="note" aria-live="polite"></div>
 <script>
 (function(){
   const K = window.KickOverlay;
   const S = K.readSettings();
   const PREVIEW = K.isPreview();
   K.applyLook(S);
+  K.loadFont(S);
+  const T = K.text(S);
 
   const $ = (id) => document.getElementById(id);
-  const bar = $('bar'), fill = $('fill'), val = $('val'), deltaEl = $('delta'), pctEl = $('pct');
   const note = $('note'), hint = $('hint');
   const GOAL = S.aboneHedefi;
-  const NOTES = {
-    auth: K.label(S, 'Kick uygulama bilgisi hatalı', 'Kick app credentials rejected') + ' — AYARLAR.local.js',
-    rate: K.label(S, "Kick'e ulaşılamadı, son değer gösteriliyor", 'Kick unreachable, showing the last value'),
-    error: K.label(S, "Kick'e ulaşılamadı, son değer gösteriliyor", 'Kick unreachable, showing the last value'),
-    'no-data': K.label(S, 'Kick bu kanal için abone verisi döndürmedi', 'Kick returned no subscriber data for this channel')
-  };
+  // Poll statuses that are a normal answer; anything else backs the poller off.
+  const FINE = { ok: 1, manual: 1, 'no-data': 1, 'no-channel': 1 };
 
   $('lbl').textContent = K.label(S, 'Abone', 'Subscriber');
   $('goal').textContent = K.fmt(GOAL);
 
-  let shown = 0, lastTotal = null, cancelAnim = null, busy = false;
+  const bar = K.createGoalBar({
+    bar: $('bar'), fill: $('fill'), val: $('val'), pct: $('pct'), delta: $('delta')
+  }, GOAL, S);
 
-  function bump() {
-    bar.classList.remove('ko-bump');
-    void bar.offsetWidth;
-    bar.classList.add('ko-bump');
+  // total is null until the first real value; the note then says Kick could not be reached, not "last value".
+  function noteFor(r) {
+    switch (r.status) {
+      case 'auth': return T.auth;
+      case 'rate': return T.rate;
+      case 'error': return r.total === null ? T.unreachable : T.error;
+      case 'no-data':
+      case 'no-credentials': return T.noData;
+      default: return '';
+    }
   }
 
   function show(r) {
-    const total = r.total === null ? 0 : r.total;
-
-    fill.style.width = K.pct(total, GOAL) + '%';
-    if (cancelAnim) cancelAnim();
-    cancelAnim = K.tween(shown, total, S.animasyon === 'off' ? 0 : 1300, function (v) {
-      shown = v;
-      val.textContent = K.fmt(v);
-    });
-    if (lastTotal !== null && total > lastTotal) bump();
-    lastTotal = total;
-
-    const showDelta = S.oturumFarkiGoster && r.delta !== 0;
-    deltaEl.hidden = !showDelta;
-    if (showDelta) {
-      deltaEl.textContent = (r.delta > 0 ? '+' : '-') + K.fmt(Math.abs(r.delta));
-      deltaEl.classList.toggle('is-neg', r.delta < 0);
-    }
-
-    pctEl.hidden = !S.yuzdeGoster;
-    if (S.yuzdeGoster) pctEl.textContent = Math.round(K.pct(total, GOAL)) + '%';
-
-    const text = NOTES[r.status] || '';
-    note.textContent = text;
-    note.classList.toggle('is-hidden', !text);
+    bar.set(r.total === null ? 0 : r.total, r.delta);
+    K.note(note, S, noteFor(r));
   }
 
   // Preview (?onizleme=1): sample values, no source and no timer.
-  if (PREVIEW) { show({ total: K.sample.subs, delta: K.sample.delta, status: 'manual' }); return; }
+  if (PREVIEW) { show({ total: K.sample.subs, delta: K.sample.delta, status: 'manual' }); K.debug({ mode: 'preview' }); return; }
 
   if (!S.kanal) {
-    hint.textContent = '⚙ AYARLAR.js → kanal / set your channel';
+    hint.textContent = T.hint;
     hint.hidden = false;
   }
 
   const src = K.createSubscriberSource(S);
+  let poller = null;
+  let debugTimer = null;
 
   async function poll() {
-    if (busy) return;
-    busy = true;
-    try { show(await src.poll()); } finally { busy = false; }
+    const r = await src.poll();
+    show(r);
+    K.debug({
+      src: r.mode,
+      status: r.status,
+      'last poll': new Date().toLocaleTimeString()
+    });
+    return { ok: !!FINE[r.status], retryAfterMs: r.retryAfterMs };
   }
 
-  let timer = null;
-  if (src.mode === 'manual') {
-    poll();
-  } else if (S.kanal) {
-    poll();
-    timer = setInterval(poll, S.yenilemeSn * 1000);
-  } else {
-    show({ total: null, delta: 0, status: 'no-channel' });
+  // Without a channel nothing is requested: a manual count (aboneSayisi) is shown once.
+  if (!S.kanal) { poll(); return; }
+
+  poller = K.poller(poll, { intervalMs: S.yenilemeSn * 1000 });
+  poller.start();
+  if (K.isDebug()) {
+    debugTimer = setInterval(function () {
+      const ms = poller.nextInMs();
+      K.debug({ 'next poll': ms === null ? '-' : Math.ceil(ms / 1000) + 's' });
+    }, 1000);
   }
   window.addEventListener('pagehide', function () {
-    if (timer !== null) clearInterval(timer);
-    if (cancelAnim) cancelAnim();
+    poller.stop();
+    bar.destroy();
+    if (debugTimer !== null) clearInterval(debugTimer);
   });
 })();
 </script>

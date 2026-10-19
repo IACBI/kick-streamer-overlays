@@ -49,14 +49,33 @@ window.KICK_OVERLAY_AYARLAR = {
   // Show the percentage of the goal
   yuzdeGoster: false,
 
+  // Goal bars: pulse at 25 / 50 / 75 % and mark the bar when the goal is reached
+  hedefKutlama: true,
+
+  // Show the small error / status note on screen (e.g. "Kick unreachable"). Hide it for a clean stream
+  hataNotu: true,
+
   // Refresh interval in seconds (10–600)
   yenilemeSn: 30,
 
   // Maximum chat messages on screen (3–20)
   sohbetMaksMesaj: 8,
 
+  // Hide chat messages that start with "!" (bot commands)
+  sohbetKomutGizle: false,
+
+  // Usernames hidden from chat, separated by commas (not case-sensitive). Example: "nightbot, moobot"
+  sohbetGizliKullanicilar: "",
+
+  // Fade chat messages out after this many seconds. 0 = they stay until pushed out (0–600)
+  sohbetSilinmeSn: 0,
+
   // Countdown (countdown.html): minutes to count down from when the page loads
   geriSayimDk: 5,
+
+  // Countdown target as a clock time, 24h HH:MM (e.g. "20:30"). Overrides geriSayimDk.
+  // If that time has already passed today, it counts down to tomorrow. Empty = use geriSayimDk
+  geriSayimSaat: "",
 
   // Countdown title. Empty = "Starting soon" in your label language
   geriSayimBaslik: "",
@@ -66,6 +85,9 @@ window.KICK_OVERLAY_AYARLAR = {
   duyuruMetinleri: "",
 
   // Seconds each announcement stays on screen (3–60)
-  duyuruSn: 6
+  duyuruSn: 6,
+
+  // Only needed if you changed the chat relay's port (see relay/). Default: "http://127.0.0.1:8790"
+  // relayAdresi: "http://127.0.0.1:8790",
 
 };

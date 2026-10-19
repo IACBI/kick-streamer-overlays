@@ -34,8 +34,11 @@ const DEFAULTS = {
   kanal: '', stil: 'glass', sekil: 'pill', yaziTipi: 'inter', dil: 'both', animasyon: 'normal',
   renk: '#53fc18', yayinciYazisi: 'Streamer', takipciHedefi: 1000, takipciYedek: 0,
   aboneHedefi: 100, aboneSayisi: 0, oturumFarkiGoster: true, yuzdeGoster: false,
-  yenilemeSn: 30, sohbetMaksMesaj: 8, geriSayimDk: 5, geriSayimBaslik: '', duyuruMetinleri: '', duyuruSn: 6
+  yenilemeSn: 30, sohbetMaksMesaj: 8, geriSayimDk: 5, geriSayimBaslik: '', duyuruMetinleri: '', duyuruSn: 6,
+  geriSayimSaat: '', sohbetKomutGizle: false, sohbetGizliKullanicilar: '', sohbetSilinmeSn: 0,
+  hataNotu: true, hedefKutlama: true
 };
+const RELAY = 'http://127.0.0.1:8790';
 
 const CORE_SOURCE = fs.readFileSync(CORE_FILE, 'utf8');
 
@@ -96,18 +99,19 @@ function loadCore(opts = {}) {
   const env = { now: 0, frames: [] };
   const ctx = {
     console,
-    Date,
+    Date: opts.Date || Date,
     JSON,
     URLSearchParams,
     AbortController,
-    setTimeout,
-    clearTimeout,
+    setTimeout: opts.setTimeout || setTimeout,
+    clearTimeout: opts.clearTimeout || clearTimeout,
     setInterval,
     clearInterval,
     fetch: opts.fetch || (async () => { throw new TypeError('no fetch in this check'); }),
     WebSocket: opts.WebSocket,
     EventSource: opts.EventSource,
     document: opts.document,
+    localStorage: opts.localStorage,
     location: { search: opts.search || '' },
     performance: { now: () => env.now },
     requestAnimationFrame: (cb) => { env.frames.push(cb); return env.frames.length; },
@@ -133,10 +137,13 @@ function fakeNet(route) {
       signal: opts.signal
     };
     calls.push(call);
-    const r = await route(call);
+    const r = await route(call, calls.length);
+    const hdr = {};
+    Object.keys(r.headers || {}).forEach((k) => { hdr[k.toLowerCase()] = String(r.headers[k]); });
     return {
       ok: r.status >= 200 && r.status < 300,
       status: r.status,
+      headers: { get: (name) => (String(name).toLowerCase() in hdr ? hdr[String(name).toLowerCase()] : null) },
       json: async () => r.body
     };
   }
@@ -163,11 +170,18 @@ function liveSubs(...values) {
 }
 
 // Fake official API. Issues tokens tok-1, tok-2, ... Data calls need an issued token.
-function officialFake({ token, channel = liveSubs(42) } = {}) {
+// Calls to the local relay (RELAY) go to `relay(call, n)` when given; otherwise the relay is "down" (connection refused).
+function officialFake({ token, channel = liveSubs(42), relay } = {}) {
   const issued = new Set();
   let tokenSeq = 0;
   let channelSeq = 0;
+  let relaySeq = 0;
   return fakeNet(async (c) => {
+    if (c.url.startsWith(RELAY)) {
+      if (!relay) throw new TypeError('relay down');
+      relaySeq += 1;
+      return relay(c, relaySeq);
+    }
     if (c.url.endsWith('/oauth/token')) {
       tokenSeq += 1;
       if (token) return token(c, tokenSeq);
@@ -182,8 +196,11 @@ function officialFake({ token, channel = liveSubs(42) } = {}) {
 }
 
 const isTokenCall = (c) => c.url.endsWith('/oauth/token');
-const dataCalls = (net) => net.calls.filter((c) => !isTokenCall(c));
+const isRelayCall = (c) => c.url.startsWith(RELAY);
+const dataCalls = (net) => net.calls.filter((c) => !isTokenCall(c) && !isRelayCall(c));
 const tokenCalls = (net) => net.calls.filter(isTokenCall);
+const relayCalls = (net) => net.calls.filter(isRelayCall);
+const kickCalls = (net) => net.calls.filter((c) => !isRelayCall(c));
 const bearerOf = (call) => String(call.headers.Authorization || '');
 
 // Source built from a core loaded with the given ayarlar/yerel and a fake network.
@@ -243,16 +260,29 @@ function inlineScripts(html) {
   return out;
 }
 
-function checkHeadTemplate(html) {
+// AYARLAR.local.js holds the Kick app credentials, so only pages that call the official API load it.
+const LOCAL_SETTINGS_PAGES = ['subscriber-bar.html', 'combined-bar.html'];
+
+function checkHeadTemplate(html, page) {
   const scripts = [...html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/gi)].map((m) => m[1]);
   const links = [...html.matchAll(/<link\b[^>]*\bhref="([^"]+)"/gi)].map((m) => m[1]);
-  ok(links.some((h) => h.startsWith('https://fonts.googleapis.com/css2?')), 'Google Fonts stylesheet link missing');
+  const preconnects = [...html.matchAll(/<link\b[^>]*\brel="preconnect"[^>]*\bhref="([^"]+)"/gi)].map((m) => m[1]);
+  ok(preconnects.includes('https://fonts.googleapis.com'), 'preconnect to fonts.googleapis.com missing');
+  ok(preconnects.includes('https://fonts.gstatic.com'), 'preconnect to fonts.gstatic.com missing');
+  ok(!links.some((h) => /fonts\.googleapis\.com\/css/.test(h)), 'static Google Fonts stylesheet link must not be present (K.loadFont injects it)');
+  ok(inlineScripts(html).some((code) => /\bK\.loadFont\(\s*S\s*\)/.test(code)), 'page does not call K.loadFont(S)');
   ok(links.includes('shared/themes.css'), 'shared/themes.css link missing');
   const iSettings = scripts.indexOf('AYARLAR.js');
   const iLocal = scripts.indexOf('AYARLAR.local.js');
   const iCore = scripts.indexOf('shared/kick-core.js');
-  ok(iSettings >= 0 && iLocal >= 0 && iCore >= 0, 'AYARLAR.js, AYARLAR.local.js or shared/kick-core.js script missing');
-  ok(iSettings < iLocal && iLocal < iCore, 'script order must be AYARLAR.js, AYARLAR.local.js, shared/kick-core.js');
+  ok(iSettings >= 0 && iCore >= 0, 'AYARLAR.js or shared/kick-core.js script missing');
+  if (LOCAL_SETTINGS_PAGES.includes(page)) {
+    ok(iLocal >= 0, 'AYARLAR.local.js script missing');
+    ok(iSettings < iLocal && iLocal < iCore, 'script order must be AYARLAR.js, AYARLAR.local.js, shared/kick-core.js');
+  } else {
+    ok(iLocal < 0 && !/AYARLAR\.local\.js/.test(html), 'must not load AYARLAR.local.js (credentials stay out of pages that never call the official API)');
+    ok(iSettings < iCore, 'script order must be AYARLAR.js, shared/kick-core.js');
+  }
 }
 
 // ---- Section: core API and settings -------------------------------------------
@@ -262,10 +292,12 @@ async function testCoreApi() {
   const { K } = loadCore();
   await check('kick-core.js loads and exposes the documented API', () => {
     ['readSettings', 'normalize', 'schemaKeys', 'enums', 'label', 'fmt', 'pct', 'applyLook', 'tween',
-      'getJson', 'createSubscriberSource', 'connectRelay'].forEach((n) => ok(typeof K[n] === 'function', 'missing ' + n));
+      'getJson', 'createSubscriberSource', 'connectRelay', 'isDebug', 'loadFont', 'setFill', 'poller', 'relayInfo',
+      'text', 'createGoalBar', 'note', 'debug'].forEach((n) => ok(typeof K[n] === 'function', 'missing ' + n));
     ['followers', 'live', 'subBadges', 'time', 'official'].forEach((n) =>
       ok(typeof K.parse[n] === 'function', 'missing parse.' + n));
     ok(typeof K.kick.channel === 'function', 'missing kick.channel');
+    eq(K.version, '2.3.0', 'version');
     ['token', 'channel', 'clearToken'].forEach((n) => ok(typeof K.official[n] === 'function', 'missing official.' + n));
   });
 }
@@ -372,6 +404,28 @@ async function testReadSettings() {
     ok(s.kickClientSecret === 'local-secret', 'kickClientSecret was overridden from the URL');
     eq(s.apiBase, 'https://api.kick.com', 'apiBase from URL');
     eq(s.tokenBase, 'https://id.kick.com', 'tokenBase from URL');
+  });
+
+  await check('readSettings: Kick credentials are read only from AYARLAR.local.js, never from AYARLAR.js', () => {
+    const fromFile = loadCore({
+      ayarlar: { kickClientId: 'file-id', kickClientSecret: 'file-secret', apiBase: 'https://api.kick.test', relayAdresi: 'http://127.0.0.1:9999' }
+    }).K.readSettings();
+    // Messages avoid printing the values on purpose.
+    ok(fromFile.kickClientId === '', 'kickClientId was taken from AYARLAR.js');
+    ok(fromFile.kickClientSecret === '', 'kickClientSecret was taken from AYARLAR.js');
+    eq(fromFile.apiBase, 'https://api.kick.test', 'apiBase may still come from AYARLAR.js');
+    eq(fromFile.relayAdresi, 'http://127.0.0.1:9999', 'relayAdresi may still come from AYARLAR.js');
+    const both = loadCore({
+      ayarlar: { kickClientId: 'file-id', kickClientSecret: 'file-secret' },
+      yerel: { kickClientId: 'local-id', kickClientSecret: 'local-secret' }
+    }).K.readSettings();
+    ok(both.kickClientId === 'local-id', 'kickClientId must come from AYARLAR.local.js');
+    ok(both.kickClientSecret === 'local-secret', 'kickClientSecret must come from AYARLAR.local.js');
+    const mixed = loadCore({
+      ayarlar: { kickClientId: 'file-id', kickClientSecret: 'file-secret' },
+      yerel: { kickClientId: 'local-id' }
+    }).K.readSettings();
+    ok(mixed.kickClientSecret === '', 'a file secret must not pair with a local id');
   });
 
   await check('readSettings: apiBase and tokenBase accept https with a trailing slash (slash removed)', () => {
@@ -686,7 +740,9 @@ async function testSubscriberSource() {
     const { src } = subscriberSetup(net, { ayarlar: { kanal: 'example-channel', aboneSayisi: 17 }, yerel: {} });
     const r = await src.poll();
     eqFields(r, { mode: 'manual', status: 'manual', total: 17, delta: 0 }, '');
-    eq(net.calls.length, 0, 'requests');
+    // Adjusted for v2.3.0: with a kanal set, the first poll probes the relay (/health) to decide the mode.
+    eq(kickCalls(net).length, 0, 'requests other than the relay probe');
+    eq(net.calls.map((c) => c.url), [RELAY + '/health'], 'only the relay probe');
   });
 
   await check('token mode: first poll 42 has delta 0; second poll 45 has delta 3', async () => {
@@ -778,7 +834,8 @@ async function testSubscriberSource() {
     eq(src.mode, 'manual', 'mode');
     eq((await src.poll()).status, 'manual', 'poll status');
     eq((await K.official.token(s)).error, 'no-credentials', 'token error');
-    eq(net.calls.length, 0, 'requests');
+    // Adjusted for v2.3.0: the poll probes the relay once; nothing else is requested.
+    eq(kickCalls(net).length, 0, 'requests other than the relay probe');
   });
 }
 
@@ -927,6 +984,1200 @@ async function testMockServer() {
   }
 }
 
+// ---- Section: v2.3.0 core additions ---------------------------------------------------
+
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+// Virtual clock for the core's setTimeout/clearTimeout/Date.now. advance() fires due timers in order
+// and lets promise chains settle between them. `log` records every delay that was requested.
+function fakeClock(start = 1.7e12) {
+  const c = { t: start, timers: [], seq: 0, log: [] };
+  c.setTimeout = (fn, ms) => {
+    c.seq += 1;
+    c.log.push(ms);
+    c.timers.push({ id: c.seq, at: c.t + (ms || 0), fn });
+    return c.seq;
+  };
+  c.clearTimeout = (id) => { c.timers = c.timers.filter((x) => x.id !== id); };
+  c.Date = class FakeDate extends Date { static now() { return c.t; } };
+  c.advance = async (ms) => {
+    const end = c.t + ms;
+    for (;;) {
+      await flush();
+      const due = c.timers.filter((x) => x.at <= end).sort((a, b) => a.at - b.at || a.id - b.id)[0];
+      if (!due) break;
+      c.timers = c.timers.filter((x) => x !== due);
+      c.t = Math.max(c.t, due.at);
+      due.fn();
+    }
+    await flush();
+    c.t = end;
+  };
+  c.opts = () => ({ setTimeout: c.setTimeout, clearTimeout: c.clearTimeout, Date: c.Date });
+  return c;
+}
+
+function setRandom(ctx, value) {
+  ctx.__rnd = value;
+  vm.runInContext('Math.random = function () { return __rnd; }', ctx);
+}
+
+function fakeEl() {
+  const classes = new Set();
+  return {
+    hidden: false,
+    textContent: '',
+    offsetWidth: 0,
+    classes,
+    style: { vals: {}, setProperty(k, v) { this.vals[k] = v; } },
+    classList: {
+      add(...c) { c.forEach((x) => classes.add(x)); },
+      remove(...c) { c.forEach((x) => classes.delete(x)); },
+      toggle(cls, force) {
+        const on = force === undefined ? !classes.has(cls) : !!force;
+        if (on) classes.add(cls); else classes.delete(cls);
+        return on;
+      },
+      contains: (cls) => classes.has(cls)
+    }
+  };
+}
+
+function fakeStorage(initial = {}) {
+  const data = Object.assign({}, initial);
+  return {
+    data,
+    getItem: (k) => (k in data ? data[k] : null),
+    setItem: (k, v) => { data[k] = String(v); }
+  };
+}
+
+function throwingStorage() {
+  const boom = () => { throw new Error('storage blocked'); };
+  return { getItem: boom, setItem: boom };
+}
+
+function fakeHeadDocument() {
+  const links = [];
+  return {
+    links,
+    head: { appendChild(el) { links.push(el); } },
+    createElement(tag) { return { tag, id: '', rel: '', href: '' }; },
+    getElementById(id) { return links.find((l) => l.id === id) || null; }
+  };
+}
+
+function fakeVisibilityDocument(hidden) {
+  const listeners = [];
+  return {
+    hidden,
+    listeners,
+    addEventListener(name, fn) { if (name === 'visibilitychange') listeners.push(fn); },
+    removeEventListener(name, fn) {
+      const i = listeners.indexOf(fn);
+      if (name === 'visibilitychange' && i >= 0) listeners.splice(i, 1);
+    },
+    setHidden(v) { this.hidden = v; listeners.slice().forEach((fn) => fn()); }
+  };
+}
+
+const jsonRes = (body, headers) => ({ status: 200, body, headers });
+const SUBS_OK = (subs) => jsonRes({ ok: true, subs, gifted: 3, canceled: 1, live: true, viewers: 12, startMs: null, title: 'x' });
+const HEALTH = (features) => jsonRes({ ok: true, version: '2.3.0', clients: 0, features: Object.assign({ chat: false, channel: true, subscribers: false }, features) });
+
+async function testSettingsV23() {
+  section('v2.3.0 settings: new keys, clock, asBool, kanal');
+  const { K } = loadCore();
+
+  await check('schemaKeys() includes every new public key', () => {
+    ['geriSayimSaat', 'sohbetKomutGizle', 'sohbetGizliKullanicilar', 'sohbetSilinmeSn', 'hataNotu', 'hedefKutlama']
+      .forEach((k) => ok(K.schemaKeys().includes(k), 'missing ' + k));
+    ok(!K.schemaKeys().includes('relayAdresi'), 'relayAdresi must stay local-only');
+  });
+
+  await check('new keys: defaults', () => {
+    eqFields(K.normalize({}), {
+      geriSayimSaat: '', sohbetKomutGizle: false, sohbetGizliKullanicilar: '', sohbetSilinmeSn: 0, hataNotu: true, hedefKutlama: true
+    }, '');
+  });
+
+  await check('geriSayimSaat (clock): HH:MM is zero-padded; invalid values give ""', () => {
+    eq(K.normalize({ geriSayimSaat: '9:05' }).geriSayimSaat, '09:05', '9:05');
+    eq(K.normalize({ geriSayimSaat: '21:30' }).geriSayimSaat, '21:30', '21:30');
+    eq(K.normalize({ geriSayimSaat: ' 00:00 ' }).geriSayimSaat, '00:00', 'padded input');
+    eq(K.normalize({ geriSayimSaat: '23:59' }).geriSayimSaat, '23:59', '23:59');
+    ['24:00', '12:60', '1:5', 'abc', '', '12', '12:30:00', '-1:00', 12.5, null, undefined].forEach((v) =>
+      eq(K.normalize({ geriSayimSaat: v }).geriSayimSaat, '', 'value ' + JSON.stringify(v)));
+  });
+
+  await check('asBool: case-insensitive true/false, yes/no, on/off, 1/0; junk falls back to the default', () => {
+    ['true', 'TRUE', 'True', 'yes', 'YES', 'on', 'On', ' on ', '1', 1, true].forEach((v) =>
+      eq(K.normalize({ yuzdeGoster: v }).yuzdeGoster, true, 'true for ' + JSON.stringify(v)));
+    ['false', 'FALSE', 'no', 'No', 'off', 'OFF', ' off ', '0', 0, false].forEach((v) =>
+      eq(K.normalize({ oturumFarkiGoster: v }).oturumFarkiGoster, false, 'false for ' + JSON.stringify(v)));
+    eq(K.normalize({ yuzdeGoster: 'maybe' }).yuzdeGoster, false, 'junk falls back (default false)');
+    eq(K.normalize({ oturumFarkiGoster: 'maybe' }).oturumFarkiGoster, true, 'junk falls back (default true)');
+    eq(K.normalize({ hataNotu: '' }).hataNotu, true, 'empty falls back');
+    eq(K.normalize({ hataNotu: 2 }).hataNotu, true, 'number 2 falls back');
+  });
+
+  await check('sohbetSilinmeSn is clamped to 0..600; sohbetGizliKullanicilar is cut to 300', () => {
+    eq(K.normalize({ sohbetSilinmeSn: -5 }).sohbetSilinmeSn, 0, '-5');
+    eq(K.normalize({ sohbetSilinmeSn: 9999 }).sohbetSilinmeSn, 600, '9999');
+    eq(K.normalize({ sohbetSilinmeSn: '45' }).sohbetSilinmeSn, 45, '"45"');
+    eq(K.normalize({ sohbetSilinmeSn: 'x' }).sohbetSilinmeSn, 0, 'junk');
+    eq(K.normalize({ sohbetGizliKullanicilar: ' Bot1, Bot2 ' }).sohbetGizliKullanicilar, 'Bot1, Bot2', 'trimmed');
+    eq(K.normalize({ sohbetGizliKullanicilar: 'x'.repeat(400) }).sohbetGizliKullanicilar.length, 300, 'length');
+  });
+
+  await check('new keys can be overridden from the URL', () => {
+    const { K: K2 } = loadCore({
+      search: '?geriSayimSaat=8:15&sohbetKomutGizle=yes&sohbetGizliKullanicilar=Bot1%2CBot2&sohbetSilinmeSn=30&hataNotu=off&hedefKutlama=0'
+    });
+    eqFields(K2.readSettings(), {
+      geriSayimSaat: '08:15', sohbetKomutGizle: true, sohbetGizliKullanicilar: 'Bot1,Bot2', sohbetSilinmeSn: 30,
+      hataNotu: false, hedefKutlama: false
+    }, '');
+  });
+
+  await check('kanal: kick.com links, @ prefix and extra path are stripped; result is lowercase and <= 40', () => {
+    const cases = {
+      'https://kick.com/ExAmple': 'example',
+      'https://kick.com/example/videos?x=1': 'example',
+      'https://www.kick.com/Example': 'example',
+      'kick.com/Example': 'example',
+      'KICK.COM/Example/': 'example',
+      '@Example': 'example',
+      '  @Example  ': 'example',
+      'https://kick.com/@Example': 'example',
+      'example/extra': 'example',
+      'example?ref=1': 'example',
+      '': '',
+      '   ': ''
+    };
+    Object.keys(cases).forEach((v) => eq(K.normalize({ kanal: v }).kanal, cases[v], 'kanal ' + JSON.stringify(v)));
+    eq(K.normalize({ kanal: 'a'.repeat(60) }).kanal, 'a'.repeat(40), 'cut to 40');
+    eq(K.normalize({ kanal: 'https://kick.com/' + 'B'.repeat(60) }).kanal, 'b'.repeat(40), 'link then cut to 40');
+    eq(K.normalize({ kanal: 123 }).kanal, '', 'number');
+  });
+
+  await check('kanal from the URL parameter is cleaned the same way', () => {
+    const { K: K2 } = loadCore({ search: '?kanal=https%3A%2F%2Fkick.com%2FMixed' });
+    eq(K2.readSettings().kanal, 'mixed', 'kanal');
+  });
+
+  await check('relayAdresi: never from the URL; accepted from AYARLAR.js and AYARLAR.local.js', () => {
+    eq(loadCore({ search: '?relayAdresi=http://127.0.0.1:9999' }).K.readSettings().relayAdresi, RELAY, 'URL ignored');
+    eq(loadCore({ ayarlar: { relayAdresi: 'http://127.0.0.1:9000/' } }).K.readSettings().relayAdresi, 'http://127.0.0.1:9000', 'AYARLAR.js');
+    eq(loadCore({ ayarlar: { relayAdresi: 'http://127.0.0.1:9000' }, yerel: { relayAdresi: 'http://localhost:9100' } })
+      .K.readSettings().relayAdresi, 'http://localhost:9100', 'local wins');
+    eq(loadCore({ ayarlar: { relayAdresi: 'http://evil.example.com:8790' } }).K.readSettings().relayAdresi, RELAY, 'plain http to a non-loopback host is rejected');
+  });
+}
+
+async function testHelpersV23() {
+  section('v2.3.0 helpers: fmt cache, setFill, isDebug, loadFont, text, note, debug');
+
+  await check('fmt() builds one Intl.NumberFormat per locale and stays correct when the locale switches', () => {
+    const { K, ctx } = loadCore();
+    const Real = vm.runInContext('Intl', ctx);
+    let made = 0;
+    ctx.Intl = { NumberFormat: function (locale, o) { made += 1; return new Real.NumberFormat(locale, o); } };
+    ctx.document = fakeDocument('');
+    eq(K.fmt(1234567), '1,234,567', 'en first');
+    eq(K.fmt(1000), '1,000', 'en second');
+    eq(K.fmt(12.6), '13', 'en rounds');
+    eq(made, 1, 'formatters after 3 calls in one locale');
+    K.applyLook(K.normalize({ dil: 'tr' }));
+    eq(K.fmt(1234567), '1.234.567', 'tr');
+    eq(K.fmt(2000), '2.000', 'tr second');
+    eq(made, 2, 'formatters after switching to tr');
+    K.applyLook(K.normalize({ dil: 'en' }));
+    eq(K.fmt(1234567), '1,234,567', 'back to en');
+    eq(made, 2, 'switching back reuses the cached formatter');
+  });
+
+  await check('fmt() still works when Intl is unavailable', () => {
+    const { K, ctx } = loadCore();
+    ctx.Intl = undefined;
+    eq(K.fmt(1234567), '1,234,567', 'fallback');
+  });
+
+  await check('setFill() writes --fill as a 4-digit ratio, clamped to 0..1', () => {
+    const { K } = loadCore();
+    const el = fakeEl();
+    K.setFill(el, 25);
+    eq(el.style.vals['--fill'], '0.2500', '25');
+    K.setFill(el, 100);
+    eq(el.style.vals['--fill'], '1.0000', '100');
+    K.setFill(el, 33.3333);
+    eq(el.style.vals['--fill'], '0.3333', '33.3333');
+    K.setFill(el, 0);
+    eq(el.style.vals['--fill'], '0.0000', '0');
+    K.setFill(el, 250);
+    eq(el.style.vals['--fill'], '1.0000', 'over 100');
+    K.setFill(el, -5);
+    eq(el.style.vals['--fill'], '0.0000', 'negative');
+    K.setFill(el, NaN);
+    eq(el.style.vals['--fill'], '0.0000', 'NaN');
+    K.setFill(null, 50);
+  });
+
+  await check('isDebug(): true only for debug=1 in the URL', () => {
+    eq(loadCore({ search: '?debug=1' }).K.isDebug(), true, 'debug=1');
+    eq(loadCore({ search: '?kanal=x&debug=1&stil=neon' }).K.isDebug(), true, 'among others');
+    eq(loadCore({ search: '?debug=0' }).K.isDebug(), false, 'debug=0');
+    eq(loadCore({ search: '?debug=10' }).K.isDebug(), false, 'debug=10');
+    eq(loadCore({ search: '?xdebug=1' }).K.isDebug(), false, 'xdebug=1');
+    eq(loadCore().K.isDebug(), false, 'no query');
+  });
+
+  await check('loadFont(): one Google Fonts link for the chosen family only', () => {
+    const urls = {
+      inter: 'family=Inter:wght@400;500;600;700;800;900',
+      poppins: 'family=Poppins:wght@400;600;700;800',
+      nunito: 'family=Nunito:wght@400;600;700;800;900',
+      mono: 'family=Roboto+Mono:wght@400;700'
+    };
+    Object.keys(urls).forEach((font) => {
+      const doc = fakeHeadDocument();
+      const { K } = loadCore({ document: doc });
+      K.loadFont(K.normalize({ yaziTipi: font }));
+      eq(doc.links.length, 1, 'links for ' + font);
+      const href = doc.links[0].href;
+      ok(href.startsWith('https://fonts.googleapis.com/css2?'), 'host for ' + font);
+      ok(href.includes(urls[font]), 'family for ' + font + ': ' + href);
+      ok(href.endsWith('&display=swap'), 'display=swap for ' + font);
+      eq((href.match(/family=/g) || []).length, 1, 'only one family for ' + font);
+      eq(doc.links[0].rel, 'stylesheet', 'rel');
+    });
+  });
+
+  await check('loadFont(): calling again reuses the same link; no document is not an error', () => {
+    const doc = fakeHeadDocument();
+    const { K } = loadCore({ document: doc });
+    K.loadFont(K.normalize({ yaziTipi: 'inter' }));
+    K.loadFont(K.normalize({ yaziTipi: 'mono' }));
+    eq(doc.links.length, 1, 'still one link');
+    ok(doc.links[0].href.includes('Roboto+Mono'), 'switched to mono');
+    K.loadFont({});
+    ok(doc.links[0].href.includes('Inter'), 'unknown font gives Inter');
+    loadCore().K.loadFont(K.normalize({}));
+  });
+
+  await check('text(): all keys in tr, en and both; each language stays under 40 characters', () => {
+    const keys = ['hint', 'auth', 'rate', 'error', 'noData', 'unreachable', 'stale', 'relayDown'];
+    const { K } = loadCore();
+    const tr = K.text(K.normalize({ dil: 'tr' }));
+    const en = K.text(K.normalize({ dil: 'en' }));
+    const both = K.text(K.normalize({ dil: 'both' }));
+    eq(Object.keys(tr).sort(), keys.slice().sort(), 'tr keys');
+    eq(Object.keys(en).sort(), keys.slice().sort(), 'en keys');
+    eq(Object.keys(both).sort(), keys.slice().sort(), 'both keys');
+    keys.forEach((k) => {
+      ok(typeof tr[k] === 'string' && tr[k].trim() && tr[k].length < 40, 'tr.' + k + ' = ' + tr[k]);
+      ok(typeof en[k] === 'string' && en[k].trim() && en[k].length < 40, 'en.' + k + ' = ' + en[k]);
+      ok(tr[k] !== en[k], 'tr and en differ for ' + k);
+      eq(both[k], tr[k] + ' / ' + en[k], 'both.' + k);
+    });
+    ok(en.hint.includes('AYARLAR.js'), 'hint mentions AYARLAR.js');
+    ok(/unreachable/i.test(en.unreachable), 'unreachable text');
+    ok(/out of date/i.test(en.stale), 'stale text');
+  });
+
+  await check('note(): sets text and toggles is-hidden', () => {
+    const { K } = loadCore();
+    const S = K.normalize({});
+    const el = fakeEl();
+    K.note(el, S, 'Kick unreachable');
+    eq(el.textContent, 'Kick unreachable', 'text');
+    ok(!el.classes.has('is-hidden'), 'visible with text');
+    K.note(el, S, '');
+    eq(el.textContent, '', 'cleared');
+    ok(el.classes.has('is-hidden'), 'hidden when empty');
+    K.note(null, S, 'x');
+  });
+
+  await check('note(): hidden when hataNotu=false, unless ?debug=1', () => {
+    const quiet = { hataNotu: false };
+    const el = fakeEl();
+    loadCore().K.note(el, quiet, 'Kick unreachable');
+    eq(el.textContent, 'Kick unreachable', 'text is still set');
+    ok(el.classes.has('is-hidden'), 'hidden with hataNotu=false');
+    const el2 = fakeEl();
+    loadCore({ search: '?debug=1' }).K.note(el2, quiet, 'Kick unreachable');
+    ok(!el2.classes.has('is-hidden'), 'visible in debug mode');
+  });
+
+  await check('debug(): renders one fixed box with key: value lines, merges calls, null removes a key', () => {
+    const appended = [];
+    const doc = {
+      body: { appendChild: (el) => appended.push(el) },
+      createElement: () => ({ className: '', textContent: '', style: {} })
+    };
+    const { K } = loadCore({ search: '?debug=1', document: doc });
+    K.debug({ src: 'relay-v2', status: 200 });
+    eq(appended.length, 1, 'one element');
+    eq(appended[0].className, 'ko-debug', 'class');
+    eq(appended[0].textContent, 'src: relay-v2\nstatus: 200', 'first text');
+    K.debug({ status: 429, next: '12s' });
+    eq(appended.length, 1, 'still one element');
+    eq(appended[0].textContent, 'src: relay-v2\nstatus: 429\nnext: 12s', 'merged text');
+    K.debug({ src: null });
+    eq(appended[0].textContent, 'status: 429\nnext: 12s', 'key removed');
+  });
+
+  await check('debug(): does nothing when not in debug mode', () => {
+    let created = 0;
+    const doc = { body: { appendChild() { created += 1; } }, createElement() { created += 1; return {}; } };
+    const { K } = loadCore({ search: '?stil=neon', document: doc });
+    K.debug({ src: 'x' });
+    eq(created, 0, 'DOM touched');
+    loadCore({ search: '?debug=1' }).K.debug({ src: 'x' });
+  });
+
+  await check('getJson(): exposes Retry-After (seconds) on failures and X-Kick-Source on success', async () => {
+    const net = fakeNet((c, n) => (n === 1
+      ? { status: 429, body: {}, headers: { 'Retry-After': '30' } }
+      : n === 2 ? { status: 429, body: {}, headers: { 'Retry-After': 'Wed, 21 Oct 2026 07:28:00 GMT' } }
+        : { status: 200, body: { a: 1 }, headers: { 'X-Kick-Source': 'V1' } }));
+    const { K } = loadCore({ fetch: net.fetch });
+    const r1 = await K.getJson('https://example.test/x');
+    eq([r1.ok, r1.status, r1.retryAfterMs], [false, 429, 30000], 'seconds to ms');
+    const r2 = await K.getJson('https://example.test/x');
+    eq(r2.retryAfterMs, undefined, 'HTTP-date is ignored');
+    const r3 = await K.getJson('https://example.test/x');
+    eq([r3.ok, r3.source], [true, 'v1'], 'source');
+  });
+}
+
+async function testCreateGoalBar() {
+  section('createGoalBar()');
+
+  function make(over = {}, goal = 1000, withChips = true) {
+    const clock = fakeClock();
+    const { K, env } = loadCore(clock.opts());
+    const S = K.normalize(Object.assign({ animasyon: 'off', yuzdeGoster: true, oturumFarkiGoster: true }, over));
+    const els = { bar: fakeEl(), fill: fakeEl(), val: fakeEl(), pct: withChips ? fakeEl() : null, delta: withChips ? fakeEl() : null };
+    return { K, env, S, els, clock, gb: K.createGoalBar(els, goal, S) };
+  }
+
+  await check('set(): fill variable, value text, no bump or milestone on the first value', () => {
+    const { gb, els } = make();
+    gb.set(250, 0);
+    eq(els.fill.style.vals['--fill'], '0.2500', '--fill');
+    eq(els.val.textContent, '250', 'value');
+    ok(!els.bar.classes.has('ko-bump'), 'no bump on first value');
+    ok(!els.bar.classes.has('ko-milestone'), 'no milestone on first value');
+  });
+
+  await check('set(): bump only on increase', () => {
+    const { gb, els } = make();
+    gb.set(100, 0);
+    gb.set(150, 0);
+    ok(els.bar.classes.has('ko-bump'), 'bump on increase');
+    els.bar.classes.delete('ko-bump');
+    gb.set(150, 0);
+    ok(!els.bar.classes.has('ko-bump'), 'no bump when unchanged');
+    gb.set(120, 0);
+    ok(!els.bar.classes.has('ko-bump'), 'no bump on decrease');
+    eq(els.val.textContent, '120', 'value follows');
+  });
+
+  await check('set(): milestone class on crossing 25/50/75 %, removed after 1.2 s', async () => {
+    const { gb, els, clock } = make();
+    gb.set(100, 0);
+    gb.set(240, 0);
+    ok(!els.bar.classes.has('ko-milestone'), '24 % is no milestone');
+    gb.set(260, 0);
+    ok(els.bar.classes.has('ko-milestone'), 'crossed 25');
+    await clock.advance(1199);
+    ok(els.bar.classes.has('ko-milestone'), 'still there before 1.2 s');
+    await clock.advance(1);
+    ok(!els.bar.classes.has('ko-milestone'), 'removed at 1.2 s');
+    gb.set(300, 0);
+    ok(!els.bar.classes.has('ko-milestone'), 'no milestone inside a band');
+    gb.set(510, 0);
+    ok(els.bar.classes.has('ko-milestone'), 'crossed 50');
+    await clock.advance(1200);
+    gb.set(760, 0);
+    ok(els.bar.classes.has('ko-milestone'), 'crossed 75');
+    await clock.advance(1200);
+    gb.set(780, 0);
+    ok(!els.bar.classes.has('ko-milestone'), 'no milestone while staying above 75 %');
+  });
+
+  await check('set(): going down across a line and back up counts as crossing again', async () => {
+    const { gb, els, clock } = make();
+    gb.set(800, 0);
+    gb.set(700, 0);
+    ok(!els.bar.classes.has('ko-milestone'), 'down: no milestone');
+    gb.set(760, 0);
+    ok(els.bar.classes.has('ko-milestone'), 'up through 75 again');
+    await clock.advance(1200);
+  });
+
+  await check('set(): is-goal toggles with total >= goal', () => {
+    const { gb, els } = make();
+    gb.set(900, 0);
+    ok(!els.bar.classes.has('is-goal'), 'below goal');
+    gb.set(1000, 0);
+    ok(els.bar.classes.has('is-goal'), 'at goal');
+    gb.set(1200, 0);
+    ok(els.bar.classes.has('is-goal'), 'above goal');
+    eq(els.fill.style.vals['--fill'], '1.0000', 'fill capped at 1');
+    gb.set(900, 0);
+    ok(!els.bar.classes.has('is-goal'), 'goal state removed when total drops');
+  });
+
+  await check('set(): hedefKutlama=false gives no milestone and no is-goal', () => {
+    const { gb, els } = make({ hedefKutlama: false });
+    gb.set(100, 0);
+    gb.set(600, 0);
+    gb.set(1000, 0);
+    ok(!els.bar.classes.has('ko-milestone'), 'no milestone');
+    ok(!els.bar.classes.has('is-goal'), 'no is-goal');
+    ok(els.bar.classes.has('ko-bump'), 'bump is unrelated and still works');
+  });
+
+  await check('set(): goal 0 never counts as reached', () => {
+    const { gb, els } = make({}, 0);
+    gb.set(50, 0);
+    ok(!els.bar.classes.has('is-goal'), 'is-goal');
+    eq(els.fill.style.vals['--fill'], '0.0000', 'fill');
+  });
+
+  await check('set(): percent chip follows yuzdeGoster', () => {
+    const a = make({ yuzdeGoster: true });
+    a.gb.set(256, 0);
+    eq([a.els.pct.hidden, a.els.pct.textContent], [false, '26%'], 'shown');
+    const b = make({ yuzdeGoster: false });
+    b.gb.set(256, 0);
+    eq(b.els.pct.hidden, true, 'hidden');
+  });
+
+  await check('set(): delta chip shows +N / -N, is-neg for negatives, hidden for 0 or oturumFarkiGoster=false', () => {
+    const a = make();
+    a.gb.set(100, 3);
+    eq([a.els.delta.hidden, a.els.delta.textContent], [false, '+3'], 'positive');
+    ok(!a.els.delta.classes.has('is-neg'), 'not negative');
+    a.gb.set(100, -2);
+    eq([a.els.delta.hidden, a.els.delta.textContent], [false, '-2'], 'negative');
+    ok(a.els.delta.classes.has('is-neg'), 'is-neg');
+    a.gb.set(100, 1234);
+    eq(a.els.delta.textContent, '+1,234', 'formatted');
+    ok(!a.els.delta.classes.has('is-neg'), 'is-neg removed');
+    a.gb.set(100, 0);
+    eq(a.els.delta.hidden, true, 'zero hides');
+    const b = make({ oturumFarkiGoster: false });
+    b.gb.set(100, 5);
+    eq(b.els.delta.hidden, true, 'setting off hides');
+  });
+
+  await check('set(): pct and delta elements may be null', () => {
+    const { gb, els } = make({}, 1000, false);
+    gb.set(500, 4);
+    gb.set(600, 4);
+    eq(els.val.textContent, '600', 'value');
+  });
+
+  await check('set(): animasyon=normal tweens the value over frames; off jumps', () => {
+    const { gb, els, env } = make({ animasyon: 'normal' });
+    gb.set(100, 0);
+    ok(els.val.textContent !== '100', 'not there yet');
+    env.now = 1300;
+    env.frames.shift()(1300);
+    eq(els.val.textContent, '100', 'after the tween');
+    const off = make({ animasyon: 'off' });
+    off.gb.set(100, 0);
+    eq(off.els.val.textContent, '100', 'immediate');
+    eq(off.env.frames.length, 0, 'no frames requested');
+  });
+}
+
+async function testPoller() {
+  section('poller()');
+
+  function setup(fn, over = {}, docOpts = {}) {
+    const clock = fakeClock();
+    const doc = docOpts.document;
+    const { K, ctx } = loadCore(Object.assign(clock.opts(), doc ? { document: doc } : {}));
+    setRandom(ctx, 0.5);
+    const p = K.poller(fn, Object.assign({ intervalMs: 1000, jitter: 0 }, over));
+    return { K, ctx, clock, p };
+  }
+  const delaysAfterStart = (clock) => clock.log.slice();
+
+  await check('start() runs at once, then every intervalMs after a success', async () => {
+    let n = 0;
+    const { clock, p } = setup(async () => { n += 1; return { ok: true }; });
+    p.start();
+    await clock.advance(0);
+    eq(n, 1, 'immediate run');
+    await clock.advance(999);
+    eq(n, 1, 'before the interval');
+    await clock.advance(1);
+    eq(n, 2, 'after 1000 ms');
+    await clock.advance(2000);
+    eq(n, 4, 'two more intervals');
+    p.stop();
+  });
+
+  await check('start() twice does not double the polling', async () => {
+    let n = 0;
+    const { clock, p } = setup(async () => { n += 1; return { ok: true }; });
+    p.start();
+    p.start();
+    await clock.advance(3000);
+    eq(n, 4, 'runs at 0, 1000, 2000, 3000');
+    p.stop();
+  });
+
+  await check('jitter keeps the next delay within +/- the jitter fraction', async () => {
+    const lows = [], highs = [];
+    for (const [rnd, bucket] of [[0, lows], [1, highs]]) {
+      const { clock, ctx, p } = setup(async () => ({ ok: true }), { jitter: 0.1 });
+      setRandom(ctx, rnd);
+      p.start();
+      await clock.advance(0);
+      bucket.push(clock.log[0]);
+      p.stop();
+    }
+    eq(lows[0], 900, 'low end');
+    eq(highs[0], 1100, 'high end');
+  });
+
+  await check('failures back off: interval x 2^n, capped at maxBackoffMs', async () => {
+    const { clock, p } = setup(async () => ({ ok: false }), { maxBackoffMs: 5000 });
+    p.start();
+    await clock.advance(0);
+    for (let i = 0; i < 5; i += 1) await clock.advance(clock.timers[0].at - clock.t);
+    eq(delaysAfterStart(clock).slice(0, 5), [2000, 4000, 5000, 5000, 5000], 'delays');
+    p.stop();
+  });
+
+  await check('a success after failures resets the backoff', async () => {
+    let n = 0;
+    const { clock, p } = setup(async () => { n += 1; return { ok: n === 3 || n >= 4 }; });
+    p.start();
+    await clock.advance(0);
+    await clock.advance(2000);
+    await clock.advance(4000);
+    await clock.advance(1000);
+    eq(delaysAfterStart(clock).slice(0, 4), [2000, 4000, 1000, 1000], 'delays');
+    p.stop();
+  });
+
+  await check('a larger retryAfterMs wins over the backoff; a smaller one is ignored', async () => {
+    let n = 0;
+    const { clock, p } = setup(async () => {
+      n += 1;
+      return n === 1 ? { ok: false, retryAfterMs: 20000 } : { ok: false, retryAfterMs: 10 };
+    }, { maxBackoffMs: 5000 });
+    p.start();
+    await clock.advance(0);
+    eq(clock.log[0], 20000, 'retryAfterMs beyond the cap is honoured');
+    await clock.advance(20000);
+    eq(clock.log[1], 4000, 'second failure: small retryAfterMs ignored');
+    p.stop();
+  });
+
+  await check('a throwing fn counts as a failure and polling continues', async () => {
+    let n = 0;
+    const { clock, p } = setup(() => { n += 1; if (n === 1) throw new Error('boom'); return Promise.resolve({ ok: true }); });
+    p.start();
+    await clock.advance(0);
+    eq(clock.log[0], 2000, 'backoff after a throw');
+    await clock.advance(2000);
+    eq(n, 2, 'ran again');
+    p.stop();
+  });
+
+  await check('busy guard: now() while a run is in flight does not start another', async () => {
+    let n = 0, release;
+    const { clock, p } = setup(() => { n += 1; return new Promise((resolve) => { release = () => resolve({ ok: true }); }); });
+    p.start();
+    await clock.advance(0);
+    eq(n, 1, 'first run started');
+    p.now();
+    p.now();
+    await clock.advance(5000);
+    eq(n, 1, 'no overlap while pending');
+    release();
+    await clock.advance(0);
+    eq(clock.timers.length, 1, 'next run armed after it finished');
+    await clock.advance(1000);
+    eq(n, 2, 'second run');
+    p.stop();
+  });
+
+  await check('now() runs immediately and re-arms the timer from the result', async () => {
+    let n = 0;
+    const { clock, p } = setup(async () => { n += 1; return { ok: true }; });
+    p.start();
+    await clock.advance(0);
+    await clock.advance(400);
+    await p.now();
+    eq(n, 2, 'ran now');
+    await clock.advance(999);
+    eq(n, 2, 'timer restarted from now()');
+    await clock.advance(1);
+    eq(n, 3, 'next run one interval after now()');
+    p.stop();
+  });
+
+  await check('stop() clears the timer and later results do not re-arm', async () => {
+    let n = 0, release;
+    const { clock, p } = setup(() => { n += 1; return new Promise((resolve) => { release = () => resolve({ ok: true }); }); });
+    p.start();
+    await clock.advance(0);
+    p.stop();
+    release();
+    await clock.advance(10000);
+    eq(n, 1, 'no more runs');
+    eq(clock.timers.length, 0, 'no pending timers');
+    await p.now();
+    eq(n, 1, 'now() after stop does nothing');
+
+    let m = 0;
+    const b = setup(async () => { m += 1; return { ok: true }; });
+    b.p.start();
+    await b.clock.advance(0);
+    eq(b.clock.timers.length, 1, 'timer armed');
+    b.p.stop();
+    eq(b.clock.timers.length, 0, 'stop clears it');
+    await b.clock.advance(5000);
+    eq(m, 1, 'no run after stop');
+  });
+
+  await check('hidden page: no run is scheduled; becoming visible runs at once', async () => {
+    let n = 0;
+    const doc = fakeVisibilityDocument(true);
+    const { clock, p } = setup(async () => { n += 1; return { ok: true }; }, {}, { document: doc });
+    p.start();
+    await clock.advance(5000);
+    eq(n, 0, 'no run while hidden');
+    eq(doc.listeners.length, 1, 'visibility listener added');
+    doc.setHidden(false);
+    await clock.advance(0);
+    eq(n, 1, 'ran on becoming visible');
+    await clock.advance(1000);
+    eq(n, 2, 'regular polling resumed');
+    doc.hidden = true;
+    await clock.advance(1000);
+    eq(n, 2, 'a due timer does not poll a hidden page');
+    await clock.advance(5000);
+    eq(n, 2, 'still paused');
+    doc.setHidden(false);
+    await clock.advance(0);
+    eq(n, 3, 'resumed with an immediate run');
+    p.stop();
+    eq(doc.listeners.length, 0, 'visibility listener removed on stop');
+  });
+
+  await check('a run that finishes while the page is hidden schedules nothing until it is visible again', async () => {
+    let n = 0, release;
+    const doc = fakeVisibilityDocument(false);
+    const { clock, p } = setup(() => { n += 1; return new Promise((resolve) => { release = () => resolve({ ok: true }); }); }, {}, { document: doc });
+    p.start();
+    await clock.advance(0);
+    doc.hidden = true;
+    release();
+    await clock.advance(5000);
+    eq(clock.timers.length, 0, 'nothing armed');
+    eq(n, 1, 'no new run');
+    doc.setHidden(false);
+    await clock.advance(0);
+    eq(n, 2, 'run on visible');
+    p.stop();
+  });
+}
+
+async function testRelayInfoAndChannel() {
+  section('relayInfo() and kick.channel() (relay first, direct fallback)');
+  const S = (over) => Object.assign({ relayAdresi: RELAY }, over);
+
+  await check('relayInfo: GET /health, returns the health object, memoized for later calls', async () => {
+    const net = fakeNet(() => HEALTH({ channel: true }));
+    const { K } = loadCore({ fetch: net.fetch });
+    const a = await K.relayInfo(S());
+    const b = await K.relayInfo(S());
+    eq(a.version, '2.3.0', 'version');
+    eq(a.features.channel, true, 'features');
+    eq(net.calls.length, 1, 'requests');
+    eq(net.calls[0].url, RELAY + '/health', 'url');
+    ok(net.calls[0].signal, 'request has a timeout signal');
+    eq(b, a, 'same result');
+  });
+
+  await check('relayInfo: concurrent calls share one request', async () => {
+    const net = fakeNet(() => HEALTH({}));
+    const { K } = loadCore({ fetch: net.fetch });
+    await Promise.all([K.relayInfo(S()), K.relayInfo(S()), K.relayInfo(S())]);
+    eq(net.calls.length, 1, 'requests');
+  });
+
+  await check('relayInfo: uses the configured relayAdresi; none configured gives null without a request', async () => {
+    const net = fakeNet(() => HEALTH({}));
+    const { K } = loadCore({ fetch: net.fetch });
+    await K.relayInfo({ relayAdresi: 'http://127.0.0.1:9000' });
+    eq(net.calls[0].url, 'http://127.0.0.1:9000/health', 'url');
+    eq(await K.relayInfo({}), null, 'no address');
+    eq(await K.relayInfo(null), null, 'no settings');
+    eq(net.calls.length, 1, 'requests');
+  });
+
+  await check('relayInfo: a failed probe gives null and is retried at most every 5 minutes', async () => {
+    const clock = fakeClock();
+    let up = false;
+    const net = fakeNet(() => { if (!up) throw new TypeError('refused'); return HEALTH({ channel: true }); });
+    const { K } = loadCore(Object.assign({ fetch: net.fetch }, clock.opts()));
+    eq(await K.relayInfo(S()), null, 'first');
+    eq(net.calls.length, 1, 'requests after first');
+    up = true;
+    await clock.advance(4 * 60 * 1000);
+    eq(await K.relayInfo(S()), null, 'within 5 min');
+    eq(net.calls.length, 1, 'no new request within 5 min');
+    await clock.advance(61 * 1000);
+    const info = await K.relayInfo(S());
+    eq(info && info.features.channel, true, 'after 5 min the probe is retried');
+    eq(net.calls.length, 2, 'requests after retry');
+    await K.relayInfo(S());
+    eq(net.calls.length, 2, 'success is memoized');
+  });
+
+  await check('relayInfo: a non-200 or a body that is not JSON gives null', async () => {
+    const K1 = loadCore({ fetch: fakeNet(() => ({ status: 500, body: {} })).fetch }).K;
+    eq(await K1.relayInfo(S()), null, '500');
+    const K2 = loadCore({ fetch: fakeNet(() => ({ status: 200, body: 'text' })).fetch }).K;
+    eq(await K2.relayInfo(S()), null, 'text body');
+  });
+
+  await check('relayInfo: gives up after 1500 ms', async () => {
+    const clock = fakeClock();
+    const net = fakeNet((c) => new Promise((_, reject) => {
+      c.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    }));
+    const { K } = loadCore(Object.assign({ fetch: net.fetch }, clock.opts()));
+    let settled = false;
+    const pr = K.relayInfo(S()).then((v) => { settled = true; return v; });
+    await clock.advance(1499);
+    eq(settled, false, 'still waiting at 1499 ms');
+    await clock.advance(1);
+    eq(await pr, null, 'null at 1500 ms');
+  });
+
+  // kick.channel with the relay
+  const v2Body = () => fixture('kick-v2-channel-offline.json');
+  function channelNet({ health = () => HEALTH({ channel: true }), relayChannel, direct }) {
+    return fakeNet((c) => {
+      if (c.url === RELAY + '/health') return health();
+      if (c.url.startsWith(RELAY + '/channel')) return relayChannel(c);
+      return direct(c);
+    });
+  }
+
+  await check('kick.channel: relay v2 is used first (src relay-v2) and no direct request is made', async () => {
+    const net = channelNet({
+      relayChannel: () => ({ status: 200, body: v2Body(), headers: { 'X-Kick-Source': 'v2' } }),
+      direct: () => { throw new Error('direct request'); }
+    });
+    const r = await loadCore({ fetch: net.fetch }).K.kick.channel('example-channel', S());
+    eqFields(r, { ok: true, src: 'relay-v2', status: 200 }, '');
+    eq(r.data.followers_count, v2Body().followers_count, 'raw data passed through');
+    eq(net.calls.map((c) => c.url), [RELAY + '/health', RELAY + '/channel?slug=example-channel'], 'requests');
+  });
+
+  await check('kick.channel: X-Kick-Source v1 gives relay-v1; a missing header gives relay-v2', async () => {
+    const mk = (headers) => channelNet({
+      relayChannel: () => ({ status: 200, body: fixture('kick-v1-channel.json'), headers }),
+      direct: () => { throw new Error('direct request'); }
+    });
+    eq((await loadCore({ fetch: mk({ 'X-Kick-Source': 'v1' }).fetch }).K.kick.channel('example-channel', S())).src, 'relay-v1', 'v1');
+    eq((await loadCore({ fetch: mk(undefined).fetch }).K.kick.channel('example-channel', S())).src, 'relay-v2', 'no header');
+  });
+
+  await check('kick.channel: a relay failure (502, network) falls back to the direct v2 request', async () => {
+    for (const relayChannel of [() => ({ status: 502, body: { ok: false, error: 'upstream' } }), () => { throw new TypeError('reset'); }]) {
+      const net = channelNet({ relayChannel, direct: () => ({ status: 200, body: v2Body() }) });
+      const r = await loadCore({ fetch: net.fetch }).K.kick.channel('example-channel', S());
+      eqFields(r, { ok: true, src: 'v2' }, '');
+      eq(net.calls[net.calls.length - 1].url, 'https://kick.com/api/v2/channels/example-channel', 'direct url');
+    }
+  });
+
+  await check('kick.channel: a relay 429 returns at once with retryAfterMs and does not hit Kick directly', async () => {
+    const net = channelNet({
+      relayChannel: () => ({ status: 429, body: { ok: false }, headers: { 'Retry-After': '45' } }),
+      direct: () => { throw new Error('direct request'); }
+    });
+    const r = await loadCore({ fetch: net.fetch }).K.kick.channel('example-channel', S());
+    eqFields(r, { ok: false, status: 429, retryAfterMs: 45000 }, '');
+    eq(kickCalls(net).filter((c) => !c.url.startsWith(RELAY)).length, 0, 'direct requests');
+    const net2 = channelNet({ relayChannel: () => ({ status: 429, body: {} }), direct: () => { throw new Error('direct request'); } });
+    eq((await loadCore({ fetch: net2.fetch }).K.kick.channel('example-channel', S())).retryAfterMs, 60000, 'default 60 s');
+  });
+
+  await check('kick.channel: relay without the channel feature, or relay down, goes straight to direct', async () => {
+    const off = channelNet({
+      health: () => HEALTH({ channel: false }),
+      relayChannel: () => { throw new Error('relay channel request'); },
+      direct: () => ({ status: 200, body: v2Body() })
+    });
+    eq((await loadCore({ fetch: off.fetch }).K.kick.channel('example-channel', S())).src, 'v2', 'feature off');
+    const down = channelNet({
+      health: () => { throw new TypeError('refused'); },
+      relayChannel: () => { throw new Error('relay channel request'); },
+      direct: () => ({ status: 200, body: v2Body() })
+    });
+    eq((await loadCore({ fetch: down.fetch }).K.kick.channel('example-channel', S())).src, 'v2', 'relay down');
+  });
+
+  await check('kick.channel: without settings the relay is never contacted', async () => {
+    const net = fakeNet(() => ({ status: 200, body: v2Body() }));
+    const r = await loadCore({ fetch: net.fetch }).K.kick.channel('example-channel');
+    eq(r.src, 'v2', 'src');
+    ok(net.calls.every((c) => c.url.startsWith('https://kick.com/')), 'only kick.com requests');
+  });
+
+  await check('kick.channel direct: 403 and 429 stop at once (no v1) and carry retryAfterMs', async () => {
+    for (const [status, headers, want] of [[403, undefined, 60000], [429, undefined, 60000], [429, { 'Retry-After': '7' }, 7000], [403, { 'Retry-After': '120' }, 120000]]) {
+      const net = fakeNet(() => ({ status, body: {}, headers }));
+      const r = await loadCore({ fetch: net.fetch }).K.kick.channel('example-channel');
+      eqFields(r, { ok: false, status, retryAfterMs: want, src: 'v2' }, status + ' ');
+      eq(net.calls.length, 1, 'requests for ' + status);
+    }
+  });
+
+  await check('kick.channel direct: 404, 5xx, network error and timeout fall back to v1', async () => {
+    const failures = [
+      ['404', () => ({ status: 404, body: {} })],
+      ['500', () => ({ status: 500, body: {} })],
+      ['503', () => ({ status: 503, body: {} })],
+      ['network', () => { throw new TypeError('fetch failed'); }]
+    ];
+    for (const [name, v2fail] of failures) {
+      const net = fakeNet((c) => (c.url.includes('/api/v2/') ? v2fail() : { status: 200, body: fixture('kick-v1-channel.json') }));
+      const r = await loadCore({ fetch: net.fetch }).K.kick.channel('example-channel');
+      eqFields(r, { ok: true, src: 'v1' }, name + ' ');
+      eq(net.calls.length, 2, 'requests for ' + name);
+    }
+    const clock = fakeClock();
+    const net = fakeNet((c) => (c.url.includes('/api/v2/')
+      ? new Promise((_, reject) => { c.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))); })
+      : { status: 200, body: fixture('kick-v1-channel.json') }));
+    const { K } = loadCore(Object.assign({ fetch: net.fetch }, clock.opts()));
+    const pr = K.kick.channel('example-channel');
+    await clock.advance(10000);
+    eqFields(await pr, { ok: true, src: 'v1' }, 'timeout ');
+  });
+
+  await check('kick.channel direct: v1 answering 429 after a v2 5xx also carries retryAfterMs', async () => {
+    const net = fakeNet((c) => (c.url.includes('/api/v2/')
+      ? { status: 500, body: {} }
+      : { status: 429, body: {}, headers: { 'Retry-After': '9' } }));
+    const r = await loadCore({ fetch: net.fetch }).K.kick.channel('example-channel');
+    eqFields(r, { ok: false, status: 429, retryAfterMs: 9000 }, '');
+  });
+}
+
+async function testSubscriberRelayAndBaseline() {
+  section('Subscriber source: relay mode and persisted baseline');
+  const GOOD = (features) => () => HEALTH(Object.assign({ subscribers: true }, features));
+
+  await check('relay mode: mode switches on the first poll; values and delta come from /subscribers', async () => {
+    const net = officialFake({
+      relay: (c, n) => {
+        if (c.url === RELAY + '/health') return GOOD()();
+        return SUBS_OK(c.url.includes('slug=example-channel') ? (n === 2 ? 42 : 45) : 0);
+      }
+    });
+    const { src } = subscriberSetup(net, { yerel: {} });
+    eq(src.mode, 'manual', 'mode before the first poll');
+    eqFields(await src.poll(), { mode: 'relay', status: 'ok', total: 42, delta: 0 }, 'first ');
+    eq(src.mode, 'relay', 'src.mode after the poll');
+    eqFields(await src.poll(), { mode: 'relay', status: 'ok', total: 45, delta: 3 }, 'second ');
+    eq(relayCalls(net).map((c) => c.url), [RELAY + '/health', RELAY + '/subscribers?slug=example-channel', RELAY + '/subscribers?slug=example-channel'], 'relay requests');
+    eq(kickCalls(net).length, 0, 'no direct Kick or token requests');
+  });
+
+  await check('relay mode wins over credentials in the page when the relay offers subscribers', async () => {
+    const net = officialFake({ relay: (c) => (c.url.endsWith('/health') ? GOOD()() : SUBS_OK(77)) });
+    const { src } = subscriberSetup(net);
+    eq(src.mode, 'token', 'initial guess with credentials');
+    eqFields(await src.poll(), { mode: 'relay', status: 'ok', total: 77 }, '');
+    eq(tokenCalls(net).length, 0, 'token requests');
+  });
+
+  await check('relay mode: HTTP errors map to statuses; the last total is kept; rate carries retryAfterMs', async () => {
+    const cases = [
+      [503, undefined, 'no-credentials'], [401, undefined, 'auth'], [429, undefined, 'rate'],
+      [429, { 'Retry-After': '12' }, 'rate'], [502, undefined, 'error'], [500, undefined, 'error']
+    ];
+    for (const [status, headers, want] of cases) {
+      let n = 0;
+      const net = officialFake({
+        relay: (c) => {
+          if (c.url.endsWith('/health')) return GOOD()();
+          n += 1;
+          return n === 1 ? SUBS_OK(42) : { status, body: { ok: false }, headers };
+        }
+      });
+      const { src } = subscriberSetup(net, { yerel: {} });
+      await src.poll();
+      const r = await src.poll();
+      eqFields(r, { status: want, total: 42, delta: 0 }, status + ' ');
+      if (want === 'rate') eq(r.retryAfterMs, headers ? 12000 : 60000, 'retryAfterMs for ' + status);
+    }
+  });
+
+  await check('relay mode: subs null gives no-data; a thrown network error gives error (no credentials to fall back to)', async () => {
+    const a = subscriberSetup(officialFake({ relay: (c) => (c.url.endsWith('/health') ? GOOD()() : SUBS_OK(null)) }), { yerel: {} });
+    eq((await a.src.poll()).status, 'no-data', 'no-data');
+    let calls = 0;
+    const b = subscriberSetup(officialFake({
+      relay: (c) => { if (c.url.endsWith('/health')) return GOOD()(); calls += 1; throw new TypeError('reset'); }
+    }), { yerel: {} });
+    eq((await b.src.poll()).status, 'error', 'error');
+    eq(calls, 1, 'one attempt');
+  });
+
+  await check('relay mode with page credentials: an unreachable relay on a poll falls back to the token path', async () => {
+    const net = officialFake({
+      relay: (c) => { if (c.url.endsWith('/health')) return GOOD()(); throw new TypeError('reset'); },
+      channel: liveSubs(50)
+    });
+    const { src } = subscriberSetup(net);
+    eqFields(await src.poll(), { mode: 'token', status: 'ok', total: 50 }, '');
+    eq(tokenCalls(net).length, 1, 'token requests');
+  });
+
+  await check('relay without the subscribers feature: token mode with credentials, manual without', async () => {
+    const relay = (c) => (c.url.endsWith('/health') ? HEALTH({ subscribers: false }) : { status: 404, body: {} });
+    const withCreds = subscriberSetup(officialFake({ relay, channel: liveSubs(42) }));
+    eqFields(await withCreds.src.poll(), { mode: 'token', status: 'ok', total: 42 }, 'token ');
+    const without = subscriberSetup(officialFake({ relay }), { yerel: {}, ayarlar: { kanal: 'example-channel', aboneSayisi: 9 } });
+    eqFields(await without.src.poll(), { mode: 'manual', status: 'manual', total: 9 }, 'manual ');
+  });
+
+  await check('the mode is re-evaluated: a relay that starts later is picked up after the 5-minute probe retry', async () => {
+    const clock = fakeClock();
+    let up = false;
+    const net = officialFake({
+      relay: (c) => {
+        if (c.url.endsWith('/health')) return up ? GOOD()() : (() => { throw new TypeError('refused'); })();
+        return SUBS_OK(60);
+      }
+    });
+    const { K } = loadCore(Object.assign({ fetch: net.fetch, ayarlar: { kanal: 'example-channel', aboneSayisi: 5 }, yerel: {} }, clock.opts()));
+    const src = K.createSubscriberSource(K.readSettings());
+    eq((await src.poll()).mode, 'manual', 'relay down');
+    up = true;
+    await clock.advance(5 * 60 * 1000 + 1);
+    eqFields(await src.poll(), { mode: 'relay', status: 'ok', total: 60 }, '');
+    eq(src.mode, 'relay', 'src.mode');
+  });
+
+  await check('no kanal: no-channel in relay-less token mode and no request at all', async () => {
+    const net = officialFake({ relay: () => GOOD()() });
+    const { src } = subscriberSetup(net, { ayarlar: {} });
+    eq((await src.poll()).status, 'no-channel', 'status');
+    eq(net.calls.length, 0, 'requests');
+  });
+
+  await check('token mode: a 429 carries retryAfterMs (header seconds, else 60 s)', async () => {
+    const withHeader = officialFake({ channel: () => ({ status: 429, body: {}, headers: { 'Retry-After': '33' } }) });
+    eq((await subscriberSetup(withHeader).src.poll()).retryAfterMs, 33000, 'header');
+    const noHeader = officialFake({ channel: () => ({ status: 429, body: {} }) });
+    eq((await subscriberSetup(noHeader).src.poll()).retryAfterMs, 60000, 'default');
+  });
+
+  // Baseline persistence
+  const KEY = 'ko:subBase:example-channel';
+  function baselineSetup(clock, storage, counts, channel = 'example-channel') {
+    const seq = Array.isArray(counts) ? counts : [counts];
+    let i = 0;
+    const net = officialFake({ channel: () => liveBody(seq[Math.min(i++, seq.length - 1)]) });
+    const { K } = loadCore(Object.assign({
+      fetch: net.fetch, localStorage: storage,
+      ayarlar: { kanal: channel }, yerel: TEST_LOCAL
+    }, clock.opts()));
+    return K.createSubscriberSource(K.readSettings());
+  }
+
+  await check('baseline: the first value is stored as {base, at} under ko:subBase:<kanal>', async () => {
+    const clock = fakeClock();
+    const storage = fakeStorage();
+    const src = baselineSetup(clock, storage, [42, 45]);
+    eqFields(await src.poll(), { total: 42, delta: 0 }, 'first ');
+    eq(JSON.parse(storage.data[KEY]), { base: 42, at: clock.t }, 'stored');
+    eqFields(await src.poll(), { total: 45, delta: 3 }, 'second ');
+    eq(JSON.parse(storage.data[KEY]).base, 42, 'baseline not moved');
+  });
+
+  await check('baseline: a new page load within 12 h keeps the stored baseline', async () => {
+    const clock = fakeClock();
+    const storage = fakeStorage();
+    await baselineSetup(clock, storage, 42).poll();
+    await clock.advance(11 * 60 * 60 * 1000);
+    const r = await baselineSetup(clock, storage, 50).poll();
+    eqFields(r, { total: 50, delta: 8 }, '');
+  });
+
+  await check('baseline: older than 12 h starts a new baseline and rewrites the storage', async () => {
+    const clock = fakeClock();
+    const storage = fakeStorage();
+    await baselineSetup(clock, storage, 42).poll();
+    await clock.advance(12 * 60 * 60 * 1000 + 1);
+    const r = await baselineSetup(clock, storage, 50).poll();
+    eqFields(r, { total: 50, delta: 0 }, '');
+    eq(JSON.parse(storage.data[KEY]), { base: 50, at: clock.t }, 'rewritten');
+  });
+
+  await check('baseline: each kanal has its own entry', async () => {
+    const clock = fakeClock();
+    const storage = fakeStorage();
+    await baselineSetup(clock, storage, 42, 'example-channel').poll();
+    const r = await baselineSetup(clock, storage, 90, 'other').poll();
+    eq(r.delta, 0, 'other channel starts at 0');
+    eq(Object.keys(storage.data).sort(), ['ko:subBase:example-channel', 'ko:subBase:other'], 'keys');
+  });
+
+  await check('baseline: corrupt or invalid stored data is ignored', async () => {
+    for (const bad of ['{not json', 'null', '[]', '{"base":"x","at":1}', JSON.stringify({ base: 42, at: 1.7e12 + 99999999 })]) {
+      const clock = fakeClock();
+      const storage = fakeStorage({ [KEY]: bad });
+      const r = await baselineSetup(clock, storage, 50).poll();
+      eq(r.delta, 0, 'delta for ' + bad);
+      eq(JSON.parse(storage.data[KEY]).base, 50, 'replaced for ' + bad);
+    }
+  });
+
+  await check('baseline: blocked storage never breaks polling', async () => {
+    const clock = fakeClock();
+    const src = baselineSetup(clock, throwingStorage(), [42, 45]);
+    eqFields(await src.poll(), { status: 'ok', total: 42, delta: 0 }, 'first ');
+    eqFields(await src.poll(), { status: 'ok', total: 45, delta: 3 }, 'second ');
+    const noStorage = baselineSetup(clock, undefined, [42, 44]);
+    await noStorage.poll();
+    eq((await noStorage.poll()).delta, 2, 'no localStorage at all');
+  });
+
+  await check('baseline: manual mode never touches storage', async () => {
+    const storage = fakeStorage();
+    const net = fakeNet(() => { throw new TypeError('offline'); });
+    const { K } = loadCore({ fetch: net.fetch, localStorage: storage, ayarlar: { kanal: 'example-channel', aboneSayisi: 17 } });
+    const src = K.createSubscriberSource(K.readSettings());
+    eqFields(await src.poll(), { status: 'manual', total: 17, delta: 0 }, '');
+    eq(Object.keys(storage.data).length, 0, 'storage entries');
+  });
+}
+
+async function testConnectRelayReconnect() {
+  section('connectRelay(): reconnect with backoff');
+
+  function setup(random) {
+    const sources = [], statuses = [], messages = [];
+    const clock = fakeClock();
+    const { K, ctx } = loadCore(Object.assign({ EventSource: fakeEventSource(sources) }, clock.opts()));
+    setRandom(ctx, random === undefined ? 0.5 : random);
+    const stop = K.connectRelay(RELAY + '/events', { onMessage: (m) => messages.push(m), onStatus: (st) => statuses.push(st) });
+    return { sources, statuses, messages, clock, stop };
+  }
+  const dropClosed = (src) => { src.readyState = 2; src.onerror(); };
+
+  await check('a closed stream is reopened with backoff 1 s, 2 s, 4 s ... capped at 30 s', async () => {
+    const { sources, statuses, clock, stop } = setup(0.5);
+    const want = [1000, 2000, 4000, 8000, 16000, 30000, 30000];
+    for (let i = 0; i < want.length; i += 1) {
+      dropClosed(sources[i]);
+      ok(sources[i].closed, 'old stream closed #' + i);
+      eq(clock.log[i], want[i], 'delay #' + i);
+      await clock.advance(want[i] - 1);
+      eq(sources.length, i + 1, 'not reopened early #' + i);
+      await clock.advance(1);
+      eq(sources.length, i + 2, 'reopened #' + i);
+      eq(sources[i + 1].url, RELAY + '/events', 'same url');
+    }
+    eq(statuses[0], 'connecting', 'first status');
+    ok(statuses.slice(1).every((s) => s === 'reconnecting'), 'later statuses are reconnecting');
+    stop();
+  });
+
+  await check('backoff jitter stays within +/- 20 % (and never beyond 30 s)', async () => {
+    const lo = setup(0);
+    dropClosed(lo.sources[0]);
+    eq(lo.clock.log[0], 800, 'low');
+    lo.stop();
+    const hi = setup(1);
+    dropClosed(hi.sources[0]);
+    eq(hi.clock.log[0], 1200, 'high');
+    hi.stop();
+    const cap = setup(1);
+    for (let i = 0; i < 8; i += 1) { dropClosed(cap.sources[i]); await cap.clock.advance(30000); }
+    ok(cap.clock.log.every((d) => d <= 30000), 'all delays <= 30000: ' + cap.clock.log.join(','));
+    eq(cap.clock.log[cap.clock.log.length - 1], 30000, 'capped');
+    cap.stop();
+  });
+
+  await check('onopen resets the backoff; messages from the reopened stream are forwarded', async () => {
+    const { sources, statuses, messages, clock, stop } = setup(0.5);
+    dropClosed(sources[0]);
+    await clock.advance(1000);
+    dropClosed(sources[1]);
+    eq(clock.log[1], 2000, 'second delay grew');
+    await clock.advance(2000);
+    sources[2].onopen();
+    eq(statuses[statuses.length - 1], 'open', 'status open');
+    sources[2].emit('chat', JSON.stringify({ id: 'm-9', username: 'viewer', message: 'hi' }));
+    eq(messages.map((m) => m.kind), ['chat'], 'forwarded from the new stream');
+    dropClosed(sources[2]);
+    eq(clock.log[2], 1000, 'delay back to 1 s after open');
+    stop();
+  });
+
+  await check('an error while the browser is still retrying (not CLOSED) does not reopen or close', async () => {
+    const { sources, statuses, clock, stop } = setup();
+    sources[0].readyState = 0;
+    sources[0].onerror();
+    await clock.advance(60000);
+    eq(sources.length, 1, 'no new stream');
+    eq(sources[0].closed, false, 'not closed');
+    eq(statuses, ['connecting', 'reconnecting'], 'statuses');
+    stop();
+  });
+
+  await check('stop() cancels a pending reconnect and closes the stream', async () => {
+    const { sources, clock, stop } = setup();
+    dropClosed(sources[0]);
+    stop();
+    await clock.advance(60000);
+    eq(sources.length, 1, 'no new stream after stop');
+    const second = setup();
+    second.stop();
+    ok(second.sources[0].closed, 'closed');
+  });
+
+  await check('a failing EventSource constructor on reopen schedules another attempt', async () => {
+    const sources = [];
+    const clock = fakeClock();
+    let broken = false;
+    const Base = fakeEventSource(sources);
+    class Flaky extends Base { constructor(url) { if (broken) throw new Error('blocked'); super(url); } }
+    const { K, ctx } = loadCore(Object.assign({ EventSource: Flaky }, clock.opts()));
+    setRandom(ctx, 0.5);
+    const stop = K.connectRelay(RELAY + '/events', {});
+    broken = true;
+    dropClosed(sources[0]);
+    await clock.advance(1000);
+    eq(clock.log.slice(0, 2), [1000, 2000], 'second attempt scheduled with a longer delay');
+    broken = false;
+    await clock.advance(2000);
+    eq(sources.length, 2, 'reopened once the constructor works');
+    stop();
+  });
+}
+
 // ---- Section: themes, components, pages -----------------------------------------
 
 async function testThemesAndPages() {
@@ -980,7 +2231,7 @@ async function testThemesAndPages() {
   });
 
   for (const page of OVERLAY_PAGES) {
-    await check(`head template: ${page}`, () => checkHeadTemplate(pageHtml(page)));
+    await check(`head template: ${page}`, () => checkHeadTemplate(pageHtml(page), page));
   }
 
   await check(`studio uses the shared stylesheet and core: ${STUDIO_PAGE}`, () => {
@@ -1009,7 +2260,7 @@ async function testThemesAndPages() {
     for (let n = 1; n <= 4; n++) used.add('help.c' + n);
     for (let n = 1; n <= 7; n++) { used.add('help.n' + n + '.t'); used.add('help.n' + n + '.d'); }
     // Prefixes of the run-time keys above (t('preset.' + id)) are not keys themselves.
-    const missing = [...used].filter((k) => !tr.includes(k) && !/.$/.test(k) && k !== 'help.n');
+    const missing = [...used].filter((k) => !tr.includes(k) && !/\.$/.test(k) && k !== 'help.n');
     eq(missing, [], 'keys used but not defined');
     for (const k of tr) ok(String(I18N.tr[k]).trim() !== '' && String(I18N.en[k]).trim() !== '', 'empty text: ' + k);
   });
@@ -1047,6 +2298,13 @@ async function testSyntax() {
   await testSubscriberSource();
   await testChatFeed();
   await testMockServer();
+  await testSettingsV23();
+  await testHelpersV23();
+  await testCreateGoalBar();
+  await testPoller();
+  await testRelayInfoAndChannel();
+  await testSubscriberRelayAndBaseline();
+  await testConnectRelayReconnect();
   await testThemesAndPages();
   await testSyntax();
 

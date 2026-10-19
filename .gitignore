@@ -1,6 +1,12 @@
 # Kick app credentials (client id and secret). Never commit.
 AYARLAR.local.js
 
+# Environment files and key material. Never commit.
+.env
+.env.*
+*.pem
+*.key
+
 # Local tooling output
 node_modules/
 *.log

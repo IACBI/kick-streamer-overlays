@@ -37,7 +37,13 @@
     geriSayimDk:       { t: 'int', d: 5, min: 1, max: 720 },
     geriSayimBaslik:   { t: 'str', d: '', max: 60 },
     duyuruMetinleri:   { t: 'str', d: '', max: 400 },
-    duyuruSn:          { t: 'int', d: 6, min: 3, max: 60 }
+    duyuruSn:          { t: 'int', d: 6, min: 3, max: 60 },
+    geriSayimSaat:     { t: 'clock', d: '' },
+    sohbetKomutGizle:  { t: 'bool', d: false },
+    sohbetGizliKullanicilar: { t: 'str', d: '', max: 300 },
+    sohbetSilinmeSn:   { t: 'int', d: 0, min: 0, max: 600 },
+    hataNotu:          { t: 'bool', d: true },
+    hedefKutlama:      { t: 'bool', d: true }
   };
 
   // Local-only keys. Never read from the URL, so secrets never end up in a URL.
@@ -51,6 +57,7 @@
 
   var HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
   // https anywhere, or plain http only for loopback (local mock servers and tests).
+  var CLOCK_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
   var URL_RE = /^(https:\/\/\S+|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/\S*)?)$/i;
 
   function asStr(v, d, max) {
@@ -72,9 +79,24 @@
     return Math.min(max, Math.max(min, n));
   }
   function asBool(v, d) {
-    if (v === true || v === 1 || v === '1' || v === 'true') return true;
-    if (v === false || v === 0 || v === '0' || v === 'false') return false;
+    if (v === true || v === 1) return true;
+    if (v === false || v === 0) return false;
+    if (typeof v !== 'string') return d;
+    var s = v.trim().toLowerCase();
+    if (s === '1' || s === 'true' || s === 'yes' || s === 'on') return true;
+    if (s === '0' || s === 'false' || s === 'no' || s === 'off') return false;
     return d;
+  }
+  // "HH:MM" 24h, zero-padded; anything else falls back (an empty default means "not set").
+  function asClock(v, d) {
+    var m = typeof v === 'string' ? CLOCK_RE.exec(v.trim()) : null;
+    return m ? (m[1].length < 2 ? '0' : '') + m[1] + ':' + m[2] : d;
+  }
+  // Accepts a bare slug, @slug or a pasted kick.com link; keeps the first path segment.
+  function cleanChannel(v) {
+    if (typeof v !== 'string') return '';
+    var t = v.trim().replace(/^(?:https?:\/\/)?(?:www\.)?kick\.com\//i, '').replace(/^@/, '');
+    return t.split(/[\/?#\s]/)[0].replace(/^@/, '').toLowerCase().slice(0, 40);
   }
   function asUrl(v, d) {
     return typeof v === 'string' && URL_RE.test(v.trim()) ? v.trim().replace(/\/+$/, '') : d;
@@ -87,6 +109,7 @@
       case 'hex': return asHex(v, spec.d);
       case 'int': return asInt(v, spec.min, spec.max, spec.d);
       case 'bool': return asBool(v, spec.d);
+      case 'clock': return asClock(v, spec.d);
       case 'url': return asUrl(v, spec.d);
     }
     return spec.d;
@@ -97,9 +120,8 @@
     raw = raw || {};
     var out = {};
     Object.keys(SCHEMA).forEach(function (k) {
-      out[k] = coerce(SCHEMA[k], raw[k]);
+      out[k] = coerce(SCHEMA[k], k === 'kanal' ? cleanChannel(raw[k]) : raw[k]);
     });
-    if (out.kanal) out.kanal = out.kanal.toLowerCase();
     return out;
   }
 
@@ -131,6 +153,9 @@
     var search = global.location ? global.location.search : '';
     var pub = Object.assign({}, file, local, urlOverrides(search));
     var secrets = normalizeLocal(Object.assign({}, file, local));
+    // AYARLAR.js is shared and published; app credentials are honored only from the git-ignored AYARLAR.local.js.
+    secrets.kickClientId = coerce(LOCAL_SCHEMA.kickClientId, local.kickClientId);
+    secrets.kickClientSecret = coerce(LOCAL_SCHEMA.kickClientSecret, local.kickClientSecret);
     return Object.freeze(Object.assign({}, normalize(pub), secrets));
   }
 
@@ -142,6 +167,11 @@
   // Used by the studio and the README. Never affects a live OBS source.
   function isPreview() {
     return !!(global.location && /(?:^|[?&])onizleme=1(?:&|$)/.test(global.location.search));
+  }
+
+  // ?debug=1 shows the small diagnostics box (K.debug) and keeps error notes visible.
+  function isDebug() {
+    return !!(global.location && /(?:^|[?&])debug=1(?:&|$)/.test(global.location.search));
   }
 
   var SAMPLE = {
@@ -168,8 +198,12 @@
   // Thousands separators follow the label language: 1.234 for tr, 1,234 otherwise. applyLook() sets it.
   var numLocale = 'en-US';
 
+  var fmtCache = {};
   function fmt(n) {
-    return Math.round(Number(n) || 0).toLocaleString(numLocale);
+    var v = Math.round(Number(n) || 0);
+    if (typeof Intl === 'undefined') return v.toLocaleString(numLocale);
+    var f = fmtCache[numLocale] || (fmtCache[numLocale] = new Intl.NumberFormat(numLocale));
+    return f.format(v);
   }
 
   function pct(current, goal) {
@@ -217,9 +251,225 @@
     return function cancel() { stopped = true; global.cancelAnimationFrame(id); };
   }
 
+  // Drives the bar through a CSS variable; the stylesheet scales the fill with transform, so no layout work per frame.
+  function setFill(el, p) {
+    if (!el || !el.style) return;
+    var n = Math.max(0, Math.min(100, Number(p) || 0));
+    el.style.setProperty('--fill', (n / 100).toFixed(4));
+  }
+
+  var FONT_URLS = {
+    inter: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap',
+    poppins: 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap',
+    nunito: 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap',
+    mono: 'https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap'
+  };
+
+  // Loads only the chosen family instead of all four. Safe to call again with other settings.
+  function loadFont(s) {
+    var d = global.document;
+    if (!d || !d.head || typeof d.createElement !== 'function') return null;
+    var link = typeof d.getElementById === 'function' ? d.getElementById('ko-font') : null;
+    if (!link) {
+      link = d.createElement('link');
+      link.id = 'ko-font';
+      link.rel = 'stylesheet';
+      d.head.appendChild(link);
+    }
+    link.href = FONT_URLS[s && s.yaziTipi] || FONT_URLS.inter;
+    return link;
+  }
+
+  // Short UI strings shared by every overlay, in the viewer-chosen language.
+  function text(s) {
+    return {
+      hint: label(s, '⚙ AYARLAR.js → kanal ayarla', '⚙ Set kanal in AYARLAR.js'),
+      auth: label(s, 'Kick uygulama bilgisi hatalı', 'Kick app credentials rejected'),
+      rate: label(s, 'Kick istek sınırı, son değer', 'Kick rate limit, showing last value'),
+      error: label(s, 'Kick yanıt vermedi, son değer', 'Kick error, showing last value'),
+      noData: label(s, 'Abone verisi yok', 'No subscriber data'),
+      unreachable: label(s, "Kick'e ulaşılamıyor", 'Kick unreachable'),
+      stale: label(s, 'Veri güncel olmayabilir', 'Data may be out of date'),
+      relayDown: label(s, 'Sohbet köprüsü çalışmıyor', 'Chat relay not running')
+    };
+  }
+
+  // Sets the note text and shows or hides it. hataNotu=false silences it unless ?debug=1.
+  function note(el, s, t) {
+    if (!el) return;
+    var msg = t || '';
+    el.textContent = msg;
+    var off = !!s && s.hataNotu === false && !isDebug();
+    el.classList.toggle('is-hidden', !msg || off);
+  }
+
+  var debugState = {}, debugEl = null;
+  // Fixed bottom-left box of key: value lines. Merges into earlier calls; undefined/null removes a key.
+  function debug(info) {
+    if (!isDebug()) return;
+    var d = global.document;
+    if (!d || !d.body || typeof d.createElement !== 'function') return;
+    Object.keys(info || {}).forEach(function (k) {
+      if (info[k] === undefined || info[k] === null) delete debugState[k];
+      else debugState[k] = info[k];
+    });
+    if (!debugEl) {
+      debugEl = typeof d.querySelector === 'function' ? d.querySelector('.ko-debug') : null;
+      if (!debugEl) {
+        debugEl = d.createElement('div');
+        debugEl.className = 'ko-debug';
+        d.body.appendChild(debugEl);
+      }
+    }
+    debugEl.style.whiteSpace = 'pre';
+    debugEl.textContent = Object.keys(debugState).map(function (k) { return k + ': ' + debugState[k]; }).join('\n');
+  }
+
+  // Bar + value + chips in one place: fill, count-up, bump, percent, session delta, milestones, goal state.
+  // els = { bar, fill, val, pct, delta }; pct and delta may be null.
+  function createGoalBar(els, goal, s) {
+    els = els || {};
+    s = s || {};
+    var shown = 0, last = null, lastPct = 0, cancel = null, msTimer = null;
+    function restart(el, cls) {
+      el.classList.remove(cls);
+      void el.offsetWidth;
+      el.classList.add(cls);
+    }
+    function set(total, delta) {
+      total = Number(total) || 0;
+      var p = pct(total, goal);
+      setFill(els.fill, p);
+      if (cancel) cancel();
+      if (els.val) {
+        cancel = tween(shown, total, s.animasyon === 'off' ? 0 : 1300, function (v) {
+          shown = v;
+          els.val.textContent = fmt(v);
+        });
+      } else {
+        shown = total;
+      }
+      if (last !== null && total > last && els.bar) restart(els.bar, 'ko-bump');
+      if (els.bar) {
+        if (s.hedefKutlama) {
+          var crossed = last !== null && [25, 50, 75].some(function (m) { return lastPct < m && p >= m; });
+          if (crossed) {
+            restart(els.bar, 'ko-milestone');
+            if (msTimer) clearTimeout(msTimer);
+            msTimer = setTimeout(function () { msTimer = null; els.bar.classList.remove('ko-milestone'); }, 1200);
+          }
+          els.bar.classList.toggle('is-goal', goal > 0 && total >= goal);
+        } else {
+          els.bar.classList.remove('is-goal');
+        }
+      }
+      if (els.pct) {
+        els.pct.hidden = !s.yuzdeGoster;
+        if (s.yuzdeGoster) els.pct.textContent = Math.round(p) + '%';
+      }
+      if (els.delta) {
+        var d = Number(delta) || 0, showDelta = !!s.oturumFarkiGoster && d !== 0;
+        els.delta.hidden = !showDelta;
+        if (showDelta) {
+          els.delta.textContent = (d > 0 ? '+' : '-') + fmt(Math.abs(d));
+          els.delta.classList.toggle('is-neg', d < 0);
+        }
+      }
+      last = total;
+      lastPct = p;
+    }
+    function destroy() {
+      if (cancel) cancel();
+      if (msTimer) clearTimeout(msTimer);
+      cancel = msTimer = null;
+    }
+    return { set: set, destroy: destroy };
+  }
+
+  // Runs fn on a timer without overlapping runs. fn resolves { ok, retryAfterMs? }.
+  // Failures back off exponentially; hidden pages pause and resume with an immediate run.
+  function poller(fn, o) {
+    o = o || {};
+    var interval = Number(o.intervalMs) > 0 ? Number(o.intervalMs) : 30000;
+    var jitter = o.jitter === undefined ? 0.1 : Math.max(0, Number(o.jitter) || 0);
+    var maxBackoff = Number(o.maxBackoffMs) > 0 ? Number(o.maxBackoffMs) : 300000;
+    var timer = null, active = false, inflight = null, failures = 0, nextAt = 0, listening = false;
+
+    function hidden() { var d = global.document; return !!(d && d.hidden); }
+    function spread(ms) { return jitter ? ms * (1 + (Math.random() * 2 - 1) * jitter) : ms; }
+    function clear() {
+      if (timer !== null) { clearTimeout(timer); timer = null; }
+      nextAt = 0;
+    }
+    function arm(ms) {
+      clear();
+      if (!active || hidden()) return;
+      ms = Math.max(0, Math.round(ms));
+      nextAt = Date.now() + ms;
+      timer = setTimeout(function () { timer = null; nextAt = 0; run(); }, ms);
+    }
+    function run() {
+      if (!active) return Promise.resolve();
+      if (inflight) return inflight;
+      if (hidden()) return Promise.resolve();
+      clear();
+      inflight = (async function () {
+        var r;
+        // Promise.then so a synchronous throw from fn lands in the catch too.
+        try { r = await Promise.resolve().then(fn); } catch (e) { r = null; }
+        inflight = null;
+        if (!active) return;
+        var delay;
+        if (r && r.ok) {
+          failures = 0;
+          delay = spread(interval);
+        } else {
+          failures += 1;
+          delay = Math.min(maxBackoff, spread(interval * Math.pow(2, failures)));
+          var ra = r ? Number(r.retryAfterMs) : 0;
+          if (ra > delay) delay = ra;
+        }
+        arm(delay);
+      })();
+      return inflight;
+    }
+    function onVisible() { if (active && !hidden()) run(); }
+
+    return {
+      start: function () {
+        if (active) return;
+        active = true;
+        failures = 0;
+        var d = global.document;
+        if (d && typeof d.addEventListener === 'function') { d.addEventListener('visibilitychange', onVisible); listening = true; }
+        run();
+      },
+      stop: function () {
+        active = false;
+        clear();
+        var d = global.document;
+        if (listening && d && typeof d.removeEventListener === 'function') d.removeEventListener('visibilitychange', onVisible);
+        listening = false;
+      },
+      now: function () { return run(); },
+      nextInMs: function () { return nextAt ? Math.max(0, nextAt - Date.now()) : null; }
+    };
+  }
+
   // ---- HTTP ----------------------------------------------------------------
 
-  // Never throws. Returns {ok, status, data} or {ok:false, status, error}.
+  function headerOf(res, name) {
+    try { return res.headers && typeof res.headers.get === 'function' ? res.headers.get(name) : null; } catch (e) { return null; }
+  }
+
+  // Retry-After in seconds. The HTTP-date form is ignored.
+  function retryAfterOf(res) {
+    var v = headerOf(res, 'Retry-After');
+    var n = v === null || v === undefined || String(v).trim() === '' ? NaN : Number(v);
+    return isFinite(n) && n >= 0 ? Math.round(n * 1000) : null;
+  }
+
+  // Never throws. Returns {ok, status, data, source?} or {ok:false, status, error, retryAfterMs?}.
   async function getJson(url, opts) {
     opts = opts || {};
     var ac = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -233,11 +483,19 @@
         cache: 'no-store',
         signal: ac ? ac.signal : undefined
       });
-      if (!res.ok) return { ok: false, status: res.status, error: 'http' };
+      if (!res.ok) {
+        var fail = { ok: false, status: res.status, error: 'http' };
+        var ra = retryAfterOf(res);
+        if (ra !== null) fail.retryAfterMs = ra;
+        return fail;
+      }
       var data;
       try { data = await res.json(); } catch (e) { return { ok: false, status: res.status, error: 'body' }; }
       if (!data || typeof data !== 'object') return { ok: false, status: res.status, error: 'body' };
-      return { ok: true, status: res.status, data: data };
+      var out = { ok: true, status: res.status, data: data };
+      var src = headerOf(res, 'X-Kick-Source');
+      if (src) out.source = String(src).toLowerCase();
+      return out;
     } catch (e) {
       return { ok: false, status: 0, error: e && e.name === 'AbortError' ? 'timeout' : 'network' };
     } finally {
@@ -311,13 +569,54 @@
 
   // ---- Kick REST (public, no token) ----------------------------------------
 
-  async function kickChannel(slug) {
+  var RELAY_RETRY_MS = 5 * 60 * 1000;
+  var relayMemo = {};
+
+  // Asks the local relay what it can do. Memoized per page; a failed probe is retried at most every 5 minutes.
+  function relayInfo(s) {
+    var base = s && s.relayAdresi;
+    if (!base) return Promise.resolve(null);
+    var m = relayMemo[base];
+    if (m) {
+      if (m.promise) return m.promise;
+      if (Date.now() - m.failedAt < RELAY_RETRY_MS) return Promise.resolve(null);
+    }
+    m = relayMemo[base] = { promise: null, failedAt: 0 };
+    var p = getJson(base + '/health', { timeoutMs: 1500 }).then(function (r) {
+      var info = r.ok && r.data.ok !== false ? r.data : null;
+      if (!info) { m.promise = null; m.failedAt = Date.now(); }
+      return info;
+    });
+    m.promise = p;
+    return p;
+  }
+
+  function limited(status) { return status === 403 || status === 429; }
+
+  // Relay first when it offers /channel, then Kick directly: v2, and v1 only for 404, 5xx or network trouble.
+  // A 403/429 stops at once (another request would only deepen the block) and carries retryAfterMs.
+  async function kickChannel(slug, s) {
     var enc = encodeURIComponent(slug);
+    if (s) {
+      var info = await relayInfo(s);
+      if (info && info.features && info.features.channel) {
+        var rr = await getJson(s.relayAdresi + '/channel?slug=' + enc);
+        if (rr.ok) return { ok: true, data: rr.data, src: rr.source === 'v1' ? 'relay-v1' : 'relay-v2', status: rr.status };
+        if (rr.status === 429) {
+          return { ok: false, error: rr.error, status: 429, src: 'relay-v2', retryAfterMs: rr.retryAfterMs || 60000 };
+        }
+      }
+    }
     var v2 = await getJson('https://kick.com/api/v2/channels/' + enc);
-    if (v2.ok) return { ok: true, data: v2.data, src: 'v2' };
+    if (v2.ok) return { ok: true, data: v2.data, src: 'v2', status: v2.status };
+    if (limited(v2.status)) {
+      return { ok: false, error: v2.error, status: v2.status, src: 'v2', retryAfterMs: v2.retryAfterMs || 60000 };
+    }
     var v1 = await getJson('https://kick.com/api/v1/channels/' + enc);
-    if (v1.ok) return { ok: true, data: v1.data, src: 'v1' };
-    return { ok: false, error: v2.error || v1.error };
+    if (v1.ok) return { ok: true, data: v1.data, src: 'v1', status: v1.status };
+    var res = { ok: false, error: v2.error || v1.error, status: v1.status, src: 'v1' };
+    if (limited(v1.status)) res.retryAfterMs = v1.retryAfterMs || 60000;
+    return res;
   }
 
   // ---- Official API (token required) ---------------------------------------
@@ -354,72 +653,154 @@
     var r = await getJson(s.apiBase + '/public/v1/channels?slug=' + encodeURIComponent(s.kanal), {
       headers: { Authorization: 'Bearer ' + token }
     });
-    if (!r.ok) return { ok: false, status: r.status, error: r.error };
+    if (!r.ok) return { ok: false, status: r.status, error: r.error, retryAfterMs: r.retryAfterMs };
     // An empty data array is a valid answer: the channel has no subscriber figures to show.
     var parsed = parseOfficialChannel(r.data) || { subs: null, gifted: null, canceled: null, live: null, viewers: null, startMs: null, title: '' };
     return Object.assign({ ok: true, status: r.status }, parsed);
   }
 
-  // Subscriber source for the subscriber and combined bars.
-  //   token mode:  official active_subscribers_count, polled.
-  //   manual mode: aboneSayisi from AYARLAR.js, no network.
-  // The session delta counts from the first value seen in this page load.
+  var BASE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+  // Subscriber source for the subscriber and combined bars. The mode is decided on each poll:
+  //   relay:  the local relay holds the Kick app credentials (relayInfo says so).
+  //   token:  official active_subscribers_count with credentials in this page.
+  //   manual: aboneSayisi from AYARLAR.js, no Kick request.
+  // The session delta counts from a baseline kept in localStorage for 12 hours, so an OBS
+  // scene switch or page reload does not reset "+N".
   function createSubscriberSource(s) {
     var base = null, total = null, mode = hasCredentials(s) ? 'token' : 'manual';
-    function state(status, t) {
+    var api = { mode: mode };
+    var key = 'ko:subBase:' + s.kanal;
+
+    function setMode(m) { mode = m; api.mode = m; }
+
+    // First value of this page load: reuse a fresh stored baseline, otherwise start one.
+    function startBase(t) {
+      var now = Date.now();
+      try {
+        var ls = global.localStorage;
+        if (!ls) return t;
+        var o = null;
+        try { o = JSON.parse(ls.getItem(key)); } catch (e) { /* corrupt entry: replaced below */ }
+        if (o && typeof o.base === 'number' && isFinite(o.base) && typeof o.at === 'number' &&
+            now - o.at >= 0 && now - o.at < BASE_MAX_AGE_MS) return o.base;
+        ls.setItem(key, JSON.stringify({ base: t, at: now }));
+      } catch (e) { /* storage blocked: the baseline lives for this page load only */ }
+      return t;
+    }
+
+    function state(status, t, extra) {
       if (t !== null && t !== undefined) {
         total = t;
-        if (base === null) base = t;
+        if (base === null) base = mode === 'manual' ? t : startBase(t);
       }
-      return {
+      var out = {
         mode: mode,
         status: status,
         total: total,
         delta: total !== null && base !== null ? total - base : 0
       };
+      return extra ? Object.assign(out, extra) : out;
     }
-    return {
-      mode: mode,
-      async poll() {
-        if (mode === 'manual') return state('manual', s.aboneSayisi);
-        if (!s.kanal) return state('no-channel', total);
-        var t = await appToken(s);
-        if (!t.ok) {
-          if (t.error === 'no-credentials') return state('no-credentials', total);
-          // Only a rejected login is "wrong credentials"; a network or server failure is not.
-          return state(t.status === 400 || t.status === 401 || t.status === 403 ? 'auth' : 'error', total);
-        }
-        var o = await officialChannel(s, t.token);
-        if (!o.ok) {
-          if (o.status === 401 || o.status === 403) { clearToken(); return state('auth', total); }
-          if (o.status === 429) return state('rate', total);
-          return state('error', total);
-        }
-        if (o.subs === null) return state('no-data', total);
-        return state('ok', o.subs);
+
+    // Returns null when the relay is unreachable and this page has credentials of its own.
+    async function relayPoll() {
+      var r = await getJson(s.relayAdresi + '/subscribers?slug=' + encodeURIComponent(s.kanal));
+      if (r.ok) {
+        var subs = numOrNull(r.data.subs);
+        return subs === null ? state('no-data', total) : state('ok', subs);
       }
+      if (r.status === 0 && hasCredentials(s)) return null;
+      if (r.status === 503) return state('no-credentials', total);
+      if (r.status === 401 || r.status === 403) return state('auth', total);
+      if (r.status === 429) return state('rate', total, { retryAfterMs: r.retryAfterMs || 60000 });
+      return state('error', total);
+    }
+
+    async function tokenPoll() {
+      var t = await appToken(s);
+      if (!t.ok) {
+        if (t.error === 'no-credentials') return state('no-credentials', total);
+        // Only a rejected login is "wrong credentials"; a network or server failure is not.
+        return state(t.status === 400 || t.status === 401 || t.status === 403 ? 'auth' : 'error', total);
+      }
+      var o = await officialChannel(s, t.token);
+      if (!o.ok) {
+        if (o.status === 401 || o.status === 403) { clearToken(); return state('auth', total); }
+        if (o.status === 429) return state('rate', total, { retryAfterMs: o.retryAfterMs || 60000 });
+        return state('error', total);
+      }
+      if (o.subs === null) return state('no-data', total);
+      return state('ok', o.subs);
+    }
+
+    api.poll = async function () {
+      var viaRelay = false;
+      if (s.kanal) {
+        var info = await relayInfo(s);
+        viaRelay = !!(info && info.features && info.features.subscribers);
+      }
+      setMode(viaRelay ? 'relay' : hasCredentials(s) ? 'token' : 'manual');
+      if (mode === 'manual') return state('manual', s.aboneSayisi);
+      if (!s.kanal) return state('no-channel', total);
+      if (mode === 'relay') {
+        var rr = await relayPoll();
+        if (rr) return rr;
+        setMode('token');
+      }
+      return tokenPoll();
     };
+    return api;
   }
 
   // ---- Live chat from the local relay (relay/server.js). ----
 
+  var ES_CLOSED = 2;
+
   // Server-Sent Events: the relay sends "chat" and "ban" frames already in the overlay's shape.
   // h = { onMessage(event), onStatus(status) }. Status: 'connecting', 'open', 'reconnecting'.
-  // EventSource reconnects by itself, so a missing relay shows 'reconnecting' until it starts.
+  // A browser retries a dropped stream by itself, but gives up for good after some failures
+  // (readyState CLOSED); then we reopen it ourselves with backoff: 1 s, 2 s, ... up to 30 s.
   function connectRelay(url, h) {
-    h.onStatus && h.onStatus('connecting');
-    var es = new global.EventSource(url);
-    function forward(name) {
-      es.addEventListener(name, function (e) {
-        var ev; try { ev = JSON.parse(e.data); } catch (err) { return; }
-        if (ev && typeof ev === 'object') { ev.kind = name; h.onMessage && h.onMessage(ev); }
-      });
+    var es = null, timer = null, stopped = false, attempt = 0;
+    function status(st) { if (h.onStatus) h.onStatus(st); }
+    function attach(src) {
+      function forward(name) {
+        src.addEventListener(name, function (e) {
+          var ev; try { ev = JSON.parse(e.data); } catch (err) { return; }
+          if (ev && typeof ev === 'object') { ev.kind = name; if (h.onMessage) h.onMessage(ev); }
+        });
+      }
+      forward('chat');
+      forward('ban');
+      src.onopen = function () { attempt = 0; status('open'); };
+      src.onerror = function () {
+        status('reconnecting');
+        if (src.readyState === ES_CLOSED && !stopped) {
+          src.close();
+          retry();
+        }
+      };
     }
-    forward('chat');
-    forward('ban');
-    es.onopen = function () { h.onStatus && h.onStatus('open'); };
-    es.onerror = function () { h.onStatus && h.onStatus('reconnecting'); };
-    return function stop() { es.close(); };
+    function retry() {
+      if (timer !== null) return;
+      var delay = Math.min(30000, 1000 * Math.pow(2, attempt)) * (1 + (Math.random() * 2 - 1) * 0.2);
+      attempt += 1;
+      timer = setTimeout(function () { timer = null; reopen(); }, Math.min(30000, Math.round(delay)));
+    }
+    function reopen() {
+      if (stopped) return;
+      try { es = new global.EventSource(url); } catch (e) { retry(); return; }
+      attach(es);
+    }
+    status('connecting');
+    es = new global.EventSource(url);
+    attach(es);
+    return function stop() {
+      stopped = true;
+      if (timer !== null) { clearTimeout(timer); timer = null; }
+      if (es) es.close();
+    };
   }
 
   // Schema-level assertion helper for tests and the studio.
@@ -427,13 +808,14 @@
   function schemaKeys() { return Object.keys(SCHEMA); }
 
   global.KickOverlay = {
-    version: '2.2.0',
+    version: '2.3.0',
     enums: enumsOf,
     schemaKeys: schemaKeys,
     normalize: normalize,
     normalizeLocal: normalizeLocal,
     readSettings: readSettings,
     isPreview: isPreview,
+    isDebug: isDebug,
     sample: SAMPLE,
     splitLines: splitLines,
     label: label,
@@ -441,6 +823,13 @@
     pct: pct,
     applyLook: applyLook,
     tween: tween,
+    setFill: setFill,
+    poller: poller,
+    loadFont: loadFont,
+    text: text,
+    note: note,
+    debug: debug,
+    createGoalBar: createGoalBar,
     getJson: getJson,
     parse: {
       followers: parseFollowers,
@@ -449,6 +838,7 @@
       official: parseOfficialChannel,
       time: parseTime
     },
+    relayInfo: relayInfo,
     kick: { channel: kickChannel },
     official: { token: appToken, channel: officialChannel, clearToken: clearToken },
     createSubscriberSource: createSubscriberSource,

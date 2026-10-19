@@ -7,10 +7,8 @@
 <title>Kick Chat Overlay</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
-<script src="AYARLAR.local.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   *{ margin:0; padding:0; box-sizing:border-box; }
@@ -31,6 +29,8 @@
   const S = K.readSettings();
   const PREVIEW = K.isPreview();
   K.applyLook(S);
+  K.loadFont(S);
+  const T = K.text(S);
 
   const feed = document.getElementById('feed');
   const noteEl = document.getElementById('note');
@@ -38,14 +38,20 @@
   // Matches the .ko-msg.is-leaving animation duration in themes.css (.4s).
   const LEAVE_MS = 400;
   const SEEN_CAP = 500;
-  const CONNECTING = K.label(S, 'bağlanıyor…', 'connecting…');
-  // Only hex (#rgb or #rrggbb, as in kick-core) or a plain color name reaches the CSS.
+  // Matches the .ko-msg.is-fading animation duration in themes.css (.6s).
+  const FADE_MS = 600;
+  const RELAY_DOWN_MS = 5000;
+  const EMOTE_MAX = 10;
+  // Only hex (#rgb or #rrggbb, as in kick-core) reaches the CSS as a name colour.
   const HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
-  const NAME_RE = /^[a-z]{3,20}$/i;
   // Badge art only from Kick's own hosts; anything else falls back to the drawn badge.
   const BADGE_SRC_RE = /^https:\/\/(?:files\.|api\.|id\.)?kick\.com\/[A-Za-z0-9._~\/%?=&+-]+$/;
   const EMOTE_RE = /\[emote:(\d+):([^\]]+)\]/g;
   const BROADCASTER = new Set(['broadcaster', 'owner', 'host']);
+  // The default label follows the label language; a name the streamer typed is shown as written.
+  const BCAST_LABEL = S.yayinciYazisi === 'Streamer' ? K.label(S, 'Yayıncı', 'Streamer') : S.yayinciYazisi;
+  const HIDDEN_USERS = new Set(S.sohbetGizliKullanicilar.split(',')
+    .map(n => n.trim().replace(/^@/, '').toLowerCase()).filter(Boolean));
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const STROKE = { fill:'none', stroke:'#fff', 'stroke-width':'2.2', 'stroke-linecap':'round', 'stroke-linejoin':'round' };
   const P = d => ['path', { d: d }];
@@ -66,11 +72,14 @@
     subscriber:'#6f6cff', sub_gifter:'#14b8a6', verified:'#2aa3ff', staff:'#0b8f3a'
   };
 
-  const seen = new Set();   // dedupe guard by message id
+  const seen = new Set();   // dedupe guard; a Set keeps insertion order, so the oldest key is evicted first
   let subBadges = [];       // [{months, src}] sorted high -> low, from K.parse.subBadges
   let stopChat = null;      // from K.connectRelay
   let previewTimer = null;
+  let fadeTimer = null;     // sweeps old messages when sohbetSilinmeSn > 0
+  let downTimer = null;     // waits RELAY_DOWN_MS before the relay note shows
   let closing = false;
+  let msgTotal = 0;         // messages shown so far, for ?debug=1
 
   function own(map, key){ return Object.hasOwn(map, key) ? map[key] : null; }
 
@@ -107,36 +116,71 @@
     return span;
   }
 
-  // Optional art: badges/<name>.<ext> replaces the drawn symbol. A missing or failing file falls back to it.
+  // Optional art: badges/<name>.<ext> replaces the drawn symbol. A missing file falls back to it.
   const LOCAL_FILE = { moderator:'moderator', vip:'vip', og:'og', founder:'founder', verified:'verified', sub_gifter:'gifter', staff:'staff' };
   const LOCAL_EXT = ['svg', 'png', 'webp', 'gif', 'jpg', 'jpeg'];
   const localSrc = new Map();   // type -> resolved src, or false when no file exists
+  const probes = new Map();     // type -> pending probe, shared by every message of a burst
 
-  function roleBadge(type, count){
-    const base = own(LOCAL_FILE, type);
-    if(!base || localSrc.get(type) === false) return pill(type, count);
-    const wrap = document.createElement('span');
-    wrap.className = 'ko-badge ko-badge-art';
+  function canLoad(src){
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = src;
+    });
+  }
+
+  // Tries each extension once per badge type, however many messages ask at the same time.
+  function probeBadge(type){
+    let p = probes.get(type);
+    if(!p){
+      const base = own(LOCAL_FILE, type);
+      p = (async () => {
+        for(const ext of LOCAL_EXT){
+          const src = 'badges/' + base + '.' + ext;
+          if(await canLoad(src)) return src;
+        }
+        return false;
+      })().then(src => { localSrc.set(type, src); return src; });
+      probes.set(type, p);
+    }
+    return p;
+  }
+
+  function badgeArt(type, count, src){
     const img = document.createElement('img');
     img.alt = type;
     img.title = type;
-    let ext = 0;
+    img.dataset.kind = 'role';   // the shared error listener falls back to the drawn symbol
+    img.dataset.type = type;
+    img.dataset.count = String(count);
+    img.setAttribute('src', src);
+    return img;
+  }
+
+  function roleBadge(type, count){
+    if(!own(LOCAL_FILE, type) || localSrc.get(type) === false) return pill(type, count);
+    const wrap = document.createElement('span');
+    wrap.className = 'ko-badge ko-badge-art';
+    const addCount = () => {
+      if(count > 0 && type === 'sub_gifter'){
+        const c = document.createElement('span');
+        c.className = 'ko-count';
+        c.textContent = String(count);
+        wrap.appendChild(c);
+      }
+    };
     const known = localSrc.get(type);
-    img.src = typeof known === 'string' ? known : 'badges/' + base + '.' + LOCAL_EXT[0];
-    img.addEventListener('load', () => localSrc.set(type, img.getAttribute('src')));
-    img.addEventListener('error', () => {
-      if(typeof localSrc.get(type) === 'string'){ wrap.replaceWith(pill(type, count)); return; }
-      ext += 1;
-      if(ext < LOCAL_EXT.length){ img.src = 'badges/' + base + '.' + LOCAL_EXT[ext]; return; }
-      localSrc.set(type, false);
-      wrap.replaceWith(pill(type, count));
-    });
-    wrap.appendChild(img);
-    if(count > 0 && type === 'sub_gifter'){
-      const c = document.createElement('span');
-      c.className = 'ko-count';
-      c.textContent = String(count);
-      wrap.appendChild(c);
+    if(typeof known === 'string'){
+      wrap.appendChild(badgeArt(type, count, known));
+      addCount();
+    } else {
+      // Empty and invisible until the shared probe answers, then art or the drawn symbol.
+      probeBadge(type).then(src => {
+        if(typeof src === 'string'){ wrap.appendChild(badgeArt(type, count, src)); addCount(); }
+        else wrap.replaceWith(pill(type, count));
+      });
     }
     return wrap;
   }
@@ -170,7 +214,7 @@
         bcastShown = true;
         const s = document.createElement('span');
         s.className = 'ko-bcast';
-        s.textContent = S.yayinciYazisi;
+        s.textContent = BCAST_LABEL;
         wrap.appendChild(s);
       } else if(type === 'subscriber'){
         wrap.appendChild(subscriberBadge(n));
@@ -193,16 +237,21 @@
   }
 
   // Emotes become <img>, everything else stays text. Nothing is parsed as markup.
+  // Past EMOTE_MAX emotes per message the rest show as their names, so one message cannot load dozens of images.
   function appendBody(parent, raw){
-    let last = 0;
+    let last = 0, emotes = 0;
     for(const m of raw.matchAll(EMOTE_RE)){
       if(m.index > last) parent.appendChild(document.createTextNode(raw.slice(last, m.index)));
-      const img = document.createElement('img');
-      img.className = 'ko-emote';
-      img.setAttribute('src', 'https://files.kick.com/emotes/' + m[1] + '/fullsize');
-      img.setAttribute('alt', m[2]);
-      img.setAttribute('title', m[2]);
-      parent.appendChild(img);
+      if(emotes++ < EMOTE_MAX){
+        const img = document.createElement('img');
+        img.className = 'ko-emote';
+        img.setAttribute('src', 'https://files.kick.com/emotes/' + m[1] + '/fullsize');
+        img.setAttribute('alt', m[2]);
+        img.setAttribute('title', m[2]);
+        parent.appendChild(img);
+      } else {
+        parent.appendChild(document.createTextNode(m[2]));
+      }
       last = m.index + m[0].length;
     }
     if(last < raw.length) parent.appendChild(document.createTextNode(raw.slice(last)));
@@ -213,9 +262,10 @@
     const img = e.target;
     if(!(img instanceof HTMLImageElement)) return;
     if(img.classList.contains('ko-emote')){ img.replaceWith(document.createTextNode(img.alt)); return; }
-    if(img.dataset.kind !== 'subscriber') return;   // role art falls back to its own drawn symbol
     const wrap = img.parentElement;
-    if(wrap && wrap.classList.contains('ko-badge')) wrap.replaceWith(pill('subscriber', Number(wrap.dataset.months) || 0));
+    if(!wrap || !wrap.classList.contains('ko-badge')) return;
+    if(img.dataset.kind === 'subscriber') wrap.replaceWith(pill('subscriber', Number(wrap.dataset.months) || 0));
+    else if(img.dataset.kind === 'role') wrap.replaceWith(pill(img.dataset.type, Number(img.dataset.count) || 0));
   }, true);
 
   // Messages of a banned user fade out before they are removed.
@@ -231,16 +281,33 @@
     while(feed.childElementCount >= MAX) feed.firstElementChild.remove();
   }
 
+  // An id is the only safe dedupe key. Without one, name + text + send time (ms) stands in;
+  // with no timestamp either, identical messages cannot be told apart from repeats, so none are dropped.
+  function dedupeKey(ev, id, username){
+    if(id) return id;
+    const ms = K.parse.time(String(ev.createdAt || ''));
+    return ms === null ? '' : [username, ev.message, ms].join('|');
+  }
+
+  function hidden(ev, username){
+    if(HIDDEN_USERS.has(username.toLowerCase())) return true;
+    return S.sohbetKomutGizle && String(ev.message || '').trimStart().startsWith('!');
+  }
+
   function addMessage(ev){
     const id = ev.id != null && ev.id !== '' ? String(ev.id) : '';
-    const key = id || [ev.username, ev.message, ev.createdAt].join('|');
-    if(seen.has(key)) return;
-    seen.add(key);
-    if(seen.size > SEEN_CAP) seen.clear();
-
     const username = String(ev.username || '?');
+    if(hidden(ev, username)) return;
+    const key = dedupeKey(ev, id, username);
+    if(key){
+      if(seen.has(key)) return;
+      seen.add(key);
+      if(seen.size > SEEN_CAP) seen.delete(seen.values().next().value);
+    }
+
     const el = document.createElement('div');
     el.className = 'ko-msg';
+    el.dataset.at = String(Date.now());
     if(id) el.dataset.id = id;
     if(ev.senderId) el.dataset.uid = String(ev.senderId);
     el.dataset.uname = username.toLowerCase();
@@ -252,7 +319,7 @@
     user.className = 'ko-user';
     user.textContent = username;
     const color = String(ev.color || '').trim();
-    if(HEX_RE.test(color) || NAME_RE.test(color)) user.style.setProperty("--name-color", color);
+    if(HEX_RE.test(color)) user.style.setProperty('--name-color', color);
     el.appendChild(user);
 
     const text = document.createElement('span');
@@ -263,6 +330,18 @@
 
     makeRoom();
     feed.appendChild(el);
+    msgTotal += 1;
+    K.debug({ messages: msgTotal });
+  }
+
+  // sohbetSilinmeSn: fades a message once it is that old. One sweep a second is precise enough and holds no per-message timers.
+  function sweep(){
+    const limit = S.sohbetSilinmeSn * 1000, now = Date.now();
+    feed.querySelectorAll('.ko-msg:not(.is-leaving):not(.is-fading)').forEach(el => {
+      if(now - Number(el.dataset.at) < limit) return;
+      el.classList.add('is-fading');
+      setTimeout(() => el.remove(), FADE_MS);
+    });
   }
 
   function removeMessagesByUser(userId, username){
@@ -283,20 +362,26 @@
     }
   }
 
-  function setNote(text){ noteEl.textContent = text; noteEl.classList.remove('is-hidden'); }
-  function clearNote(){ noteEl.classList.add('is-hidden'); }
-
   // The relay (relay/server.js) sends chat and ban events already in this shape.
-  function onStatus(s){
-    if(s === 'open') clearNote();
-    else if(s === 'reconnecting') setNote(K.label(S, 'Canlı sohbet köprüsüne bağlanılamadı (relay çalışıyor mu?) · yeniden deneniyor', 'Cannot reach the chat relay (is it running?) · retrying'));
-    else setNote(CONNECTING);
+  // The core reconnects by itself; the note only appears if the relay stays away for RELAY_DOWN_MS.
+  function onStatus(st){
+    K.debug({ relay: st });
+    if(st === 'open'){
+      if(downTimer !== null){ clearTimeout(downTimer); downTimer = null; }
+      K.note(noteEl, S, '');
+    } else if(downTimer === null){
+      downTimer = setTimeout(() => { downTimer = null; K.note(noteEl, S, T.relayDown); }, RELAY_DOWN_MS);
+    }
   }
 
   // Chat comes from the local relay. Subscriber badge images come from Kick's public channel data.
   function startLive(){
-    setNote(CONNECTING);
-    K.kick.channel(S.kanal).then((ch) => { if(ch.ok && !closing) subBadges = K.parse.subBadges(ch.data); }).catch(() => {});
+    K.kick.channel(S.kanal, S).then((ch) => {
+      if(ch.ok && !closing){
+        subBadges = K.parse.subBadges(ch.data);
+        K.debug({ 'badge src': ch.src, 'sub badges': subBadges.length });
+      }
+    }).catch(() => {});
     stopChat = K.connectRelay(S.relayAdresi + '/events', { onMessage: onEvent, onStatus: onStatus });
   }
 
@@ -312,7 +397,7 @@
     if(withHint){
       const hint = document.createElement('div');
       hint.className = 'ko-hint';
-      hint.textContent = '⚙ AYARLAR.js → kanal / set your channel';
+      hint.textContent = T.hint;
       document.body.appendChild(hint);
     }
     let i = 0;
@@ -327,8 +412,12 @@
   window.addEventListener('pagehide', function(){
     closing = true;
     if(previewTimer !== null) clearInterval(previewTimer);
+    if(fadeTimer !== null) clearInterval(fadeTimer);
+    if(downTimer !== null) clearTimeout(downTimer);
     if(stopChat) stopChat();
   });
+
+  if(S.sohbetSilinmeSn > 0) fadeTimer = setInterval(sweep, 1000);
 
   // Preview (?onizleme=1) never connects and never shows the setup hint.
   // The hint only appears when there is no channel and this is not a preview.

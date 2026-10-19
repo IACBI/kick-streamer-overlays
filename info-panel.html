@@ -7,10 +7,8 @@
 <title>Kick Viewer + Uptime Panel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
-<script src="AYARLAR.local.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
@@ -49,6 +47,16 @@
     81%  { transform: rotate(360deg); }
     100% { transform: rotate(360deg); }
   }
+  /* Peak viewers: a small tag on the panel's top edge, so the panel keeps its width. */
+  #panel { position: relative; }
+  #peak {
+    position: absolute; top: -9px; right: 14px; margin: 0; padding: 1px 7px; font-size: 11px; white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+  }
+  /* No fresh data while live: the numbers are frozen, so the pulse stops and the panel dims. */
+  .ko-panel.is-stale:not(.is-off) { opacity: .55; }
+  .ko-panel.is-stale .ko-dot { animation: none; background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+
   body.motion-low .eye-iris, body.motion-low .eye, body.motion-low .clock-hands,
   body.motion-off .eye-iris, body.motion-off .eye, body.motion-off .clock-hands,
   body.motion-off .ko-dot { animation: none; }
@@ -69,25 +77,39 @@
     <svg class="clock" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/><path class="clock-hands" d="M12 7.2V12l3.4 2"/></svg>
     <span class="ko-val" id="uptime">0:00:00</span>
   </span>
+  <span class="ko-chip" id="peak" hidden></span>
 </div>
+<div class="ko-note is-hidden" id="note" aria-live="polite"></div>
 <script>
 (function(){
   const K = window.KickOverlay;
   const S = K.readSettings();
   const PREVIEW = K.isPreview();
   K.applyLook(S);
+  K.loadFont(S);
+  const T = K.text(S);
 
   const elPanel = document.getElementById('panel');
   const elViewers = document.getElementById('viewers');
   const elUptime = document.getElementById('uptime');
+  const elPeak = document.getElementById('peak');
+  const elNote = document.getElementById('note');
   const tweenMs = S.animasyon === 'off' ? 0 : 700;
+  const STALE_AFTER = 3;          // failed polls in a row before the numbers count as out of date
+  const PEAK_KEY = 'ko:peak:' + S.kanal;
 
   let live = false;
   let startMs = null;
   let shownViewers = 0;
   let cancelViewers = null;
   let ticker = null;      // runs only while the channel is live
-  let busy = false;
+  let peak = 0;           // highest viewer count of the current stream
+  let peakFor = null;     // start time that `peak` belongs to
+  let viewers = 0;        // latest count from Kick (shownViewers lags behind it while tweening)
+  let hadData = false;    // a poll has succeeded at least once
+  let failures = 0;       // failed polls in a row
+  let poller = null;
+  let debugTimer = null;
 
   function setViewers(target){
     if (cancelViewers) cancelViewers();
@@ -113,55 +135,107 @@
     if (ticker !== null) { clearInterval(ticker); ticker = null; }
   }
 
+  function showPeak(){
+    elPeak.hidden = !(live && peak > 0);
+    if (!elPeak.hidden) elPeak.textContent = K.label(S, 'Zirve', 'Peak') + ' ' + K.fmt(peak);
+  }
+
+  // The session peak survives a reload: it is stored with the stream's start time and dropped for a new stream.
+  function recordPeak(v){
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem(PEAK_KEY)); } catch (e) { /* no storage or a corrupt entry */ }
+    if (peakFor !== startMs) { peak = 0; peakFor = startMs; }   // a new stream starts from zero
+    const same = stored && stored.startMs === startMs && Number.isFinite(stored.peak);
+    peak = Math.max(same ? stored.peak : 0, peak, v);
+    try { localStorage.setItem(PEAK_KEY, JSON.stringify({ startMs: startMs, peak: peak })); } catch (e) { /* storage blocked */ }
+  }
+
   function apply(info){
     if (!info.live) {
       live = false;
       startMs = null;
+      peak = 0;
+      peakFor = null;
       stopTicker();
       if (cancelViewers) cancelViewers();
       shownViewers = 0;
       elPanel.classList.add('is-off');
+      showPeak();
       return;
     }
     live = true;
     if (info.startMs !== null) startMs = info.startMs;
     else if (startMs === null) startMs = Date.now();
     elPanel.classList.remove('is-off');
-    setViewers(info.viewers);
+    viewers = info.viewers;
+    setViewers(viewers);
+    if (!PREVIEW) recordPeak(viewers);
+    showPeak();
     tickUptime();
     startTicker();
   }
 
+  // After a few failures in a row the numbers are out of date: a live panel stops counting up and dims.
+  function setStale(stale){
+    elPanel.classList.toggle('is-stale', stale && live);
+    if (stale && live) stopTicker();
+  }
+
   async function poll(){
-    if (busy) return;
-    busy = true;
-    try {
-      const r = await K.kick.channel(S.kanal);
-      if (!r.ok) return;   // failed poll: keep the current state
+    const r = await K.kick.channel(S.kanal, S);
+    if (r.ok) {
+      failures = 0;
+      hadData = true;
+      setStale(false);
+      K.note(elNote, S, '');
       apply(K.parse.live(r.data));
-    } finally { busy = false; }
+    } else {
+      failures += 1;
+      if (!hadData) K.note(elNote, S, T.unreachable);
+      else if (failures >= STALE_AFTER) { setStale(true); K.note(elNote, S, T.stale); }
+    }
+    K.debug({
+      src: r.src || '-',
+      status: r.ok ? 'ok' : (r.status || r.error || 'error'),
+      live: live,
+      viewers: live ? viewers : '-',
+      peak: peak,
+      failures: failures,
+      'last poll': new Date().toLocaleTimeString()
+    });
+    return { ok: !!r.ok, retryAfterMs: r.retryAfterMs };
   }
 
   function showHint(){
     const h = document.createElement('div');
     h.className = 'ko-hint';
-    h.textContent = '⚙ AYARLAR.js → kanal / set your channel';
+    h.textContent = T.hint;
     document.body.appendChild(h);
   }
 
   // Preview (?onizleme=1): live state from the sample values. The uptime counts from the sample offset.
   if (PREVIEW) {
     apply({ live: true, viewers: K.sample.viewers, startMs: Date.now() - K.sample.startMs });
+    peak = Math.round(K.sample.viewers * 1.15);
+    showPeak();
+    K.debug({ mode: 'preview' });
     return;
   }
 
-  if (!S.kanal) { showHint(); return; }
-  poll();
-  const pollTimer = setInterval(poll, S.yenilemeSn * 1000);
+  if (!S.kanal) { showHint(); K.debug({ mode: 'no channel' }); return; }
+  poller = K.poller(poll, { intervalMs: S.yenilemeSn * 1000 });
+  poller.start();
+  if (K.isDebug()) {
+    debugTimer = setInterval(function(){
+      const ms = poller.nextInMs();
+      K.debug({ 'next poll': ms === null ? '-' : Math.ceil(ms / 1000) + 's' });
+    }, 1000);
+  }
   window.addEventListener('pagehide', function(){
-    clearInterval(pollTimer);
+    poller.stop();
     stopTicker();
     if (cancelViewers) cancelViewers();
+    if (debugTimer !== null) clearInterval(debugTimer);
   });
 })();
 </script>

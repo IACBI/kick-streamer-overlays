@@ -39,11 +39,11 @@ function parseTimestamp(value) {
   return Number.isNaN(ms) ? null : ms;
 }
 
-// True when the timestamp is within the allowed skew. An unreadable timestamp is not rejected
-// here: the signature and the replay check still apply.
+// True when the timestamp is within the allowed skew. An unreadable timestamp is rejected: the
+// signed timestamp is the only bound on how long a captured request stays replayable.
 function isFresh(timestamp, nowMs) {
   const ms = parseTimestamp(timestamp);
-  if (ms === null) return true;
+  if (ms === null) return false;
   return Math.abs(nowMs - ms) <= MAX_SKEW_MS;
 }
 
@@ -67,14 +67,37 @@ class ReplayGuard {
   }
 }
 
+// Global request limiter for the public webhook port: refills `perSec` tokens a second up to `burst`.
+class TokenBucket {
+  constructor(perSec = 30, burst = 60) {
+    this.perSec = perSec;
+    this.burst = burst;
+    this.tokens = burst;
+    this.last = null;
+  }
+  take(nowMs) {
+    if (this.last !== null) this.tokens = Math.min(this.burst, this.tokens + Math.max(0, nowMs - this.last) * this.perSec / 1000);
+    this.last = nowMs;
+    if (this.tokens < 1) return false;
+    this.tokens -= 1;
+    return true;
+  }
+}
+
 const cap = (s, n) => (typeof s === 'string' ? s.slice(0, n) : '');
 const idOf = (v) => (v == null ? '' : String(v));
 
 // Maps a documented Kick event to the small shape the overlay understands.
-// Returns null for events the overlay does not show.
+// Returns null for events the overlay does not show, and for a body whose shape does not match
+// the declared type (the type header is signed, but a buggy or hostile sender could still pair it
+// with the wrong payload).
 function normalizeEvent(type, body) {
-  if (!body || typeof body !== 'object') return null;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
   if (type === 'chat.message.sent') {
+    if (typeof body.content !== 'string' || body.banned_user !== undefined) return null;
+    if (body.sender !== undefined && !isObj(body.sender)) return null;
+    if (body.broadcaster !== undefined && !isObj(body.broadcaster)) return null;
     const sender = body.sender || {};
     const ident = sender.identity || {};
     const badges = Array.isArray(ident.badges) ? ident.badges.slice(0, 12).map((b) => ({
@@ -95,7 +118,9 @@ function normalizeEvent(type, body) {
     };
   }
   if (type === 'moderation.banned') {
-    const u = body.banned_user || {};
+    if (!isObj(body.banned_user) || body.content !== undefined) return null;
+    if (body.broadcaster !== undefined && !isObj(body.broadcaster)) return null;
+    const u = body.banned_user;
     return {
       kind: 'ban',
       userId: idOf(u.user_id),
@@ -106,4 +131,4 @@ function normalizeEvent(type, body) {
   return null;
 }
 
-module.exports = { HEADER, MAX_SKEW_MS, verifySignature, parseTimestamp, isFresh, ReplayGuard, normalizeEvent };
+module.exports = { HEADER, MAX_SKEW_MS, verifySignature, parseTimestamp, isFresh, ReplayGuard, TokenBucket, normalizeEvent };

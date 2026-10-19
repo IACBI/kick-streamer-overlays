@@ -38,7 +38,8 @@ const CHROME = process.env.CHROME_PATH || [
 
 // Errors caused by the sandbox, not by the pack: the optional local file and offline fonts.
 // Optional badge art in badges/ is requested first and falls back to a drawn symbol when missing.
-const BENIGN = [/AYARLAR\.local\.js/, /fonts\.(googleapis|gstatic)\.com/, /badges\/[\w.-]+\.(svg|png|webp|gif|jpe?g)/];
+// K.relayInfo probes the default relay's /health once per page; with no relay running that is a refused connection.
+const BENIGN = [/AYARLAR\.local\.js/, /fonts\.(googleapis|gstatic)\.com/, /127\.0\.0\.1:8790\/health/, /badges\/[\w.-]+\.(svg|png|webp|gif|jpe?g)/];
 
 const results = [];
 function check(name, ok, detail) {
@@ -95,7 +96,7 @@ async function launchChrome() {
 }
 
 // Opens a file:// page from `dir` as a fresh target. Listeners attach before navigation.
-async function openPageFrom(dir, fileName, query, size) {
+async function openPageFrom(dir, fileName, query, size, blocked) {
   const target = await (await fetch(`${BASE}/json/new?about:blank`, { method: 'PUT' })).json();
   const c = await cdp(target.webSocketDebuggerUrl);
   const logs = [];
@@ -114,6 +115,10 @@ async function openPageFrom(dir, fileName, query, size) {
   await c.send('Runtime.enable');
   await c.send('Log.enable');
   await c.send('Page.enable');
+  if (blocked) {
+    await c.send('Network.enable');
+    await c.send('Network.setBlockedURLs', { urls: blocked });
+  }
   if (size) await c.send('Emulation.setDeviceMetricsOverride', { width: size[0], height: size[1], deviceScaleFactor: 1, mobile: false });
   await c.send('Page.navigate', { url: pathToFileURL(path.join(dir, fileName)).href + (query || '') });
   return {
@@ -134,7 +139,7 @@ async function openPageFrom(dir, fileName, query, size) {
     }
   };
 }
-const openPage = (fileName, query, size) => openPageFrom(ROOT, fileName, query, size);
+const openPage = (fileName, query, size, blocked) => openPageFrom(ROOT, fileName, query, size, blocked);
 
 // ---- offline scenarios (empty kanal, no network) -----------------------------
 
@@ -152,8 +157,48 @@ async function offlineChecks() {
   check('follower-bar: setup hint with empty kanal', fInfo.hint);
   check('follower-bar: label is "Takipçi / Follower"', fInfo.label === 'Takipçi / Follower', fInfo.label);
   check('follower-bar: no unexpected errors', unexpected(f.logs).length === 0, short(unexpected(f.logs)));
+  const fHead = await f.eval(`({
+    fonts: Array.from(document.querySelectorAll('link[rel=stylesheet]')).map((l) => l.getAttribute('href')).filter((h) => /fonts\\.googleapis\\.com/.test(h)),
+    preconnects: document.querySelectorAll('link[rel=preconnect]').length,
+    scripts: Array.from(document.scripts).map((e) => e.getAttribute('src')).filter(Boolean)
+  })`);
+  check('follower-bar: K.loadFont injects exactly one font link, for Inter only', fHead.fonts.length === 1 && /family=Inter:/.test(fHead.fonts[0]) && !/Poppins|Nunito|Roboto/.test(fHead.fonts[0]), short(fHead.fonts));
+  check('follower-bar: keeps the two preconnect links', fHead.preconnects === 2, String(fHead.preconnects));
+  check('follower-bar: does not load AYARLAR.local.js (credentials stay out)', !fHead.scripts.includes('AYARLAR.local.js') && fHead.scripts.join() === 'AYARLAR.js,shared/kick-core.js', fHead.scripts.join());
   await f.shot('follower.png');
   await f.close();
+
+  // Fill is drawn with --fill and transform, never by animating width. Sample 1,234 of 2,468 is exactly 50 %.
+  const fp = await openPage('follower-bar.html', '?onizleme=1&takipciHedefi=2468&yaziTipi=mono', [520, 90]);
+  await sleep(2500);
+  const fpInfo = await fp.eval(`(() => {
+    const el = document.getElementById('fill'), cs = getComputedStyle(el);
+    return {
+      fillVar: el.style.getPropertyValue('--fill'), inlineWidth: el.style.width, origin: cs.transformOrigin,
+      matrix: cs.transform, fonts: Array.from(document.querySelectorAll('link[rel=stylesheet]')).map((l) => l.getAttribute('href')).filter((h) => /fonts\\.googleapis\\.com/.test(h)),
+      noteHidden: document.getElementById('note').classList.contains('is-hidden')
+    };
+  })()`);
+  const fpScale = Number((/^matrix\(([^,]+),/.exec(fpInfo.matrix) || [])[1]);
+  check('follower-bar: fill is set through the --fill variable (0.5000 at 50 %)', fpInfo.fillVar === '0.5000', fpInfo.fillVar);
+  check('follower-bar: fill is drawn with transform scaleX, not an inline width', fpInfo.inlineWidth === '' && Math.abs(fpScale - 0.5) < 0.001 && /^0(px)? /.test(fpInfo.origin), `width="${fpInfo.inlineWidth}" matrix=${fpInfo.matrix} origin=${fpInfo.origin}`);
+  check('follower-bar: yaziTipi=mono loads only the Roboto Mono family', fpInfo.fonts.length === 1 && /Roboto\+Mono/.test(fpInfo.fonts[0]) && !/Inter/.test(fpInfo.fonts[0]), short(fpInfo.fonts));
+  check('follower-bar: no status note in sample mode', fpInfo.noteHidden);
+  check('follower-bar: sample mode has no unexpected errors', unexpected(fp.logs).length === 0, short(unexpected(fp.logs)));
+  await fp.close();
+
+  // Status notes (K.note): with Kick blocked the bar says so; hataNotu=0 silences it.
+  const KICK_BLOCK = ['*://kick.com/*', '*://*.kick.com/*'];
+  const fn = await openPage('follower-bar.html', '?kanal=e2e_unreachable', [520, 90], KICK_BLOCK);
+  await sleep(3500);
+  const fnInfo = await fn.eval(`({ text: document.getElementById('note').textContent, hidden: document.getElementById('note').classList.contains('is-hidden') })`);
+  check('follower-bar: shows the "Kick unreachable" note when Kick cannot be reached', !fnInfo.hidden && /unreachable|ulaşılamıyor/i.test(fnInfo.text), JSON.stringify(fnInfo));
+  await fn.close();
+  const fq = await openPage('follower-bar.html', '?kanal=e2e_unreachable&hataNotu=0', [520, 90], KICK_BLOCK);
+  await sleep(3500);
+  const fqInfo = await fq.eval(`document.getElementById('note').classList.contains('is-hidden')`);
+  check('follower-bar: hataNotu=0 hides the status note', fqInfo === true);
+  await fq.close();
 
   const s = await openPage('subscriber-bar.html', '', [520, 90]);
   await sleep(2500);
@@ -166,6 +211,8 @@ async function offlineChecks() {
   check('subscriber-bar: shows 0 without a count', sInfo.val === '0', sInfo.val);
   check('subscriber-bar: no session delta chip', sInfo.deltaHidden);
   check('subscriber-bar: no unexpected errors', unexpected(s.logs).length === 0, short(unexpected(s.logs)));
+  const sScripts = await s.eval(`Array.from(document.scripts).map((e) => e.getAttribute('src')).filter(Boolean).join()`);
+  check('subscriber-bar: loads AYARLAR.js, AYARLAR.local.js, kick-core.js in that order', sScripts === 'AYARLAR.js,AYARLAR.local.js,shared/kick-core.js', sScripts);
   await s.shot('subscriber.png');
   await s.close();
 
@@ -245,7 +292,18 @@ async function offlineChecks() {
   check('studio: a link holds only the settings that overlay reads', !/sohbetMaksMesaj|geriSayim|duyuru/.test(set.follower) && !/takipciHedefi/.test(set.chat), set.follower + ' | ' + set.chat);
   check('studio: the accent color is URL-encoded, no secret keys', /renk=%2339ff14/.test(set.follower) && !/client|secret/i.test(set.follower), set.follower);
   check('studio: the empty-channel warning goes away', !set.warn);
-  check('studio: the bar preview uses live data once a channel is set', !/onizleme=1/.test(set.src), set.src);
+  check('studio: the preview keeps sample data (onizleme=1) after a channel is set, until "Live data" is clicked', /onizleme=1/.test(set.src), set.src);
+
+  const live1 = await st.eval(`(() => { const b = document.getElementById('pv-canli'); return { hidden: b.hidden, pressed: b.getAttribute('aria-pressed') }; })()`);
+  check('studio: the "Live data" toggle is shown for a bar overlay and starts off', live1.hidden === false && live1.pressed === 'false', JSON.stringify(live1));
+  await st.eval(`document.getElementById('pv-canli').click()`);
+  await sleep(400);
+  const live2 = await st.eval(`({ src: document.getElementById('onizleme').getAttribute('src'), pressed: document.getElementById('pv-canli').getAttribute('aria-pressed') })`);
+  check('studio: clicking "Live data" drops onizleme=1 from the preview', !/onizleme=1/.test(live2.src) && /kanal=test_kanal/.test(live2.src) && live2.pressed === 'true', JSON.stringify(live2));
+  await st.eval(`document.getElementById('pv-canli').click()`);
+  await sleep(400);
+  const live3 = await st.eval(`({ src: document.getElementById('onizleme').getAttribute('src'), pressed: document.getElementById('pv-canli').getAttribute('aria-pressed') })`);
+  check('studio: clicking it again returns to sample data', /onizleme=1/.test(live3.src) && live3.pressed === 'false', JSON.stringify(live3));
 
   await st.eval(`document.getElementById('tab-chat').click()`);
   await sleep(500);
@@ -261,9 +319,20 @@ async function offlineChecks() {
   const tr = await st.eval(`({ lang: document.documentElement.lang, copy: document.querySelector('[data-copy]').textContent, theme: document.querySelector('[data-label-value="aurora"]').textContent })`);
   check('studio: switching back to Turkish restores the texts', tr.lang === 'tr' && tr.copy.trim() === 'Bağlantıyı kopyala' && tr.theme === 'Kuzey Işığı', JSON.stringify(tr));
 
+  // Reset all asks first: cancelling changes nothing, confirming restores the defaults.
   await st.eval(`document.getElementById('sifirla').click()`);
+  await sleep(300);
+  const ask = await st.eval(`({ open: !document.getElementById('sifirla-onay').hidden, stil: document.querySelector('input[name=stil]:checked').value })`);
+  check('studio: "Reset all" opens an inline confirmation and changes nothing yet', ask.open && ask.stil === 'neon', JSON.stringify(ask));
+  await st.eval(`document.getElementById('sifirlaIptal').click()`);
+  await sleep(300);
+  const cancelled = await st.eval(`({ open: !document.getElementById('sifirla-onay').hidden, stil: document.querySelector('input[name=stil]:checked').value })`);
+  check('studio: cancelling the reset closes the question and keeps the look', !cancelled.open && cancelled.stil === 'neon', JSON.stringify(cancelled));
+  await st.eval(`document.getElementById('sifirla').click()`);
+  await sleep(200);
+  await st.eval(`document.getElementById('sifirlaEvet').click()`);
   await sleep(400);
-  const reset = await st.eval(`({ kanal: document.getElementById('kanal').value, stil: document.querySelector('input[name=stil]:checked').value, follower: ${urlOf('follower')} })`);
+  const reset =await st.eval(`({ kanal: document.getElementById('kanal').value, stil: document.querySelector('input[name=stil]:checked').value, follower: ${urlOf('follower')} })`);
   check('studio: reset keeps the channel and restores the default look', reset.kanal === 'test_kanal' && reset.stil === 'glass' && /kanal=test_kanal/.test(reset.follower) && !/stil=/.test(reset.follower), JSON.stringify(reset));
   // Network log lines are expected here: the test channel does not exist. Script errors are not.
   const scriptErrors = st.logs.filter((l) => l.kind !== 'log');
@@ -468,10 +537,11 @@ async function relayChecks() {
 
   // A copy of the overlay that points at this relay and at the test channel.
   const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'kick-relay-'));
-  for (const f of ['AYARLAR.js', 'chat.html']) fs.copyFileSync(path.join(ROOT, f), path.join(copy, f));
+  fs.copyFileSync(path.join(ROOT, 'chat.html'), path.join(copy, 'chat.html'));
   fs.cpSync(path.join(ROOT, 'shared'), path.join(copy, 'shared'), { recursive: true });
-  fs.writeFileSync(path.join(copy, 'AYARLAR.local.js'),
-    'window.KICK_OVERLAY_YEREL = {\n' +
+  // chat.html loads only AYARLAR.js (it needs no credentials); relayAdresi is allowed there.
+  fs.writeFileSync(path.join(copy, 'AYARLAR.js'),
+    'window.KICK_OVERLAY_AYARLAR = {\n' +
     `  kanal: "${CHANNEL}",\n` +
     `  relayAdresi: "http://127.0.0.1:${eventsPort}"\n` +
     '};\n');
@@ -510,9 +580,13 @@ async function relayChecks() {
     check('relay chat: a ban removes that user\'s messages', stillThere === false);
 
     relay.stop();
-    await sleep(3500);
-    const note = await chat.eval(`(document.querySelector('.ko-note') || {}).textContent || ''`);
-    check('relay chat: when the relay stops, the overlay says so and keeps trying', /yeniden deneniyor|bağlanılamadı/.test(note), `note="${note}"`);
+    const noteState = `(() => { const n = document.querySelector('.ko-note'); return n && !n.classList.contains('is-hidden') ? n.textContent : ''; })()`;
+    await sleep(2000);
+    const early = await chat.eval(noteState);
+    check('relay chat: a short relay outage shows no note yet (5 s grace while the core reconnects)', early === '', `note="${early}"`);
+    await sleep(4500);
+    const note = await chat.eval(noteState);
+    check('relay chat: when the relay stays down, the overlay says so', /köprü|relay not running/i.test(note), `note="${note}"`);
   } finally {
     await chat.close();
     try { relay.stop(); } catch (e) { /* already stopped */ }

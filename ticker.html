@@ -7,10 +7,8 @@
 <title>Kick Announcement Bar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
-<script src="AYARLAR.local.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
@@ -22,9 +20,11 @@
   .tk-msg {
     position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center;
     padding: 0 28px; text-align: center; font-size: 20px; font-weight: 700; color: var(--text); text-shadow: var(--text-shadow);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     opacity: 0; transform: translateY(10px); transition: opacity .45s ease, transform .45s cubic-bezier(.2, .8, .2, 1);
   }
+  /* Ellipsis only works on a block that holds the text, not on the flex container, so the text sits in its own box. */
+  .tk-text { display: block; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .tk-text.ko-marquee { text-align: left; }
   .tk-msg.is-in { opacity: 1; transform: none; }
   .tk-msg.is-out { opacity: 0; transform: translateY(-10px); }
   .tk-bar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; height: 3px; background: var(--fill-bg); transform-origin: 0 50%; transform: scaleX(0); }
@@ -38,7 +38,7 @@
 </head>
 <body>
 <div class="ko-bar" id="bar">
-  <div class="tk-msg" id="msg" aria-live="polite"></div>
+  <div class="tk-msg" id="msg" aria-live="polite"><div class="tk-text" id="txt"><span id="line"></span></div></div>
   <div class="tk-bar" id="progress"></div>
 </div>
 <script>
@@ -47,53 +47,91 @@
   const S = K.readSettings();
   const PREVIEW = K.isPreview();
   K.applyLook(S);
+  K.loadFont(S);
 
   const elBar = document.getElementById('bar');
   const elMsg = document.getElementById('msg');
+  const elTxt = document.getElementById('txt');
+  const elLine = document.getElementById('line');
   const elProgress = document.getElementById('progress');
   const SAMPLES = ['Follow the channel so you never miss a stream', 'Takip et, yayını kaçırma', '!discord · !socials · !schedule'];
   const SWAP_MS = 450;
+  const MARQUEE_PX_PER_S = 70;
   const interval = S.duyuruSn * 1000;
 
   let lines = K.splitLines(S.duyuruMetinleri);
   let idx = 0;
-  let timer = null;
+  let timer = null;       // waits out the current line
+  let swapTimer = null;   // waits for the fade-out before the next line
+  let marqueeMs = 0;      // one scroll cycle of the current line, 0 when it fits
 
+  // A line wider than the bar scrolls (.ko-marquee) at a fixed speed, so a longer line takes longer.
+  // Returns true if the current line overflows.
+  function fit(){
+    elTxt.classList.remove('ko-marquee');
+    elTxt.style.removeProperty('--mq-ms');
+    marqueeMs = 0;
+    if (elTxt.scrollWidth <= elTxt.clientWidth) return false;
+    // The scrolling span starts one bar-width to the right and leaves on the left.
+    marqueeMs = Math.round((elLine.offsetWidth + elTxt.clientWidth) / MARQUEE_PX_PER_S * 1000);
+    elTxt.style.setProperty('--mq-ms', marqueeMs + 'ms');
+    elTxt.classList.add('ko-marquee');
+    return true;
+  }
+
+  // Shows a line and returns how long it stays: at least duyuruSn, or one full scroll when it is longer.
   function show(text){
-    elMsg.textContent = text;
+    elLine.textContent = text;
     elMsg.classList.remove('is-out');
     elMsg.classList.add('is-in');
+    fit();
+    const dwell = S.animasyon === 'normal' ? Math.max(interval, marqueeMs) : interval;
+    K.debug({ line: (idx + 1) + '/' + lines.length, scroll: marqueeMs ? marqueeMs + ' ms' : 'no' });
     if (lines.length > 1) {
-      elProgress.style.setProperty('--tk-ms', (interval - SWAP_MS) + 'ms');
+      elProgress.style.setProperty('--tk-ms', (dwell - SWAP_MS) + 'ms');
       elProgress.classList.remove('is-run');
       void elProgress.offsetWidth;   // restart the animation
       elProgress.classList.add('is-run');
     }
+    return dwell;
   }
 
   function next(){
+    timer = null;
     elMsg.classList.remove('is-in');
     elMsg.classList.add('is-out');
-    setTimeout(function(){
+    swapTimer = setTimeout(function(){
+      swapTimer = null;
       idx = (idx + 1) % lines.length;
-      show(lines[idx]);
+      cycle();
     }, S.animasyon === 'off' ? 0 : SWAP_MS);
+  }
+
+  function cycle(){
+    const dwell = show(lines[idx]);
+    timer = setTimeout(next, Math.max(0, dwell - SWAP_MS));
   }
 
   function showHint(){
     const h = document.createElement('div');
     h.className = 'ko-hint';
-    h.textContent = '⚙ AYARLAR.js → duyuruMetinleri / set your announcements';
+    h.textContent = K.label(S, '⚙ AYARLAR.js → duyuruMetinleri ayarla', '⚙ Set duyuruMetinleri in AYARLAR.js');
     elBar.appendChild(h);
   }
 
   if (PREVIEW) lines = SAMPLES;
   if (lines.length === 0) { showHint(); return; }
-  show(lines[0]);
   if (lines.length > 1) {
-    timer = setInterval(next, interval);
-    window.addEventListener('pagehide', function(){ clearInterval(timer); });
+    cycle();
+    window.addEventListener('pagehide', function(){
+      if (timer !== null) clearTimeout(timer);
+      if (swapTimer !== null) clearTimeout(swapTimer);
+    });
+  } else {
+    show(lines[0]);
   }
+  // The font may arrive after the first measure; re-measure the line on screen without touching the timers.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
 })();
 </script>
 </body>

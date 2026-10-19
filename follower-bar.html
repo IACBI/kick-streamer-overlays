@@ -7,10 +7,8 @@
 <title>Kick Follower Bar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
-<script src="AYARLAR.local.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
@@ -32,70 +30,80 @@
     <span class="ko-goal" id="goal"></span>
   </div>
 </div>
+<div class="ko-note is-hidden" id="note" aria-live="polite"></div>
 <script>
 (function(){
   const K = window.KickOverlay;
   const S = K.readSettings();
   const PREVIEW = K.isPreview();
   K.applyLook(S);
+  K.loadFont(S);
+  const T = K.text(S);
 
   const elBar = document.getElementById('bar');
-  const elFill = document.getElementById('fill');
-  const elCur = document.getElementById('cur');
-  const elPct = document.getElementById('pct');
   const elLbl = document.getElementById('lbl');
   const elGoal = document.getElementById('goal');
+  const elNote = document.getElementById('note');
 
   elLbl.textContent = K.label(S, 'Takipçi', 'Follower');
   elGoal.textContent = K.fmt(S.takipciHedefi);
 
-  let displayed = 0;      // number currently on screen (mid-tween safe)
-  let target = null;      // last value painted
+  const bar = K.createGoalBar({
+    bar: elBar,
+    fill: document.getElementById('fill'),
+    val: document.getElementById('cur'),
+    pct: document.getElementById('pct'),
+    delta: null
+  }, S.takipciHedefi, S);
+
   let lastGood = null;    // last value Kick returned; kept when a poll fails
-  let cancelTween = null;
+  let poller = null;
+  let debugTimer = null;
 
-  function paint(v){
-    if (v === target) return;
-    target = v;
-    const pct = K.pct(v, S.takipciHedefi);
-    elFill.style.width = pct + '%';
-    elPct.hidden = !S.yuzdeGoster;
-    elPct.textContent = Math.round(pct) + '%';
-    if (cancelTween) cancelTween();
-    cancelTween = K.tween(displayed, v, S.animasyon === 'off' ? 0 : 1300, function(x){
-      displayed = x;
-      elCur.textContent = K.fmt(x);
-    });
-  }
-
-  let busy = false;
+  // The fallback count is shown on a failed first poll, but never without a note saying so.
   async function poll(){
-    if (busy) return;
-    busy = true;
-    try {
-      const r = await K.kick.channel(S.kanal);
-      const n = r.ok ? K.parse.followers(r.data) : null;
-      if (n !== null) lastGood = n;
-      paint(lastGood !== null ? lastGood : S.takipciYedek);
-    } finally { busy = false; }
+    const r = await K.kick.channel(S.kanal, S);
+    const n = r.ok ? K.parse.followers(r.data) : null;
+    if (n !== null) {
+      lastGood = n;
+      bar.set(n);
+      K.note(elNote, S, '');
+    } else {
+      if (lastGood === null) bar.set(S.takipciYedek);
+      K.note(elNote, S, lastGood === null ? T.unreachable : r.status === 429 ? T.rate : T.error);
+    }
+    K.debug({
+      src: r.src || '-',
+      status: n !== null ? 'ok' : (r.status || r.error || 'error'),
+      'last poll': new Date().toLocaleTimeString()
+    });
+    return { ok: n !== null, retryAfterMs: r.retryAfterMs };
   }
 
   function showHint(){
     const h = document.createElement('div');
     h.className = 'ko-hint';
-    h.textContent = '⚙ AYARLAR.js → kanal / set your channel';
+    h.textContent = T.hint;
     elBar.appendChild(h);
   }
 
   // Preview (?onizleme=1): sample value only. No request and no timer.
-  if (PREVIEW) { paint(K.sample.followers); return; }
+  if (PREVIEW) { bar.set(K.sample.followers); K.debug({ mode: 'preview' }); return; }
 
-  if (!S.kanal) { paint(S.takipciYedek); showHint(); return; }
-  poll();
-  const timer = setInterval(poll, S.yenilemeSn * 1000);
+  if (!S.kanal) { bar.set(S.takipciYedek); showHint(); K.debug({ mode: 'no channel' }); return; }
+
+  poller = K.poller(poll, { intervalMs: S.yenilemeSn * 1000 });
+  poller.start();
+  if (K.isDebug()) {
+    debugTimer = setInterval(function(){
+      const ms = poller.nextInMs();
+      K.debug({ 'next poll': ms === null ? '-' : Math.ceil(ms / 1000) + 's' });
+    }, 1000);
+  }
   window.addEventListener('pagehide', function(){
-    clearInterval(timer);
-    if (cancelTween) cancelTween();
+    poller.stop();
+    bar.destroy();
+    if (debugTimer !== null) clearInterval(debugTimer);
   });
 })();
 </script>
