@@ -297,7 +297,7 @@ async function testCoreApi() {
     ['followers', 'live', 'subBadges', 'time', 'official'].forEach((n) =>
       ok(typeof K.parse[n] === 'function', 'missing parse.' + n));
     ok(typeof K.kick.channel === 'function', 'missing kick.channel');
-    eq(K.version, '2.3.0', 'version');
+    eq(K.version, '2.3.1', 'version');
     ['token', 'channel', 'clearToken'].forEach((n) => ok(typeof K.official[n] === 'function', 'missing official.' + n));
   });
 }
@@ -527,10 +527,62 @@ async function testHelpers() {
     eq(ctx.document.documentElement.lang, 'en', 'lang en');
   });
 
+  await check('applyLook() picks the chip text colour by WCAG contrast with the accent', () => {
+    const pick = (renk) => {
+      const doc = fakeDocument('');
+      ctx.document = doc;
+      K.applyLook(K.normalize({ renk }));
+      const v = doc.documentElement.style.values;
+      eq(v['--chip-bg'], renk, '--chip-bg is the accent');
+      return v['--chip-text'];
+    };
+    eq(pick('#53fc18'), '#0b0b0d', 'bright green gets dark text');
+    eq(pick('#ffd400'), '#0b0b0d', 'yellow gets dark text');
+    eq(pick('#7c3aed'), '#ffffff', 'violet gets white text');
+    eq(pick('#e11d48'), '#ffffff', 'red gets white text');
+    eq(pick('#ffffff'), '#0b0b0d', 'white gets dark text');
+    eq(pick('#000000'), '#ffffff', 'black gets white text');
+    eq(pick('#abc'), '#0b0b0d', 'short hex works');
+  });
+
   await check('tween() with 0 ms jumps straight to the end', () => {
     const seen = [];
     K.tween(0, 10, 0, (v) => seen.push(v));
     eq(seen, [10], 'values');
+  });
+
+  await check('tween() calls onDone after the last frame, not after a cancel, and at once for 0 ms', () => {
+    const { K: K2, env: env2 } = loadCore();
+    const log = [];
+    K2.tween(0, 10, 0, () => log.push('f'), () => log.push('done'));
+    eq(log, ['f', 'done'], 'zero duration');
+    const seen = [];
+    K2.tween(0, 10, 100, () => seen.push('f'), () => seen.push('done'));
+    env2.now = 50;
+    env2.frames.shift()(50);
+    eq(seen, ['f'], 'not done mid-way');
+    env2.now = 100;
+    env2.frames.shift()(100);
+    eq(seen, ['f', 'f', 'done'], 'done after the final frame');
+    const c = [];
+    const cancel = K2.tween(0, 10, 100, () => c.push('f'), () => c.push('done'));
+    cancel();
+    env2.frames.shift()(100);
+    eq(c, [], 'cancelled tween stays silent');
+  });
+
+  await check('tween() jumps to the end when the OS asks for reduced motion', () => {
+    const { K: K2, ctx: ctx2, env: env2 } = loadCore();
+    ctx2.matchMedia = (q) => ({ matches: /prefers-reduced-motion:\s*reduce/.test(q) });
+    const seen = [];
+    let done = 0;
+    K2.tween(0, 100, 1000, (v) => seen.push(v), () => { done += 1; });
+    eq(seen, [100], 'values');
+    eq(done, 1, 'onDone');
+    eq(env2.frames.length, 0, 'no frames requested');
+    ctx2.matchMedia = () => ({ matches: false });
+    K2.tween(0, 100, 1000, (v) => seen.push(v));
+    eq(env2.frames.length, 1, 'frames come back without the preference');
   });
 
   await check('tween() eases over time with the frame clock', () => {
@@ -1083,7 +1135,7 @@ function fakeVisibilityDocument(hidden) {
 
 const jsonRes = (body, headers) => ({ status: 200, body, headers });
 const SUBS_OK = (subs) => jsonRes({ ok: true, subs, gifted: 3, canceled: 1, live: true, viewers: 12, startMs: null, title: 'x' });
-const HEALTH = (features) => jsonRes({ ok: true, version: '2.3.0', clients: 0, features: Object.assign({ chat: false, channel: true, subscribers: false }, features) });
+const HEALTH = (features) => jsonRes({ ok: true, version: '2.3.1', clients: 0, features: Object.assign({ chat: false, channel: true, subscribers: false }, features) });
 
 async function testSettingsV23() {
   section('v2.3.0 settings: new keys, clock, asBool, kanal');
@@ -1248,7 +1300,9 @@ async function testHelpersV23() {
       ok(href.startsWith('https://fonts.googleapis.com/css2?'), 'host for ' + font);
       ok(href.includes(urls[font]), 'family for ' + font + ': ' + href);
       ok(href.endsWith('&display=swap'), 'display=swap for ' + font);
-      eq((href.match(/family=/g) || []).length, 1, 'only one family for ' + font);
+      // Poppins has no tabular digits, so its numerals come from Inter; every other font loads alone.
+      eq((href.match(/family=/g) || []).length, font === 'poppins' ? 2 : 1, 'family count for ' + font);
+      if (font === 'poppins') ok(href.includes('family=Inter:wght@600..900'), 'Inter numerals for poppins: ' + href);
       eq(doc.links[0].rel, 'stylesheet', 'rel');
     });
   });
@@ -1438,6 +1492,97 @@ async function testCreateGoalBar() {
     ok(!els.bar.classes.has('ko-milestone'), 'no milestone');
     ok(!els.bar.classes.has('is-goal'), 'no is-goal');
     ok(els.bar.classes.has('ko-bump'), 'bump is unrelated and still works');
+  });
+
+  await check('set(): a milestone replaces the bump instead of stacking on it', () => {
+    const { gb, els } = make();
+    gb.set(100, 0);
+    gb.set(150, 0);
+    ok(els.bar.classes.has('ko-bump'), 'plain increase bumps');
+    gb.set(260, 0);
+    ok(els.bar.classes.has('ko-milestone'), 'crossed 25');
+    ok(!els.bar.classes.has('ko-bump'), 'no bump together with the milestone');
+    const b = make({ hedefKutlama: false });
+    b.gb.set(100, 0);
+    b.gb.set(260, 0);
+    ok(b.els.bar.classes.has('ko-bump'), 'without celebrations the crossing is an ordinary bump');
+  });
+
+  await check('set(): is-goal waits for the count-up; a one-off pulse follows and is removed again', async () => {
+    const { gb, els, env, clock } = make({ animasyon: 'normal' });
+    gb.set(900, 0);
+    env.now = 1300;
+    env.frames.shift()(1300);
+    ok(!els.bar.classes.has('is-goal'), 'below goal');
+    gb.set(1000, 0);
+    ok(!els.bar.classes.has('is-goal'), 'not yet while the value is still counting');
+    env.now = 1900;
+    env.frames.shift()(1900);
+    ok(!els.bar.classes.has('is-goal'), 'still counting');
+    env.now = 2600;
+    env.frames.shift()(2600);
+    eq(els.val.textContent, '1,000', 'value arrived');
+    ok(els.bar.classes.has('is-goal'), 'is-goal after the tween');
+    ok(els.bar.classes.has('ko-goal-pulse'), 'pulse on the first arrival');
+    await clock.advance(1100);
+    ok(!els.bar.classes.has('ko-goal-pulse'), 'pulse removed');
+    ok(els.bar.classes.has('is-goal'), 'is-goal stays');
+    gb.set(900, 0);
+    ok(!els.bar.classes.has('is-goal'), 'leaving the goal state is immediate');
+    gb.destroy();
+  });
+
+  await check('set(): a page that loads at or above the goal gets is-goal but no pulse', () => {
+    const { gb, els } = make();
+    gb.set(1200, 0);
+    ok(els.bar.classes.has('is-goal'), 'is-goal');
+    ok(!els.bar.classes.has('ko-goal-pulse'), 'no pulse on load');
+  });
+
+  await check('set(): the value text is written only when the formatted string changes', () => {
+    const { gb, els, env } = make({ animasyon: 'normal' }, 1000);
+    let writes = 0, current = els.val.textContent;
+    Object.defineProperty(els.val, 'textContent', {
+      get() { return current; },
+      set(v) { writes += 1; current = v; }
+    });
+    gb.set(10, 0);
+    env.now = 1300;
+    env.frames.shift()(1300);
+    eq(current, '10', 'arrived');
+    const after = writes;
+    gb.set(10, 0);
+    ok(writes === after, 'same value again writes nothing');
+    gb.set(10.2, 0);
+    env.now = 3000;
+    env.frames.shift()(3000);
+    ok(writes === after, 'a change below the rounding step writes nothing');
+  });
+
+  await check('set(): value text reuses the existing Text node', () => {
+    const { gb, els } = make({ animasyon: 'off' });
+    const node = { nodeType: 3, nodeValue: '0', parentNode: els.val };
+    els.val.firstChild = node;
+    gb.set(5, 0);
+    gb.set(7, 0);
+    eq(node.nodeValue, '7', 'node value');
+  });
+
+  await check('set(): the shine class starts after an increase only, and is removed again', async () => {
+    const { gb, els, clock } = make({ animasyon: 'normal' });
+    gb.set(100, 0);
+    ok(!els.fill.classes.has('ko-shine'), 'none on the first value');
+    gb.set(150, 0);
+    ok(els.fill.classes.has('ko-shine'), 'shine after an increase');
+    await clock.advance(1500);
+    ok(!els.fill.classes.has('ko-shine'), 'removed again');
+    gb.set(140, 0);
+    ok(!els.fill.classes.has('ko-shine'), 'none on a decrease');
+    const low = make({ animasyon: 'low' });
+    low.gb.set(100, 0);
+    low.gb.set(150, 0);
+    ok(!low.els.fill.classes.has('ko-shine'), 'none in low motion');
+    gb.destroy();
   });
 
   await check('set(): goal 0 never counts as reached', () => {
@@ -1702,7 +1847,7 @@ async function testRelayInfoAndChannel() {
     const { K } = loadCore({ fetch: net.fetch });
     const a = await K.relayInfo(S());
     const b = await K.relayInfo(S());
-    eq(a.version, '2.3.0', 'version');
+    eq(a.version, '2.3.1', 'version');
     eq(a.features.channel, true, 'features');
     eq(net.calls.length, 1, 'requests');
     eq(net.calls[0].url, RELAY + '/health', 'url');

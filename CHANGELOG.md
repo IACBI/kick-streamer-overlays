@@ -4,6 +4,27 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-10-19
+
+### Fixed
+- Readability over any footage: every theme now keeps value, label and goal text at 4.5:1 or better on light, dark and busy backgrounds (several were near 1:1 on light footage). Translucent themes get a real backing, and chat bubbles stay readable on bright scenes.
+- Chip text picks dark or white automatically from the accent colour, and chips keep a thin outline so they never melt into the fill.
+- The progress fill slides in instead of stretching, so the pill end, retro dots, terminal stripes and the ember tip keep their shape at any level.
+- Chat: older messages slide up smoothly when a new one arrives or one leaves, and the oldest fades out instead of vanishing.
+- Ticker: each line now enters from below, the progress line no longer snaps back, long lines scroll a little faster with soft edges, and with reduced motion they wrap or page instead of being cut off.
+- A milestone no longer triggers a second bump; the goal-reached look arrives when the count finishes, with one pulse.
+- Numbers no longer jitter with the Poppins font (digits use Inter there).
+- The bar label stays put while the number counts, and the two rows of the combined bar line up.
+- Reduced motion now also stops the count-up and the bar slides; low motion keeps every transition short.
+- Countdown: retro keeps square corners, and the bar no longer redraws every second in low or reduced motion.
+
+### Changed
+- Lighter animations: the holo shine and the streamer badge no longer repaint every frame (holo idle CPU went from about 29 % to 0 % under load), the endless shimmer is now a short shine after a new follower or subscriber, and chat bubbles no longer use background blur.
+- Entrances and exits share one set of durations and easing across all overlays.
+
+### Added
+- `tools/visual-qa.js` (screenshot grids of every overlay, theme and accent over light, dark and busy backgrounds, with measured contrast and colour-blindness views) and `tools/motion-qa.js` (frame timing, layout and paint counts, and filmstrips of every animation).
+
 ## [2.3.0] - 2026-10-19
 
 ### Added

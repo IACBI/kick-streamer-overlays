@@ -52,14 +52,18 @@
   #peak {
     position: absolute; top: -9px; right: 14px; margin: 0; padding: 1px 7px; font-size: 11px; white-space: nowrap;
     box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+    /* It rises in like the panel when the attribute is lifted, instead of popping. */
+    animation: ko-rise-in var(--ko-dur-in, .5s) var(--ko-ease, cubic-bezier(.2, .8, .2, 1)) backwards;
   }
   /* No fresh data while live: the numbers are frozen, so the pulse stops and the panel dims. */
   .ko-panel.is-stale:not(.is-off) { opacity: .55; }
+  .ko-dot { transition: background-color var(--ko-dur-out, .35s) ease, box-shadow var(--ko-dur-out, .35s) ease; }
   .ko-panel.is-stale .ko-dot { animation: none; background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
 
   body.motion-low .eye-iris, body.motion-low .eye, body.motion-low .clock-hands,
   body.motion-off .eye-iris, body.motion-off .eye, body.motion-off .clock-hands,
   body.motion-off .ko-dot { animation: none; }
+  body.motion-low .ko-dot, body.motion-off .ko-dot { transition: none; }
   @media (prefers-reduced-motion: reduce) {
     .eye-iris, .eye, .clock-hands { animation: none; }
   }
@@ -94,13 +98,15 @@
   const elUptime = document.getElementById('uptime');
   const elPeak = document.getElementById('peak');
   const elNote = document.getElementById('note');
-  const tweenMs = S.animasyon === 'off' ? 0 : 700;
+  const reduceMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const tweenMs = S.animasyon === 'off' || (reduceMq && reduceMq.matches) ? 0 : 700;
   const STALE_AFTER = 3;          // failed polls in a row before the numbers count as out of date
   const PEAK_KEY = 'ko:peak:' + S.kanal;
 
   let live = false;
   let startMs = null;
   let shownViewers = 0;
+  let shownText = '0';    // last text written, so a tween frame with the same text touches nothing
   let cancelViewers = null;
   let ticker = null;      // runs only while the channel is live
   let peak = 0;           // highest viewer count of the current stream
@@ -115,7 +121,8 @@
     if (cancelViewers) cancelViewers();
     cancelViewers = K.tween(shownViewers, target, tweenMs, function(x){
       shownViewers = x;
-      elViewers.textContent = K.fmt(x);
+      const t = K.fmt(x);
+      if (t !== shownText) { shownText = t; elViewers.textContent = t; }
     });
   }
 

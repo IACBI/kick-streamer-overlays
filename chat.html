@@ -17,6 +17,7 @@
   /* Badge art: the image is the badge, so no pill background or box shadow. */
   .ko-badge-art{ background:none; box-shadow:none; padding:0; min-width:0; height:18px; }
   .ko-badge-art img{ height:18px; width:auto; display:block; filter:drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
+  .ko-badge .ko-count{ font-size:11px; }
 </style>
 </head>
 <body>
@@ -35,11 +36,14 @@
   const feed = document.getElementById('feed');
   const noteEl = document.getElementById('note');
   const MAX = S.sohbetMaksMesaj;
-  // Matches the .ko-msg.is-leaving animation duration in themes.css (.4s).
+  // Fallbacks for the .ko-msg.is-leaving (.4s) and .is-fading (.6s) animations in themes.css;
+  // the real length is read from the element when it leaves.
   const LEAVE_MS = 400;
   const SEEN_CAP = 500;
-  // Matches the .ko-msg.is-fading animation duration in themes.css (.6s).
   const FADE_MS = 600;
+  const reduceMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  // Web Animations cannot take var(), so the motion token is read once; the fallback is the same curve.
+  const FLIP_EASE = (window.getComputedStyle(document.documentElement).getPropertyValue('--ko-ease') || '').trim() || 'cubic-bezier(.2, .8, .2, 1)';
   const RELAY_DOWN_MS = 5000;
   const EMOTE_MAX = 10;
   // Only hex (#rgb or #rrggbb, as in kick-core) reaches the CSS as a name colour.
@@ -69,7 +73,7 @@
   };
   const BADGE_COLOR = {
     moderator:'#16c172', vip:'#ec4899', og:'#f0b429', founder:'#ef5350',
-    subscriber:'#6f6cff', sub_gifter:'#14b8a6', verified:'#2aa3ff', staff:'#0b8f3a'
+    subscriber:'#4f46e5', sub_gifter:'#0f766e', verified:'#2aa3ff', staff:'#0b8f3a'
   };
 
   const seen = new Set();   // dedupe guard; a Set keeps insertion order, so the oldest key is evicted first
@@ -268,17 +272,80 @@
     else if(img.dataset.kind === 'role') wrap.replaceWith(pill(img.dataset.type, Number(img.dataset.count) || 0));
   }, true);
 
-  // Messages of a banned user fade out before they are removed.
-  function fadeRemove(el){
-    if(!el || el.classList.contains('is-leaving')) return;
-    el.classList.add('is-leaving');
-    setTimeout(() => el.remove(), LEAVE_MS);
+  // Moving the rest of the feed is a transform animation (FLIP), so a message that is added or removed
+  // slides its neighbours instead of snapping them. Off for animasyon=off and prefers-reduced-motion.
+  function flipOn(){
+    return S.animasyon !== 'off' && !(reduceMq && reduceMq.matches) && typeof Element.prototype.animate === 'function';
   }
 
-  // Keeps the feed at MAX nodes before a new one is added. The oldest message sits under the
-  // top mask fade, so it is removed without animation.
+  // Visual tops before a change. A running animation is part of both readings, so only the layout shift is left.
+  function tops(){
+    const m = new Map();
+    for(const el of feed.children) m.set(el, el.getBoundingClientRect().top);
+    return m;
+  }
+
+  // The separate "translate" property composes with the transform of the enter/leave animation and can run on the
+  // compositor; engines without it fall back to an additive transform animation.
+  const HAS_TRANSLATE = !!(window.CSS && CSS.supports && CSS.supports('translate', '0 1px'));
+  const flips = new WeakMap();   // element -> its running slide, so a new slide continues from where it is
+
+  function slide(before){
+    if(!before) return;
+    const ms = S.animasyon === 'low' ? 200 : 300;
+    const jobs = [];
+    for(const [el, top] of before){
+      if(!el.isConnected) continue;
+      const d = top - el.getBoundingClientRect().top;
+      if(Math.abs(d) < 0.5) continue;
+      let cur = 0;
+      const prev = flips.get(el);
+      if(HAS_TRANSLATE && prev && prev.playState === 'running') cur = parseFloat((window.getComputedStyle(el).translate || '').split(' ')[1]) || 0;
+      jobs.push([el, d, cur]);
+    }
+    for(const [el, d, cur] of jobs){
+      const prev = flips.get(el);
+      if(HAS_TRANSLATE && prev) prev.cancel();
+      const anim = HAS_TRANSLATE
+        ? el.animate([{ translate: '0 ' + (d + cur) + 'px' }, { translate: '0 0' }], { duration: ms, easing: FLIP_EASE })
+        : el.animate([{ transform: 'translateY(' + d + 'px)' }, { transform: 'translateY(0)' }], { duration: ms, easing: FLIP_EASE, composite: 'add' });
+      flips.set(el, anim);
+    }
+  }
+
+  // Runs a DOM change and slides whatever it moved.
+  function withSlide(change){
+    const before = flipOn() ? tops() : null;
+    change();
+    slide(before);
+  }
+
+  // The element's own animation length, so the timer follows themes.css and the motion setting.
+  function animMs(el, fallback){
+    const parts = (window.getComputedStyle(el).animationDuration || '').split(',')
+      .map(x => parseFloat(x) * (/ms\s*$/.test(x) ? 1 : 1000));
+    const ms = Math.max.apply(null, parts);
+    return Number.isFinite(ms) && ms > 0 ? ms : fallback;
+  }
+
+  // The message plays its leave/fade animation, then goes and the feed closes the gap smoothly.
+  function dismiss(el, cls, fallback){
+    el.classList.add(cls);
+    const wait = S.animasyon === 'off' ? 0 : animMs(el, fallback);
+    setTimeout(() => withSlide(() => el.remove()), wait);
+  }
+
+  // Messages of a banned user fade out before they are removed.
+  function fadeRemove(el){
+    if(!el || el.classList.contains('is-leaving') || el.classList.contains('is-fading')) return;
+    dismiss(el, 'is-leaving', LEAVE_MS);
+  }
+
+  // Keeps the feed at MAX live messages before a new one is added. The oldest fades out in place under
+  // the top mask; messages that are already leaving do not count against the limit.
   function makeRoom(){
-    while(feed.childElementCount >= MAX) feed.firstElementChild.remove();
+    const live = Array.from(feed.querySelectorAll('.ko-msg:not(.is-leaving):not(.is-fading)'));
+    while(live.length >= MAX) fadeRemove(live.shift());
   }
 
   // An id is the only safe dedupe key. Without one, name + text + send time (ms) stands in;
@@ -328,8 +395,10 @@
     appendBody(text, String(ev.message || ''));
     el.appendChild(text);
 
-    makeRoom();
-    feed.appendChild(el);
+    withSlide(() => {
+      makeRoom();
+      feed.appendChild(el);
+    });
     msgTotal += 1;
     K.debug({ messages: msgTotal });
   }
@@ -339,8 +408,7 @@
     const limit = S.sohbetSilinmeSn * 1000, now = Date.now();
     feed.querySelectorAll('.ko-msg:not(.is-leaving):not(.is-fading)').forEach(el => {
       if(now - Number(el.dataset.at) < limit) return;
-      el.classList.add('is-fading');
-      setTimeout(() => el.remove(), FADE_MS);
+      dismiss(el, 'is-fading', FADE_MS);
     });
   }
 

@@ -30,6 +30,8 @@ Thanks for helping make the pack better. This project is by 𝓐.𝓒.𝓑 and f
 | `tests/relay-test.js` | Relay tests. They run the relay against a local mock of Kick's API. |
 | `tests/e2e-chrome.js`, `tests/mock-kick-api.js`, `tests/fixtures/` | Browser tests, the local Kick mock and sample API responses. |
 | `tools/record-previews.js` | Re-creates the images in `screenshots/`. |
+| `tools/visual-qa.js` | Screenshot grids of every overlay, theme and accent over light, dark and busy backgrounds, with measured text contrast. |
+| `tools/motion-qa.js` | Frame timing, layout and paint counts, and filmstrips of every animation, with optional CPU throttling. |
 | `badges/` | Optional badge art for chat. |
 
 ## Setup
@@ -63,6 +65,8 @@ Copy the structure of `follower-bar.html`: shared head, `K.readSettings()`, `K.a
 ```bash
 node tools/record-previews.js            # all images in screenshots/
 node tools/record-previews.js themes     # one scene
+node tools/visual-qa.js --out <dir>      # contrast and look of every theme (about 12 min)
+node tools/motion-qa.js --out <dir> --phase perf --throttle 4 --quick
 ```
 
 It needs Node.js 22 or newer, Chrome or Edge, and `ffmpeg` on the PATH.

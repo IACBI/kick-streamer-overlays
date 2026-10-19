@@ -168,20 +168,21 @@ async function offlineChecks() {
   await f.shot('follower.png');
   await f.close();
 
-  // Fill is drawn with --fill and transform, never by animating width. Sample 1,234 of 2,468 is exactly 50 %.
+  // Fill is drawn with --fill and a translate reveal, never by animating width. Sample 1,234 of 2,468 is exactly 50 %.
   const fp = await openPage('follower-bar.html', '?onizleme=1&takipciHedefi=2468&yaziTipi=mono', [520, 90]);
   await sleep(2500);
   const fpInfo = await fp.eval(`(() => {
     const el = document.getElementById('fill'), cs = getComputedStyle(el);
     return {
       fillVar: el.style.getPropertyValue('--fill'), inlineWidth: el.style.width, origin: cs.transformOrigin,
-      matrix: cs.transform, fonts: Array.from(document.querySelectorAll('link[rel=stylesheet]')).map((l) => l.getAttribute('href')).filter((h) => /fonts\\.googleapis\\.com/.test(h)),
+      matrix: cs.transform, width: el.offsetWidth, fonts: Array.from(document.querySelectorAll('link[rel=stylesheet]')).map((l) => l.getAttribute('href')).filter((h) => /fonts\\.googleapis\\.com/.test(h)),
       noteHidden: document.getElementById('note').classList.contains('is-hidden')
     };
   })()`);
-  const fpScale = Number((/^matrix\(([^,]+),/.exec(fpInfo.matrix) || [])[1]);
+  const fpM = (/^matrix\(([^)]+)\)/.exec(fpInfo.matrix) || [])[1];
+  const fpParts = fpM ? fpM.split(',').map(Number) : [];
   check('follower-bar: fill is set through the --fill variable (0.5000 at 50 %)', fpInfo.fillVar === '0.5000', fpInfo.fillVar);
-  check('follower-bar: fill is drawn with transform scaleX, not an inline width', fpInfo.inlineWidth === '' && Math.abs(fpScale - 0.5) < 0.001 && /^0(px)? /.test(fpInfo.origin), `width="${fpInfo.inlineWidth}" matrix=${fpInfo.matrix} origin=${fpInfo.origin}`);
+  check('follower-bar: fill is a full-width translate reveal (-50 % at 50 %), not an inline width or scaleX', fpInfo.inlineWidth === '' && Math.abs(fpParts[0] - 1) < 0.001 && fpInfo.width > 0 && Math.abs(fpParts[4] + fpInfo.width * 0.5) < 1, `width="${fpInfo.inlineWidth}" matrix=${fpInfo.matrix} w=${fpInfo.width}`);
   check('follower-bar: yaziTipi=mono loads only the Roboto Mono family', fpInfo.fonts.length === 1 && /Roboto\+Mono/.test(fpInfo.fonts[0]) && !/Inter/.test(fpInfo.fonts[0]), short(fpInfo.fonts));
   check('follower-bar: no status note in sample mode', fpInfo.noteHidden);
   check('follower-bar: sample mode has no unexpected errors', unexpected(fp.logs).length === 0, short(unexpected(fp.logs)));

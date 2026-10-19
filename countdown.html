@@ -18,26 +18,40 @@
   }
   .ko-panel.cd {
     width: 100%; flex-direction: column; gap: 10px; padding: 18px 28px 20px; text-align: center;
-    border-radius: var(--r-card);
+    border-radius: min(var(--r-card), 36px);
+    transition: opacity var(--ko-dur-in, .5s) ease, transform var(--ko-dur-in, .5s) ease,
+      border-color var(--ko-dur-in, .5s) ease, box-shadow var(--ko-dur-in, .5s) ease;
   }
-  body.shape-pill .ko-panel.cd { border-radius: 36px; }
-  .cd-title { font-size: 16px; font-weight: 700; color: var(--muted); letter-spacing: .3px; text-shadow: var(--text-shadow); }
+  .cd-title {
+    font-size: 16px; font-weight: 700; color: var(--muted); letter-spacing: .3px; text-shadow: var(--text-shadow);
+    transition: opacity .2s ease, color var(--ko-dur-in, .5s) ease;
+  }
+  .cd-title.is-swap { opacity: 0; }
   .cd-time {
     font-size: 64px; font-weight: 800; line-height: 1; color: var(--text); text-shadow: var(--text-shadow);
-    font-variant-numeric: tabular-nums; letter-spacing: 1px;
+    font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; letter-spacing: 1px;
   }
   .cd-track { width: 100%; height: 6px; border-radius: 999px; overflow: hidden; background: var(--track-bg); }
+  /* The fill keeps its full width and slides in from the left, so its cap and pattern are never squeezed. */
   .cd-fill {
     width: 100%; height: 100%; border-radius: inherit; background: var(--fill-bg);
-    transform-origin: 0 50%; transform: scaleX(var(--fill, 1)); transition: transform 1s linear;
+    transform: translateX(calc((var(--fill, 1) - 1) * 100%)); transition: transform 1s linear;
   }
+  /* Done: the last step is a smooth refill instead of a per-second tick. */
+  .cd.is-done .cd-fill { transition: transform var(--ko-dur-fill, 1.2s) var(--ko-ease-out, cubic-bezier(.22, 1, .36, 1)); }
   .cd.is-done { border-color: rgb(var(--accent-rgb) / 70%); box-shadow: var(--shadow), 0 0 18px rgb(var(--accent-rgb) / 45%); }
   .cd.is-done .cd-title { color: var(--text); font-weight: 800; }
   .cd.is-done .cd-time { animation: cd-pop 1.2s ease-in-out infinite; }
   @keyframes cd-pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-  body.motion-off .cd-fill { transition: none; }
+  /* Low, off and reduced motion set the fill at once: no slide at every tick. */
+  body.motion-low .cd-fill, body.motion-off .cd-fill, body.motion-low .cd.is-done .cd-fill, body.motion-off .cd.is-done .cd-fill,
+  body.motion-low .cd, body.motion-off .cd { transition: none; }
+  body.motion-low .cd-title, body.motion-off .cd-title { transition: none; }
   body.motion-low .cd.is-done .cd-time { animation: none; }
-  @media (prefers-reduced-motion: reduce) { .cd.is-done .cd-time { animation: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .cd-fill, .cd.is-done .cd-fill, .cd, .cd-title { transition: none; }
+    .cd.is-done .cd-time { animation: none; }
+  }
 </style>
 </head>
 <body>
@@ -58,6 +72,8 @@
   const elTitle = document.getElementById('title');
   const elTime = document.getElementById('time');
   const elFill = document.getElementById('fill');
+  const reduceMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const still = () => S.animasyon !== 'normal' || !!(reduceMq && reduceMq.matches);
   const pad = (n) => String(n).padStart(2, '0');
 
   // geriSayimSaat (local HH:MM) wins over geriSayimDk; a time that has passed today means tomorrow.
@@ -84,6 +100,13 @@
     target: new Date(deadline).toLocaleString()
   });
 
+  // The title fades out, changes, and fades back in; with no motion it just changes.
+  function setTitle(text){
+    if (still() || S.animasyon === 'off') { elTitle.textContent = text; return; }
+    elTitle.classList.add('is-swap');
+    setTimeout(function(){ elTitle.textContent = text; elTitle.classList.remove('is-swap'); }, 200);
+  }
+
   let shown = -1;
   let timer = null;
 
@@ -95,11 +118,13 @@
     const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
     elTime.textContent = (h > 0 ? h + ':' + pad(m) : pad(m)) + ':' + pad(s);
     const done = secs === 0;
-    K.setFill(elFill, done ? 100 : 100 * left / baseMs);
+    // The 1s linear slide aims one second ahead, so it lands as the next digit shows and never lags the clock.
+    const ahead = still() ? left : Math.max(0, left - 1000);
+    K.setFill(elFill, done ? 100 : 100 * ahead / baseMs);
     if (done) {
       // Done: a full bar, an accent edge and a pulsing 00:00 make it clear.
       panel.classList.add('is-done');
-      elTitle.textContent = K.label(S, 'Başlıyoruz!', 'Going live!');
+      setTitle(K.label(S, 'Başlıyoruz!', 'Going live!'));
       clearInterval(timer);
       timer = null;
     }

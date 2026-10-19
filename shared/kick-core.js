@@ -218,6 +218,19 @@
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
 
+  function relLum(rgb) {
+    var c = rgb.map(function (v) { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+
+  var CHIP_DARK = '#0b0b0d', CHIP_DARK_LUM = relLum([11, 11, 13]);
+
+  function chipText(rgb) {
+    var l = relLum(rgb);
+    var dark = (l + 0.05) / (CHIP_DARK_LUM + 0.05), light = 1.05 / (l + 0.05);
+    return dark >= light ? CHIP_DARK : '#ffffff';
+  }
+
   function applyLook(s, el) {
     el = el || global.document.body;
     var keep = el.className.split(/\s+/).filter(function (c) {
@@ -233,19 +246,35 @@
     // Lets the browser apply the right language rules (hyphenation, screen readers). "both" stays English.
     root.lang = s.dil === 'tr' ? 'tr' : 'en';
     numLocale = s.dil === 'tr' ? 'tr-TR' : 'en-US';
+    var rgb = hexToRgb(s.renk);
     root.style.setProperty('--accent', s.renk);
-    root.style.setProperty('--accent-rgb', hexToRgb(s.renk).join(' '));
+    root.style.setProperty('--accent-rgb', rgb.join(' '));
+    // Chip text is whichever of near-black or white contrasts more with the accent; computed here
+    // because CSS relative colours are not available in older OBS browsers.
+    root.style.setProperty('--chip-bg', s.renk);
+    root.style.setProperty('--chip-text', chipText(rgb));
   }
 
-  // Eases a number from `from` to `to`. Returns a cancel function. Duration 0 jumps straight to the end.
-  function tween(from, to, ms, onFrame) {
-    if (!ms) { onFrame(to); return function () {}; }
+  function reducedMotion() {
+    var g = global;
+    return !!(typeof g.matchMedia === 'function' && g.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  // Eases a number from `from` to `to`. Returns a cancel function. Duration 0 (or the OS reduced-motion
+  // setting) jumps straight to the end. onDone runs after the last frame, and not after a cancel.
+  function tween(from, to, ms, onFrame, onDone) {
+    if (!ms || reducedMotion()) {
+      onFrame(to);
+      if (onDone) onDone();
+      return function () {};
+    }
     var start = global.performance.now(), id = null, stopped = false;
     function step(now) {
       if (stopped) return;
       var p = Math.min(1, (now - start) / ms), e = 1 - Math.pow(1 - p, 3);
       onFrame(from + (to - from) * e);
       if (p < 1) id = global.requestAnimationFrame(step);
+      else if (onDone) onDone();
     }
     id = global.requestAnimationFrame(step);
     return function cancel() { stopped = true; global.cancelAnimationFrame(id); };
@@ -260,12 +289,13 @@
 
   var FONT_URLS = {
     inter: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap',
-    poppins: 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap',
+    // Poppins has no tabular digits, so the counting numerals use Inter (see themes.css).
+    poppins: 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Inter:wght@600..900&display=swap',
     nunito: 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap',
     mono: 'https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap'
   };
 
-  // Loads only the chosen family instead of all four. Safe to call again with other settings.
+  // Loads only the chosen family (poppins also gets Inter for its numerals) instead of all four. Safe to call again with other settings.
   function loadFont(s) {
     var d = global.document;
     if (!d || !d.head || typeof d.createElement !== 'function') return null;
@@ -325,53 +355,92 @@
     debugEl.textContent = Object.keys(debugState).map(function (k) { return k + ': ' + debugState[k]; }).join('\n');
   }
 
+  var FILL_MS = 1200;
+
   // Bar + value + chips in one place: fill, count-up, bump, percent, session delta, milestones, goal state.
   // els = { bar, fill, val, pct, delta }; pct and delta may be null.
   function createGoalBar(els, goal, s) {
     els = els || {};
     s = s || {};
-    var shown = 0, last = null, lastPct = 0, cancel = null, msTimer = null;
+    var shown = 0, last = null, lastPct = 0, cancel = null, valNode = null, valText = null;
     function restart(el, cls) {
       el.classList.remove(cls);
       void el.offsetWidth;
       el.classList.add(cls);
     }
+    // A one-off class: removed again after ms so no animation or compositor layer is left behind.
+    function once(el, cls, ms, slot) {
+      restart(el, cls);
+      if (slot.t) clearTimeout(slot.t);
+      slot.t = setTimeout(function () { slot.t = null; el.classList.remove(cls); }, ms);
+    }
+    var slots = { milestone: {}, pulse: {}, shine: {} };
+    // Writes into the existing Text node, and only when the formatted string changed.
+    function writeVal(v) {
+      var t = fmt(v);
+      if (t === valText) return;
+      valText = t;
+      if (!valNode || valNode.parentNode !== els.val) {
+        els.val.textContent = t;
+        valNode = els.val.firstChild && els.val.firstChild.nodeType === 3 ? els.val.firstChild : null;
+      } else {
+        valNode.nodeValue = t;
+      }
+    }
+    function setText(el, t) {
+      if (el.textContent !== t) el.textContent = t;
+    }
+    function reachGoal(pulse) {
+      els.bar.classList.add('is-goal');
+      if (pulse) once(els.bar, 'ko-goal-pulse', 1100, slots.pulse);
+    }
     function set(total, delta) {
       total = Number(total) || 0;
       var p = pct(total, goal);
+      var increased = last !== null && total > last;
+      var crossed = !!els.bar && !!s.hedefKutlama && last !== null &&
+        [25, 50, 75].some(function (m) { return lastPct < m && p >= m; });
+      var wantGoal = !!els.bar && !!s.hedefKutlama && goal > 0 && total >= goal;
+      // The first value is a page load, not an event, so it gets the goal state without the pulse.
+      var pulse = last !== null && !(els.bar && els.bar.classList.contains('is-goal'));
       setFill(els.fill, p);
       if (cancel) cancel();
-      if (els.val) {
-        cancel = tween(shown, total, s.animasyon === 'off' ? 0 : 1300, function (v) {
+      var instant = s.animasyon === 'off' || s.animasyon === 'low';
+      var finish = function () {
+        cancel = null;
+        if (wantGoal) reachGoal(pulse);
+      };
+      if (els.val && shown !== total) {
+        cancel = tween(shown, total, instant ? 0 : FILL_MS, function (v) {
           shown = v;
-          els.val.textContent = fmt(v);
-        });
+          writeVal(v);
+        }, finish);
       } else {
         shown = total;
+        if (els.val) writeVal(total);
+        finish();
       }
-      if (last !== null && total > last && els.bar) restart(els.bar, 'ko-bump');
       if (els.bar) {
-        if (s.hedefKutlama) {
-          var crossed = last !== null && [25, 50, 75].some(function (m) { return lastPct < m && p >= m; });
-          if (crossed) {
-            restart(els.bar, 'ko-milestone');
-            if (msTimer) clearTimeout(msTimer);
-            msTimer = setTimeout(function () { msTimer = null; els.bar.classList.remove('ko-milestone'); }, 1200);
-          }
-          els.bar.classList.toggle('is-goal', goal > 0 && total >= goal);
-        } else {
-          els.bar.classList.remove('is-goal');
+        // A milestone is its own flourish, so it replaces the bump instead of stacking on it.
+        if (crossed) {
+          els.bar.classList.remove('ko-bump');
+          once(els.bar, 'ko-milestone', 1200, slots.milestone);
+        } else if (increased) {
+          restart(els.bar, 'ko-bump');
         }
+        // Goal state waits for the count-up to finish; leaving it is immediate.
+        if (!wantGoal) els.bar.classList.remove('is-goal');
       }
+      if (increased && els.fill && !instant) once(els.fill, 'ko-shine', 1500, slots.shine);
       if (els.pct) {
         els.pct.hidden = !s.yuzdeGoster;
-        if (s.yuzdeGoster) els.pct.textContent = Math.round(p) + '%';
+        if (s.yuzdeGoster) setText(els.pct, Math.round(p) + '%');
       }
       if (els.delta) {
         var d = Number(delta) || 0, showDelta = !!s.oturumFarkiGoster && d !== 0;
         els.delta.hidden = !showDelta;
         if (showDelta) {
-          els.delta.textContent = (d > 0 ? '+' : '-') + fmt(Math.abs(d));
+          setText(els.delta, (d > 0 ? '+' : '-') + fmt(Math.abs(d)));
           els.delta.classList.toggle('is-neg', d < 0);
         }
       }
@@ -380,8 +449,8 @@
     }
     function destroy() {
       if (cancel) cancel();
-      if (msTimer) clearTimeout(msTimer);
-      cancel = msTimer = null;
+      [slots.milestone, slots.pulse, slots.shine].forEach(function (sl) { if (sl.t) clearTimeout(sl.t); sl.t = null; });
+      cancel = null;
     }
     return { set: set, destroy: destroy };
   }
@@ -808,7 +877,7 @@
   function schemaKeys() { return Object.keys(SCHEMA); }
 
   global.KickOverlay = {
-    version: '2.3.0',
+    version: '2.3.1',
     enums: enumsOf,
     schemaKeys: schemaKeys,
     normalize: normalize,

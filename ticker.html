@@ -17,22 +17,38 @@
     font-family: var(--font); -webkit-font-smoothing: antialiased;
   }
   .ko-bar { width: 100%; }
+  /* A line always rises in from below: the hidden state is the +rise offset, and is-out leaves upward. */
   .tk-msg {
     position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center;
     padding: 0 28px; text-align: center; font-size: 20px; font-weight: 700; color: var(--text); text-shadow: var(--text-shadow);
-    opacity: 0; transform: translateY(10px); transition: opacity .45s ease, transform .45s cubic-bezier(.2, .8, .2, 1);
+    opacity: 0; transform: translateY(var(--ko-rise, 8px));
+    transition: opacity var(--ko-dur-in, .5s) var(--ko-ease, cubic-bezier(.2, .8, .2, 1)), transform var(--ko-dur-in, .5s) var(--ko-ease, cubic-bezier(.2, .8, .2, 1));
   }
   /* Ellipsis only works on a block that holds the text, not on the flex container, so the text sits in its own box. */
   .tk-text { display: block; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .tk-text.ko-marquee { text-align: left; }
+  /* Without a scroll (low, off, reduced motion) a long line wraps to two lines; longer text is paged by the script. */
+  .tk-text.tk-wrap {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; text-overflow: clip; width: 100%;
+    font-size: 17px; line-height: 1.15; overflow-wrap: anywhere;
+  }
   .tk-msg.is-in { opacity: 1; transform: none; }
-  .tk-msg.is-out { opacity: 0; transform: translateY(-10px); }
-  .tk-bar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; height: 3px; background: var(--fill-bg); transform-origin: 0 50%; transform: scaleX(0); }
-  .tk-bar.is-run { animation: tk-run var(--tk-ms, 6000ms) linear forwards; }
+  .tk-msg.is-out {
+    opacity: 0; transform: translateY(calc(var(--ko-rise, 8px) * -1));
+    transition: opacity var(--ko-dur-out, .35s) ease, transform var(--ko-dur-out, .35s) ease;
+  }
+  /* The progress bar fades out with its line and is reset while it is invisible, so it never snaps back. */
+  .tk-bar {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; height: 3px; background: var(--fill-bg);
+    transform-origin: 0 50%; transform: scaleX(0); opacity: 0; transition: opacity var(--ko-dur-out, .35s) ease;
+  }
+  .tk-bar.is-run { opacity: 1; animation: tk-run var(--tk-ms, 6000ms) linear forwards; }
+  .tk-bar.is-run.is-hide { opacity: 0; }
   @keyframes tk-run { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-  body.motion-off .tk-msg { transition: none; }
+  body.motion-low .tk-msg, body.motion-low .tk-msg.is-out { transition-duration: .2s; }
+  body.motion-off .tk-msg, body.motion-off .tk-msg.is-out { transition: none; }
   body.motion-low .tk-bar, body.motion-off .tk-bar { display: none; }
-  @media (prefers-reduced-motion: reduce) { .tk-msg { transition-duration: .01s; } .tk-bar { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .tk-msg, .tk-msg.is-out { transition-duration: .2s; } .tk-bar { display: none; } }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -55,42 +71,107 @@
   const elLine = document.getElementById('line');
   const elProgress = document.getElementById('progress');
   const SAMPLES = ['Follow the channel so you never miss a stream', 'Takip et, yayını kaçırma', '!discord · !socials · !schedule'];
-  const SWAP_MS = 450;
-  const MARQUEE_PX_PER_S = 70;
+  const MARQUEE_PX_PER_S = 110;
   const interval = S.duyuruSn * 1000;
+  const reduceMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
 
   let lines = K.splitLines(S.duyuruMetinleri);
   let idx = 0;
+  let pages = [''];       // the current line, split into chunks that fit when it cannot scroll
+  let pageIdx = 0;
   let timer = null;       // waits out the current line
   let swapTimer = null;   // waits for the fade-out before the next line
   let marqueeMs = 0;      // one scroll cycle of the current line, 0 when it fits
 
-  // A line wider than the bar scrolls (.ko-marquee) at a fixed speed, so a longer line takes longer.
-  // Returns true if the current line overflows.
-  function fit(){
-    elTxt.classList.remove('ko-marquee');
-    elTxt.style.removeProperty('--mq-ms');
-    marqueeMs = 0;
-    if (elTxt.scrollWidth <= elTxt.clientWidth) return false;
-    // The scrolling span starts one bar-width to the right and leaves on the left.
-    marqueeMs = Math.round((elLine.offsetWidth + elTxt.clientWidth) / MARQUEE_PX_PER_S * 1000);
-    elTxt.style.setProperty('--mq-ms', marqueeMs + 'ms');
-    elTxt.classList.add('ko-marquee');
-    return true;
+  // Low, off and reduced motion never scroll: a long line wraps instead and is paged when it is still too long.
+  function wrapMode(){ return S.animasyon !== 'normal' || !!(reduceMq && reduceMq.matches); }
+
+  // How long the fade-out takes: the same token the stylesheet uses.
+  function swapMs(){
+    if (S.animasyon === 'off') return 0;
+    if (S.animasyon === 'low' || (reduceMq && reduceMq.matches)) return 200;
+    const v = window.getComputedStyle(document.documentElement).getPropertyValue('--ko-dur-out').trim();
+    const ms = parseFloat(v) * (/ms$/.test(v) ? 1 : 1000);
+    return Number.isFinite(ms) && ms > 0 ? ms : 350;
   }
 
-  // Shows a line and returns how long it stays: at least duyuruSn, or one full scroll when it is longer.
-  function show(text){
+  // Width of the text itself; unlike scrollWidth it stays right while the marquee padding is on.
+  function textWidth(){
+    const r = document.createRange();
+    r.selectNodeContents(elLine);
+    return r.getBoundingClientRect().width;
+  }
+
+  function clipped(){ return elTxt.scrollHeight > elTxt.clientHeight + 1; }
+
+  // A line wider than the bar scrolls (.ko-marquee) at a fixed speed, so a longer line takes longer.
+  // Without a scroll it wraps to two lines (.tk-wrap). Only touches the DOM when the state changes,
+  // so a late font does not restart a running scroll.
+  function fit(){
+    elTxt.classList.remove('tk-wrap');   // measured at the base size, one line
+    const over = textWidth() > elTxt.clientWidth + 0.5;
+    const scroll = over && !wrapMode();
+    if (over && wrapMode()) elTxt.classList.add('tk-wrap');
+    if (!scroll) {
+      elTxt.classList.remove('ko-marquee');
+      elTxt.style.removeProperty('--mq-ms');
+      marqueeMs = 0;
+      return;
+    }
+    // The scrolling span starts one bar-width to the right and leaves on the left.
+    const ms = Math.round((textWidth() + elTxt.clientWidth) / MARQUEE_PX_PER_S * 1000);
+    if (!elTxt.classList.contains('ko-marquee') || Math.abs(ms - marqueeMs) > 50) {
+      elTxt.style.setProperty('--mq-ms', ms + 'ms');
+      elTxt.classList.add('ko-marquee');
+    }
+    marqueeMs = ms;
+  }
+
+  // Splits text into the longest word runs that fit in the two-line box.
+  function paginate(text){
+    const words = text.split(/\s+/).filter(Boolean), out = [];
+    let i = 0;
+    while (i < words.length) {
+      let lo = i + 1, hi = words.length, best = i + 1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        elLine.textContent = words.slice(i, mid).join(' ');
+        if (clipped()) hi = mid - 1; else { best = mid; lo = mid + 1; }
+      }
+      out.push(words.slice(i, best).join(' '));
+      i = best;
+    }
+    return out.length ? out : [text];
+  }
+
+  // A new line starts its scroll from the beginning: the class is lifted and the style flushed first.
+  function measureLine(text){
     elLine.textContent = text;
-    elMsg.classList.remove('is-out');
-    elMsg.classList.add('is-in');
+    elTxt.classList.remove('ko-marquee', 'tk-wrap');
+    void elTxt.offsetWidth;
     fit();
-    const dwell = S.animasyon === 'normal' ? Math.max(interval, marqueeMs) : interval;
-    K.debug({ line: (idx + 1) + '/' + lines.length, scroll: marqueeMs ? marqueeMs + ' ms' : 'no' });
-    if (lines.length > 1) {
-      elProgress.style.setProperty('--tk-ms', (dwell - SWAP_MS) + 'ms');
-      elProgress.classList.remove('is-run');
-      void elProgress.offsetWidth;   // restart the animation
+    if (elTxt.classList.contains('tk-wrap') && clipped()) return paginate(text);
+    return [text];
+  }
+
+  function rotating(){ return lines.length > 1 || pages.length > 1; }
+
+  // Shows a line (or one page of it) and returns how long it stays: at least duyuruSn, or one full scroll when it is longer.
+  function show(){
+    // Reset to the hidden state below the bar with transitions off, so every line rises in from the same place.
+    elMsg.style.transition = 'none';
+    elMsg.classList.remove('is-in', 'is-out');
+    if (pageIdx === 0) pages = measureLine(lines[idx]);
+    elLine.textContent = pages[pageIdx];
+    void elMsg.offsetWidth;
+    elMsg.style.transition = '';
+    elMsg.classList.add('is-in');
+    const dwell = wrapMode() ? interval : Math.max(interval, marqueeMs);
+    K.debug({ line: (idx + 1) + '/' + lines.length, page: pages.length > 1 ? (pageIdx + 1) + '/' + pages.length : '-', scroll: marqueeMs ? marqueeMs + ' ms' : 'no' });
+    elProgress.classList.remove('is-run', 'is-hide');
+    if (rotating()) {
+      elProgress.style.setProperty('--tk-ms', Math.max(0, dwell - swapMs()) + 'ms');
+      void elProgress.offsetWidth;   // restart the animation, still invisible
       elProgress.classList.add('is-run');
     }
     return dwell;
@@ -100,16 +181,18 @@
     timer = null;
     elMsg.classList.remove('is-in');
     elMsg.classList.add('is-out');
+    elProgress.classList.add('is-hide');
     swapTimer = setTimeout(function(){
       swapTimer = null;
-      idx = (idx + 1) % lines.length;
+      if (pageIdx + 1 < pages.length) pageIdx += 1;
+      else { pageIdx = 0; idx = (idx + 1) % lines.length; }
       cycle();
-    }, S.animasyon === 'off' ? 0 : SWAP_MS);
+    }, swapMs());
   }
 
   function cycle(){
-    const dwell = show(lines[idx]);
-    timer = setTimeout(next, Math.max(0, dwell - SWAP_MS));
+    const dwell = show();
+    if (rotating()) timer = setTimeout(next, Math.max(0, dwell - swapMs()));
   }
 
   function showHint(){
@@ -121,17 +204,24 @@
 
   if (PREVIEW) lines = SAMPLES;
   if (lines.length === 0) { showHint(); return; }
-  if (lines.length > 1) {
-    cycle();
-    window.addEventListener('pagehide', function(){
-      if (timer !== null) clearTimeout(timer);
-      if (swapTimer !== null) clearTimeout(swapTimer);
-    });
-  } else {
-    show(lines[0]);
-  }
+  cycle();
+  window.addEventListener('pagehide', function(){
+    if (timer !== null) clearTimeout(timer);
+    if (swapTimer !== null) clearTimeout(swapTimer);
+  });
   // The font may arrive after the first measure; re-measure the line on screen without touching the timers.
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){
+    if (swapTimer !== null) return;
+    if (wrapMode()) {
+      const before = pages.length;
+      pages = measureLine(lines[idx]);
+      pageIdx = Math.min(pageIdx, pages.length - 1);
+      elLine.textContent = pages[pageIdx];
+      if (timer === null && before !== pages.length && pages.length > 1) timer = setTimeout(next, interval);
+    } else {
+      fit();
+    }
+  });
 })();
 </script>
 </body>
