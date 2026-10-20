@@ -10,3 +10,4 @@ AYARLAR.local.js
 # Local tooling output
 node_modules/
 *.log
+qa-out/

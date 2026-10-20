@@ -4,6 +4,11 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [2.3.3] - 2026-10-20
+
+### Changed
+- The milestone and goal glow is now a ready-drawn ring inside the bar that only fades in and out, so the bar is no longer repainted on every frame. Under heavy CPU load a milestone holds about 60 fps instead of about 53. The ring sits just inside the bar edge.
+
 ## [2.3.2] - 2026-10-20
 
 ### Changed

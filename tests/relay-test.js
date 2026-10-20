@@ -355,7 +355,7 @@ function get(port, p, method = 'GET', headers) {
     check('PUT is refused (405) with an Allow header', put.status === 405 && /GET/.test(put.headers.allow || ''));
 
     const h = JSON.parse((await get(ep, '/health')).body);
-    check('/health has the 2.3.2 shape', h.ok === true && h.version === '2.3.2' && h.clients === 0 && h.features && typeof h.features.chat === 'boolean' && h.features.channel === true && typeof h.features.subscribers === 'boolean', JSON.stringify(h));
+    check('/health has the 2.3.3 shape', h.ok === true && h.version === '2.3.3' && h.clients === 0 && h.features && typeof h.features.chat === 'boolean' && h.features.channel === true && typeof h.features.subscribers === 'boolean', JSON.stringify(h));
     check('/health: chat true with a broadcaster id, subscribers false without credentials', h.features.chat === true && h.features.subscribers === false);
     check('/health ignores a query string', (await get(ep, '/health?x=1')).status === 200);
     check('/events with a CORS origin still streams (SSE)', await new Promise((resolve) => {
