@@ -29,6 +29,8 @@ function mkClock() {
   return { now: () => Date.now() + off, advance: (ms) => { off += ms; } };
 }
 const listenOn = (server) => new Promise((r) => server.listen(0, '127.0.0.1', () => r(server.address().port)));
+const ACCESS_KEY = 'test-key-0123456789abcdef0123456789abcdef';
+const withKey = (p, key = ACCESS_KEY) => p + (p.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key);
 
 // A stand-in for Kick's key pair, so signatures can be produced exactly as Kick does.
 const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
@@ -76,7 +78,7 @@ function post(port, { id, ts, body, sig, type = 'chat.message.sent', headers = {
     }, (res) => {
       let data = '';
       res.on('data', (c) => { data += c; });
-      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+      res.on('end', () => resolve({ status: res.statusCode, body: data, headers: res.headers }));
     });
     req.on('error', reject);
     req.end(body);
@@ -87,7 +89,7 @@ function post(port, { id, ts, body, sig, type = 'chat.message.sent', headers = {
 function openSse(port) {
   const frames = [];
   let buf = '';
-  const req = http.get({ host: '127.0.0.1', port, path: '/events' }, (res) => {
+  const req = http.get({ host: '127.0.0.1', port, path: withKey('/events') }, (res) => {
     res.setEncoding('utf8');
     res.on('data', (c) => {
       buf += c;
@@ -114,6 +116,16 @@ function get(port, p, method = 'GET', headers) {
     });
     req.on('error', reject);
     req.end();
+  });
+}
+// Events-port requests carry the access key; `get` alone is used for keyless probes.
+const eget = (port, p, method, headers) => get(port, withKey(p), method, headers);
+
+// Status only: for streams that would never end, so the body is not read.
+function statusOf(port, p, headers) {
+  return new Promise((resolve) => {
+    const req = http.get({ host: '127.0.0.1', port, path: p, headers }, (res) => { res.resume(); resolve(res.statusCode); req.destroy(); });
+    req.on('error', () => resolve(0));
   });
 }
 
@@ -156,7 +168,7 @@ function get(port, p, method = 'GET', headers) {
   }
 
   console.log('\n== relay: webhook listener (real sockets)');
-  const relay = createRelay({ publicKeyPem: publicKey, webhookPort: 0, eventsPort: 0, broadcasterUserId: '113812015', credentials: false, channelSlug: '', logger: quietLogger() });
+  const relay = createRelay({ publicKeyPem: publicKey, accessKey: ACCESS_KEY, webhookPort: 0, eventsPort: 0, broadcasterUserId: '113812015', credentials: false, channelSlug: '', logger: quietLogger() });
   const { webhookPort, eventsPort } = await relay.start();
   const stream = openSse(eventsPort);
   await sleep(150);
@@ -219,10 +231,10 @@ function get(port, p, method = 'GET', headers) {
 
   check('webhook port: GET is refused (405)', (await get(webhookPort, '/kick/webhook')).status === 405);
   check('webhook port: any other path is not found (404)', (await get(webhookPort, '/events')).status === 404);
-  check('events port: unknown paths are not found (404)', (await get(eventsPort, '/kick/webhook')).status === 404);
-  check('events port: POST is refused (405)', (await get(eventsPort, '/events', 'POST')).status === 405);
-  check('events port: a foreign Host header is refused (403, DNS rebinding)', (await get(eventsPort, '/health', 'GET', { Host: 'evil.example' })).status === 403);
-  const health = await get(eventsPort, '/health');
+  check('events port: unknown paths are not found (404)', (await eget(eventsPort, '/kick/webhook')).status === 404);
+  check('events port: POST is refused (405)', (await eget(eventsPort, '/events', 'POST')).status === 405);
+  check('events port: a foreign Host header is refused (403, DNS rebinding)', (await eget(eventsPort, '/health', 'GET', { Host: 'evil.example' })).status === 403);
+  const health = await eget(eventsPort, '/health');
   check('events port: health reports the connected overlay', health.status === 200 && /"clients":1/.test(health.body), health.body);
   check('events port: no wildcard CORS header and Vary: Origin is set', health.headers['access-control-allow-origin'] === undefined && /origin/i.test(health.headers.vary || ''));
 
@@ -322,7 +334,7 @@ function get(port, p, method = 'GET', headers) {
   }
   const mock = await startMock();
   const mockOpts = { apiBase: mock.base, tokenBase: mock.base, kickBase: mock.base };
-  const baseOpts = (extra) => Object.assign({ webhookPort: 0, eventsPort: 0, publicKeyPem: publicKey, broadcasterUserId: '1', credentials: false, channelSlug: '', logger: quietLogger() }, mockOpts, extra || {});
+  const baseOpts = (extra) => Object.assign({ webhookPort: 0, eventsPort: 0, publicKeyPem: publicKey, accessKey: ACCESS_KEY, broadcasterUserId: '1', credentials: false, channelSlug: '', logger: quietLogger() }, mockOpts, extra || {});
 
   // ======================================================================================
   console.log('\n== relay: events listener, CORS and /health');
@@ -331,38 +343,83 @@ function get(port, p, method = 'GET', headers) {
     const { eventsPort: ep } = await r.start();
     const allowed = ['null', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://[::1]:8080', 'https://localhost'];
     for (const origin of allowed) {
-      const res = await get(ep, '/health', 'GET', { Origin: origin });
+      const res = await eget(ep, '/health', 'GET', { Origin: origin });
       check(`CORS: origin ${origin} is allowed and echoed`, res.status === 200 && res.headers['access-control-allow-origin'] === origin && /origin/i.test(res.headers.vary || ''), `status=${res.status} acao=${res.headers['access-control-allow-origin']}`);
     }
-    const none = await get(ep, '/health');
+    const none = await eget(ep, '/health');
     check('CORS: no Origin header is allowed, no ACAO sent, Vary: Origin present', none.status === 200 && none.headers['access-control-allow-origin'] === undefined && /origin/i.test(none.headers.vary || ''));
     const denied = ['http://evil.example', 'https://kick.com', 'http://localhost.evil.example', 'http://127.0.0.1.evil.com', 'file://', 'ftp://localhost', 'not a url'];
     for (const origin of denied) {
-      const res = await get(ep, '/health', 'GET', { Origin: origin });
+      const res = await eget(ep, '/health', 'GET', { Origin: origin });
       check(`CORS: origin ${origin} is refused (403) without ACAO`, res.status === 403 && res.headers['access-control-allow-origin'] === undefined, `status=${res.status}`);
     }
-    const deniedChannel = await get(ep, '/channel?slug=abc', 'GET', { Origin: 'http://evil.example' });
+    const deniedChannel = await eget(ep, '/channel?slug=abc', 'GET', { Origin: 'http://evil.example' });
     check('CORS: a refused origin cannot reach /channel either', deniedChannel.status === 403);
-    check('CORS: readable response headers are exposed', /X-Kick-Source/i.test((await get(ep, '/health', 'GET', { Origin: 'null' })).headers['access-control-expose-headers'] || ''));
+    check('CORS: readable response headers are exposed', /X-Kick-Source/i.test((await eget(ep, '/health', 'GET', { Origin: 'null' })).headers['access-control-expose-headers'] || ''));
 
-    const pre = await get(ep, '/channel?slug=abc', 'OPTIONS', { Origin: 'http://localhost:5173', 'Access-Control-Request-Method': 'GET' });
+    const pre = await eget(ep, '/channel?slug=abc', 'OPTIONS', { Origin: 'http://localhost:5173', 'Access-Control-Request-Method': 'GET' });
     check('OPTIONS preflight from an allowed origin answers 204 with allow headers', pre.status === 204 && pre.headers['access-control-allow-origin'] === 'http://localhost:5173' && /GET/.test(pre.headers['access-control-allow-methods'] || '') && pre.body === '', `status=${pre.status}`);
-    const preBad = await get(ep, '/channel?slug=abc', 'OPTIONS', { Origin: 'http://evil.example' });
+    const preBad = await eget(ep, '/channel?slug=abc', 'OPTIONS', { Origin: 'http://evil.example' });
     check('OPTIONS preflight from a foreign origin is refused (403)', preBad.status === 403);
-    const preHost = await get(ep, '/health', 'OPTIONS', { Host: 'evil.example' });
+    const preHost = await eget(ep, '/health', 'OPTIONS', { Host: 'evil.example' });
     check('OPTIONS with a foreign Host is refused (403)', preHost.status === 403);
-    const put = await get(ep, '/health', 'PUT');
+    const put = await eget(ep, '/health', 'PUT');
     check('PUT is refused (405) with an Allow header', put.status === 405 && /GET/.test(put.headers.allow || ''));
 
-    const h = JSON.parse((await get(ep, '/health')).body);
-    check('/health has the 2.3.3 shape', h.ok === true && h.version === '2.3.3' && h.clients === 0 && h.features && typeof h.features.chat === 'boolean' && h.features.channel === true && typeof h.features.subscribers === 'boolean', JSON.stringify(h));
+    const h = JSON.parse((await eget(ep, '/health')).body);
+    check('/health has the 2.3.4 shape', h.ok === true && h.version === '2.3.4' && h.clients === 0 && h.features && typeof h.features.chat === 'boolean' && h.features.channel === true && typeof h.features.subscribers === 'boolean', JSON.stringify(h));
     check('/health: chat true with a broadcaster id, subscribers false without credentials', h.features.chat === true && h.features.subscribers === false);
-    check('/health ignores a query string', (await get(ep, '/health?x=1')).status === 200);
+    check('/health ignores a query string', (await eget(ep, '/health?x=1')).status === 200);
     check('/events with a CORS origin still streams (SSE)', await new Promise((resolve) => {
-      const q = http.get({ host: '127.0.0.1', port: ep, path: '/events', headers: { Origin: 'null' } }, (res) => { resolve(res.statusCode === 200 && /event-stream/.test(res.headers['content-type']) && res.headers['access-control-allow-origin'] === 'null'); q.destroy(); });
+      const q = http.get({ host: '127.0.0.1', port: ep, path: withKey('/events'), headers: { Origin: 'null' } }, (res) => { resolve(res.statusCode === 200 && /event-stream/.test(res.headers['content-type']) && res.headers['access-control-allow-origin'] === 'null'); q.destroy(); });
       q.on('error', () => {});
     }));
     r.stop();
+  }
+
+  // ======================================================================================
+  console.log('\n== relay: events access key');
+  {
+    const r = createRelay(baseOpts());
+    const { eventsPort: ep } = await r.start();
+    const bad = 'test-key-0123456789abcdef0123456789abcdeX';
+    for (const p of ['/health', '/subscribers?slug=iacbi', '/channel?slug=iacbi', '/nope']) {
+      const x = await get(ep, p, 'GET', { Origin: 'null' });
+      check(`access key: ${p} with Origin null and no key gets 401`, x.status === 401 && JSON.parse(x.body).error === 'bad key', `status=${x.status}`);
+    }
+    check('access key: /events with Origin null and no key gets 401', (await statusOf(ep, '/events', { Origin: 'null' })) === 401);
+    check('access key: no Origin and no key gets 401', (await get(ep, '/health')).status === 401);
+    check('access key: a wrong key gets 401', (await get(ep, '/health?key=' + bad, 'GET', { Origin: 'null' })).status === 401);
+    check('access key: a wrong-length key gets 401', (await get(ep, '/health?key=short', 'GET', { Origin: 'null' })).status === 401);
+    check('access key: an empty key gets 401', (await get(ep, '/health?key=', 'GET', { Origin: 'null' })).status === 401);
+    check('access key: /events with a wrong key gets 401', (await statusOf(ep, '/events?key=' + bad, { Origin: 'null' })) === 401);
+    const okKey = await eget(ep, '/health', 'GET', { Origin: 'null' });
+    check('access key: the right key with Origin null gets 200 and CORS echo', okKey.status === 200 && okKey.headers['access-control-allow-origin'] === 'null');
+    check('access key: /events with the right key streams (200)', (await statusOf(ep, withKey('/events'), { Origin: 'null' })) === 200);
+    const pre = await get(ep, '/health', 'OPTIONS', { Origin: 'http://localhost:5173', 'Access-Control-Request-Method': 'GET' });
+    check('access key: OPTIONS preflight still answers 204 without a key', pre.status === 204);
+    r.stop();
+  }
+  {
+    const fs = require('fs');
+    const CFG = require(path.join(__dirname, '..', 'relay', 'config.js'));
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ko-relay-key-'));
+    try {
+      const file = path.join(dir, 'AYARLAR.relay.js');
+      const k1 = CFG.loadRelayKey({ root: dir, env: {} });
+      const text = fs.readFileSync(file, 'utf8');
+      check('loadRelayKey creates AYARLAR.relay.js in the exact format with a 64-hex key', text === `window.KICK_RELAY_KEY = "${k1}";\n` && /^[0-9a-f]{64}$/.test(k1), text.slice(0, 40));
+      check('loadRelayKey returns the same key on the next call', CFG.loadRelayKey({ root: dir, env: {} }) === k1);
+      check('loadRelayKey: RELAY_KEY from the environment wins', CFG.loadRelayKey({ root: dir, env: { RELAY_KEY: 'env-key-0123456789abcdef0123456789abcdef' } }) === 'env-key-0123456789abcdef0123456789abcdef');
+      fs.writeFileSync(file, 'window.KICK_RELAY_KEY = "short";\n');
+      const k2 = CFG.loadRelayKey({ root: dir, env: {} });
+      check('loadRelayKey replaces a garbage key', /^[0-9a-f]{64}$/.test(k2) && k2 !== 'short' && CFG.loadRelayKey({ root: dir, env: {} }) === k2);
+      fs.writeFileSync(file, 'this is not javascript (');
+      const k3 = CFG.loadRelayKey({ root: dir, env: {} });
+      check('loadRelayKey replaces an unreadable file', /^[0-9a-f]{64}$/.test(k3) && fs.readFileSync(file, 'utf8') === `window.KICK_RELAY_KEY = "${k3}";\n`);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   }
 
   // ======================================================================================
@@ -371,43 +428,43 @@ function get(port, p, method = 'GET', headers) {
     const clock = mkClock();
     const r = createRelay(baseOpts({ now: clock.now }));
     const { eventsPort: ep } = await r.start();
-    const a = await get(ep, '/channel?slug=iacbi');
+    const a = await eget(ep, '/channel?slug=iacbi');
     check('/channel: 200 with the raw upstream JSON and X-Kick-Source: v2', a.status === 200 && a.body === '{"id":1,"slug":"iacbi","v":"v2"}' && a.headers['x-kick-source'] === 'v2', a.body);
     check('/channel: JSON content type', /application\/json/.test(a.headers['content-type']));
     const before = mock.hits.v2;
-    const b = await get(ep, '/channel?slug=iacbi');
+    const b = await eget(ep, '/channel?slug=iacbi');
     check('/channel: a repeat within 20 s is served from the cache', b.status === 200 && b.body === a.body && mock.hits.v2 === before);
     clock.advance(21000);
-    await get(ep, '/channel?slug=iacbi');
+    await eget(ep, '/channel?slug=iacbi');
     check('/channel: the cache expires after 20 s', mock.hits.v2 === before + 1);
 
     mock.delayMs = 120;
     const base2 = mock.hits.v2;
-    const many = await Promise.all([1, 2, 3, 4, 5].map(() => get(ep, '/channel?slug=shared')));
+    const many = await Promise.all([1, 2, 3, 4, 5].map(() => eget(ep, '/channel?slug=shared')));
     mock.delayMs = 0;
     check('/channel: concurrent requests share one upstream call', many.every((x) => x.status === 200) && mock.hits.v2 === base2 + 1, `hits=${mock.hits.v2 - base2}`);
 
     const lruBase = mock.hits.v2;
-    for (let i = 0; i < 22; i++) await get(ep, '/channel?slug=lru' + i);
-    await get(ep, '/channel?slug=lru21');
+    for (let i = 0; i < 22; i++) await eget(ep, '/channel?slug=lru' + i);
+    await eget(ep, '/channel?slug=lru21');
     check('/channel: recent slugs stay cached', mock.hits.v2 === lruBase + 22);
-    await get(ep, '/channel?slug=lru0');
+    await eget(ep, '/channel?slug=lru0');
     check('/channel: the cache holds at most 20 slugs (oldest evicted)', mock.hits.v2 === lruBase + 23, `hits=${mock.hits.v2 - lruBase}`);
 
     for (const bad of ['', 'Bad Slug', 'UPPER', '../etc', 'a'.repeat(41), 'x%00y', 'a.b']) {
-      const x = await get(ep, '/channel?slug=' + encodeURIComponent(bad));
+      const x = await eget(ep, '/channel?slug=' + encodeURIComponent(bad));
       check(`/channel: invalid slug ${JSON.stringify(bad.slice(0, 12))} gets 400`, x.status === 400, `status=${x.status}`);
     }
-    check('/channel: a missing slug gets 400', (await get(ep, '/channel')).status === 400);
+    check('/channel: a missing slug gets 400', (await eget(ep, '/channel')).status === 400);
 
     mock.v2 = { status: 404, headers: {} };
-    const f1 = await get(ep, '/channel?slug=fallback404');
+    const f1 = await eget(ep, '/channel?slug=fallback404');
     check('/channel: v2 404 falls back to v1 (X-Kick-Source: v1)', f1.status === 200 && f1.headers['x-kick-source'] === 'v1' && /"v":"v1"/.test(f1.body));
     mock.v2 = { status: 503, headers: {} };
-    const f2 = await get(ep, '/channel?slug=fallback503');
+    const f2 = await eget(ep, '/channel?slug=fallback503');
     check('/channel: v2 5xx falls back to v1', f2.status === 200 && f2.headers['x-kick-source'] === 'v1');
     mock.v1 = { status: 500, headers: {} };
-    const f3 = await get(ep, '/channel?slug=bothdown');
+    const f3 = await eget(ep, '/channel?slug=bothdown');
     check('/channel: both versions failing gives 502 upstream', f3.status === 502 && JSON.parse(f3.body).error === 'upstream');
     mock.v1 = { status: 200, headers: {} };
     mock.v2 = { status: 200, headers: {} };
@@ -418,17 +475,17 @@ function get(port, p, method = 'GET', headers) {
     const { eventsPort: ep } = await r.start();
     mock.v2 = { status: 429, headers: { 'Retry-After': '7' } };
     const v1Before = mock.hits.v1;
-    const rl = await get(ep, '/channel?slug=limited');
+    const rl = await eget(ep, '/channel?slug=limited');
     check('/channel: upstream 429 gives 429 with the upstream Retry-After', rl.status === 429 && rl.headers['retry-after'] === '7' && JSON.parse(rl.body).error === 'rate', `status=${rl.status} ra=${rl.headers['retry-after']}`);
     check('/channel: v1 is not tried after a 429', mock.hits.v1 === v1Before);
     const hitsNow = mock.hits.v2;
-    const again = await get(ep, '/channel?slug=limited2');
+    const again = await eget(ep, '/channel?slug=limited2');
     check('/channel: during the wait the relay does not call upstream again', again.status === 429 && mock.hits.v2 === hitsNow && Number(again.headers['retry-after']) >= 1 && Number(again.headers['retry-after']) <= 7);
     r.stop();
     const r2 = createRelay(baseOpts());
     const { eventsPort: ep2 } = await r2.start();
     mock.v2 = { status: 403, headers: {} };
-    const f = await get(ep2, '/channel?slug=forbidden');
+    const f = await eget(ep2, '/channel?slug=forbidden');
     check('/channel: upstream 403 gives 429 with the default Retry-After of 60', f.status === 429 && f.headers['retry-after'] === '60', `ra=${f.headers['retry-after']}`);
     mock.v2 = { status: 200, headers: {} };
     r2.stop();
@@ -440,39 +497,39 @@ function get(port, p, method = 'GET', headers) {
     const clock = mkClock();
     const r = createRelay(baseOpts({ credentials: { id: 'test-id', secret: 'test-secret' }, now: clock.now }));
     const { eventsPort: ep } = await r.start();
-    check('/health: subscribers true when credentials exist', JSON.parse((await get(ep, '/health')).body).features.subscribers === true);
+    check('/health: subscribers true when credentials exist', JSON.parse((await eget(ep, '/health')).body).features.subscribers === true);
     const t0 = mock.hits.token, c0 = mock.hits.channels;
-    const s = await get(ep, '/subscribers?slug=iacbi');
+    const s = await eget(ep, '/subscribers?slug=iacbi');
     const sj = JSON.parse(s.body);
     check('/subscribers: 200 with the overlay shape', s.status === 200 && sj.ok === true && sj.subs === 17 && sj.gifted === 3 && sj.canceled === 1 && sj.live === true && sj.viewers === 5 && sj.startMs === Date.parse('2026-10-16T10:00:00Z') && sj.title === 'Test stream', s.body);
     check('/subscribers: token requested as a client_credentials form post', mock.hits.token === t0 + 1 && /x-www-form-urlencoded/.test(mock.tokenType) && mock.tokenForm.grant_type === 'client_credentials' && mock.tokenForm.client_id === 'test-id');
-    await get(ep, '/subscribers?slug=iacbi');
+    await eget(ep, '/subscribers?slug=iacbi');
     check('/subscribers: cached for 15 s per slug', mock.hits.channels === c0 + 1);
     clock.advance(16000);
-    await get(ep, '/subscribers?slug=iacbi');
+    await eget(ep, '/subscribers?slug=iacbi');
     check('/subscribers: refetched after 15 s, reusing the cached token', mock.hits.channels === c0 + 2 && mock.hits.token === t0 + 1);
     clock.advance(3600 * 1000);
-    await get(ep, '/subscribers?slug=iacbi');
+    await eget(ep, '/subscribers?slug=iacbi');
     check('/subscribers: a new token is requested after the old one expires', mock.hits.token === t0 + 2);
 
-    const ghost = await get(ep, '/subscribers?slug=ghost');
+    const ghost = await eget(ep, '/subscribers?slug=ghost');
     const gj = JSON.parse(ghost.body);
     check('/subscribers: a channel with no data still answers 200 with nulls', ghost.status === 200 && gj.ok === true && gj.subs === null && gj.live === null);
-    check('/subscribers: invalid slug gets 400', (await get(ep, '/subscribers?slug=Bad!')).status === 400 && (await get(ep, '/subscribers')).status === 400);
+    check('/subscribers: invalid slug gets 400', (await eget(ep, '/subscribers?slug=Bad!')).status === 400 && (await eget(ep, '/subscribers')).status === 400);
 
     mock.channelsMode = 'revoke-once';
     const tk = mock.hits.token;
     clock.advance(16000);
-    const rv = await get(ep, '/subscribers?slug=iacbi');
+    const rv = await eget(ep, '/subscribers?slug=iacbi');
     check('/subscribers: a 401 clears the token and retries once with a fresh one', rv.status === 200 && mock.hits.token === tk + 1, `status=${rv.status} tokens=${mock.hits.token - tk}`);
 
     mock.channelsMode = 'rate';
     mock.retryAfter = '9';
     clock.advance(16000);
-    const rate = await get(ep, '/subscribers?slug=iacbi');
+    const rate = await eget(ep, '/subscribers?slug=iacbi');
     check('/subscribers: upstream 429 gives 429 {error:"rate"} with Retry-After', rate.status === 429 && JSON.parse(rate.body).error === 'rate' && rate.headers['retry-after'] === '9', `ra=${rate.headers['retry-after']}`);
     mock.channelsMode = '500';
-    const up = await get(ep, '/subscribers?slug=iacbi');
+    const up = await eget(ep, '/subscribers?slug=iacbi');
     check('/subscribers: upstream 5xx gives 502 {error:"upstream"}', up.status === 502 && JSON.parse(up.body).error === 'upstream');
     mock.channelsMode = 'ok';
     r.stop();
@@ -480,12 +537,12 @@ function get(port, p, method = 'GET', headers) {
   {
     const r = createRelay(baseOpts());
     const { eventsPort: ep } = await r.start();
-    const x = await get(ep, '/subscribers?slug=iacbi');
+    const x = await eget(ep, '/subscribers?slug=iacbi');
     check('/subscribers: no credentials gives 503 {error:"no-credentials"}', x.status === 503 && JSON.parse(x.body).error === 'no-credentials');
     r.stop();
     const r2 = createRelay(baseOpts({ credentials: { id: 'test-id', secret: 'WRONG' } }));
     const { eventsPort: ep2 } = await r2.start();
-    const y = await get(ep2, '/subscribers?slug=iacbi');
+    const y = await eget(ep2, '/subscribers?slug=iacbi');
     check('/subscribers: rejected credentials give 401 {error:"auth"}', y.status === 401 && JSON.parse(y.body).error === 'auth');
     r2.stop();
   }
@@ -500,7 +557,7 @@ function get(port, p, method = 'GET', headers) {
     const ports = await r.start();
     const st = openSse(ports.eventsPort);
     await sleep(100);
-    check('broadcaster id is resolved at startup from the channel slug', ports.chat === true && JSON.parse((await get(ports.eventsPort, '/health')).body).features.chat === true);
+    check('broadcaster id is resolved at startup from the channel slug', ports.chat === true && JSON.parse((await eget(ports.eventsPort, '/health')).body).features.chat === true);
     await sendChat(ports.webhookPort, 'bs-1', 4242);
     await sendChat(ports.webhookPort, 'bs-2', 999);
     await sleep(120);
@@ -512,13 +569,13 @@ function get(port, p, method = 'GET', headers) {
     const p2 = await r2.start();
     const st2 = openSse(p2.eventsPort);
     await sleep(100);
-    const h2 = JSON.parse((await get(p2.eventsPort, '/health')).body);
+    const h2 = JSON.parse((await eget(p2.eventsPort, '/health')).body);
     check('unresolved broadcaster: /health reports chat false, other features still on', h2.features.chat === false && h2.features.channel === true && p2.chat === false);
     const d = await sendChat(p2.webhookPort, 'bs-3', 4242);
     await sleep(120);
     check('unresolved broadcaster: the event is acknowledged (200) but dropped', d.status === 200 && st2.frames.length === 0);
     check('unresolved broadcaster: a clear warning is logged', lg2.warns.some((w) => /dropped/.test(w) && /RELAY_BROADCASTER_ID/.test(w) && /RELAY_ALLOW_ANY_BROADCASTER/.test(w)), lg2.warns.join(' | ').slice(0, 120));
-    check('unresolved broadcaster: /channel still works', (await get(p2.eventsPort, '/channel?slug=iacbi')).status === 200);
+    check('unresolved broadcaster: /channel still works', (await eget(p2.eventsPort, '/channel?slug=iacbi')).status === 200);
     st2.close(); r2.stop();
 
     const r3 = createRelay(baseOpts({ broadcasterUserId: '', credentials: { id: 'test-id', secret: 'test-secret' }, channelSlug: 'ghost' }));
@@ -532,7 +589,7 @@ function get(port, p, method = 'GET', headers) {
     await sleep(100);
     await sendChat(p4.webhookPort, 'bs-4', 31337);
     await sleep(120);
-    check('RELAY_ALLOW_ANY_BROADCASTER accepts any channel and /health chat is true', st4.frames.some((f) => f.data.id === 'bs-4') && JSON.parse((await get(p4.eventsPort, '/health')).body).features.chat === true);
+    check('RELAY_ALLOW_ANY_BROADCASTER accepts any channel and /health chat is true', st4.frames.some((f) => f.data.id === 'bs-4') && JSON.parse((await eget(p4.eventsPort, '/health')).body).features.chat === true);
     st4.close(); r4.stop();
   }
 
@@ -563,7 +620,7 @@ function get(port, p, method = 'GET', headers) {
     const declared = await post(wp, { id: 'o-1', ts: t, body: over, sig: 'AAAA' });
     check('oversize body: refused up front from Content-Length (413)', declared.status === 413, `status=${declared.status}`);
     const chunked = await new Promise((resolve) => {
-      const req = http.request({ host: '127.0.0.1', port: wp, path: '/kick/webhook', method: 'POST', headers: { 'Kick-Event-Message-Id': 'o-2' } }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); });
+      const req = http.request({ host: '127.0.0.1', port: wp, path: '/kick/webhook', method: 'POST', headers: { 'Kick-Event-Message-Id': 'o-2', 'Kick-Event-Message-Timestamp': t, 'Kick-Event-Signature': 'AAAA' } }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); });
       req.on('error', () => resolve('error'));
       req.write('y'.repeat(40 * 1024)); req.write('y'.repeat(40 * 1024)); req.end();
     });
@@ -585,39 +642,58 @@ function get(port, p, method = 'GET', headers) {
     check('SSE: a client whose write throws is removed without breaking the others', !r.clients.has(thrower) && healthy.got === 2);
     r.clients.delete(healthy);
 
-    const before = JSON.parse((await get(ep, '/health')).body).clients;
+    const before = JSON.parse((await eget(ep, '/health')).body).clients;
     st.close();
     await sleep(150);
-    check('SSE: a disconnected client is removed', before >= 1 && JSON.parse((await get(ep, '/health')).body).clients === 0);
+    check('SSE: a disconnected client is removed', before >= 1 && JSON.parse((await eget(ep, '/health')).body).clients === 0);
 
     let boom = true;
     const fl = createRelay(baseOpts({ logger: lg, now: () => { if (boom) throw new Error('clock exploded'); return Date.now(); } }));
     const fp = await fl.start();
     const w500 = await post(fp.webhookPort, { id: 'e-1', ts: t, body: '{}', sig: 'AAAA' });
     check('a webhook handler error answers 500 JSON', w500.status === 500 && JSON.parse(w500.body).error === 'internal', `status=${w500.status}`);
-    const e500 = await get(fp.eventsPort, '/channel?slug=abc');
+    const e500 = await eget(fp.eventsPort, '/channel?slug=abc');
     check('an events handler error answers 500 JSON', e500.status === 500 && JSON.parse(e500.body).ok === false && /json/.test(e500.headers['content-type']), `status=${e500.status}`);
     check('handler errors are logged', lg.errors.length >= 2);
     boom = false;
-    check('the relay keeps serving after a handler error', (await get(fp.eventsPort, '/health')).status === 200);
+    check('the relay keeps serving after a handler error', (await eget(fp.eventsPort, '/health')).status === 200);
     fl.stop();
     r.stop();
   }
   {
-    const r = createRelay(baseOpts({ webhookRate: { perSec: 1, burst: 3 } }));
+    // Regression (BB-002): forged requests with fresh headers must not use up the trusted budget.
+    const ts0 = String(Math.floor(Date.now() / 1000));
+    const r = createRelay(baseOpts({ webhookRate: { perSec: 0, burst: 1 } }));
     const { webhookPort: wp } = await r.start();
-    const codes = [];
-    let retry = null;
-    for (let i = 0; i < 7; i++) {
-      const x = await new Promise((resolve) => {
-        const req = http.request({ host: '127.0.0.1', port: wp, path: '/kick/webhook', method: 'POST' }, (res) => { res.resume(); res.on('end', () => resolve({ status: res.statusCode, ra: res.headers['retry-after'] })); });
-        req.end('{}');
-      });
-      codes.push(x.status);
-      if (x.status === 429) retry = x.ra;
-    }
-    check('webhook rate limit: the burst passes, then 429 with Retry-After', codes.slice(0, 3).every((c) => c === 401) && codes.slice(4).every((c) => c === 429) && retry === '1', codes.join());
+    const forged = chatBody('rl-forged', 'forged');
+    const f1 = await post(wp, { id: 'rl-forged', ts: ts0, body: forged, sig: 'AAAA' });
+    const real = chatBody('rl-real', 'real');
+    const r1 = await post(wp, { id: 'rl-real', ts: ts0, body: real, sig: sign('rl-real', ts0, real, privateKey) });
+    check('webhook: a forged request does not use the trusted budget (401, then signed 200)', f1.status === 401 && r1.status === 200, `forged=${f1.status} signed=${r1.status}`);
     r.stop();
+
+    const r2 = createRelay(baseOpts({ webhookRate: { perSec: 0, burst: 2 } }));
+    const { webhookPort: wp2 } = await r2.start();
+    const trusted = [];
+    let retry = null;
+    for (let i = 0; i < 4; i++) {
+      const b = chatBody('rl-t' + i, 'signed');
+      const x = await post(wp2, { id: 'rl-t' + i, ts: ts0, body: b, sig: sign('rl-t' + i, ts0, b, privateKey) });
+      trusted.push(x.status);
+      if (x.status === 429) retry = x.headers['retry-after'];
+    }
+    check('webhook: signed events beyond the trusted burst get 429 with Retry-After: 1', trusted.join() === '200,200,429,429' && retry === '1', `${trusted.join()} ra=${retry}`);
+    r2.stop();
+
+    const r3 = createRelay(baseOpts({ webhookPreAuthRate: { perSec: 0, burst: 2 } }));
+    const { webhookPort: wp3 } = await r3.start();
+    const pre = [];
+    for (let i = 0; i < 5; i++) {
+      const x = await post(wp3, { id: 'pa-' + i, ts: ts0, body: '{}', sig: 'AAAA' });
+      pre.push(x.status);
+    }
+    check('webhook: forged requests with fresh headers hit the pre-auth ceiling (429)', pre.join() === '401,401,429,429,429', pre.join());
+    r3.stop();
   }
   {
     const clock = mkClock();

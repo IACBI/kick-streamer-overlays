@@ -88,6 +88,7 @@ window.KICK_OVERLAY_AYARLAR = {
   duyuruSn: 6,
 
   // Only needed if you changed the chat relay's port (see relay/). Default: "http://127.0.0.1:8790"
+  // The relay's access key is read from AYARLAR.relay.js automatically; nothing to set here.
   // relayAdresi: "http://127.0.0.1:8790",
 
 };

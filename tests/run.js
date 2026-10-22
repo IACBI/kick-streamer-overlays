@@ -297,7 +297,7 @@ async function testCoreApi() {
     ['followers', 'live', 'subBadges', 'time', 'official'].forEach((n) =>
       ok(typeof K.parse[n] === 'function', 'missing parse.' + n));
     ok(typeof K.kick.channel === 'function', 'missing kick.channel');
-    eq(K.version, '2.3.3', 'version');
+    eq(K.version, '2.3.4', 'version');
     ['token', 'channel', 'clearToken'].forEach((n) => ok(typeof K.official[n] === 'function', 'missing official.' + n));
   });
 }
@@ -1135,7 +1135,7 @@ function fakeVisibilityDocument(hidden) {
 
 const jsonRes = (body, headers) => ({ status: 200, body, headers });
 const SUBS_OK = (subs) => jsonRes({ ok: true, subs, gifted: 3, canceled: 1, live: true, viewers: 12, startMs: null, title: 'x' });
-const HEALTH = (features) => jsonRes({ ok: true, version: '2.3.3', clients: 0, features: Object.assign({ chat: false, channel: true, subscribers: false }, features) });
+const HEALTH = (features) => jsonRes({ ok: true, version: '2.3.4', clients: 0, features: Object.assign({ chat: false, channel: true, subscribers: false }, features) });
 
 async function testSettingsV23() {
   section('v2.3.0 settings: new keys, clock, asBool, kanal');
@@ -1847,12 +1847,23 @@ async function testRelayInfoAndChannel() {
     const { K } = loadCore({ fetch: net.fetch });
     const a = await K.relayInfo(S());
     const b = await K.relayInfo(S());
-    eq(a.version, '2.3.3', 'version');
+    eq(a.version, '2.3.4', 'version');
     eq(a.features.channel, true, 'features');
     eq(net.calls.length, 1, 'requests');
     eq(net.calls[0].url, RELAY + '/health', 'url');
     ok(net.calls[0].signal, 'request has a timeout signal');
     eq(b, a, 'same result');
+  });
+
+  await check('relay requests carry the access key from KICK_RELAY_KEY (read at call time); none set leaves the URL alone', async () => {
+    const net = fakeNet(() => HEALTH({}));
+    const { K, ctx } = loadCore({ fetch: net.fetch });
+    eq(K.relayUrl(RELAY + '/channel?slug=a'), RELAY + '/channel?slug=a', 'no key');
+    ctx.KICK_RELAY_KEY = 'k 1';
+    eq(K.relayUrl(RELAY + '/health'), RELAY + '/health?key=k%201', 'key on a bare path');
+    eq(K.relayUrl(RELAY + '/channel?slug=a'), RELAY + '/channel?slug=a&key=k%201', 'key after an existing query');
+    await K.relayInfo(S());
+    eq(net.calls[0].url, RELAY + '/health?key=k%201', 'probe url');
   });
 
   await check('relayInfo: concurrent calls share one request', async () => {

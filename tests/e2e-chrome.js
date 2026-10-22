@@ -39,7 +39,7 @@ const CHROME = process.env.CHROME_PATH || [
 // Errors caused by the sandbox, not by the pack: the optional local file and offline fonts.
 // Optional badge art in badges/ is requested first and falls back to a drawn symbol when missing.
 // K.relayInfo probes the default relay's /health once per page; with no relay running that is a refused connection.
-const BENIGN = [/AYARLAR\.local\.js/, /fonts\.(googleapis|gstatic)\.com/, /127\.0\.0\.1:8790\/health/, /badges\/[\w.-]+\.(svg|png|webp|gif|jpe?g)/];
+const BENIGN = [/AYARLAR\.local\.js/, /AYARLAR\.relay\.js/, /fonts\.(googleapis|gstatic)\.com/, /127\.0\.0\.1:8790\/health\b/, /badges\/[\w.-]+\.(svg|png|webp|gif|jpe?g)/];
 
 const results = [];
 function check(name, ok, detail) {
@@ -164,7 +164,7 @@ async function offlineChecks() {
   })`);
   check('follower-bar: K.loadFont injects exactly one font link, for Inter only', fHead.fonts.length === 1 && /family=Inter:/.test(fHead.fonts[0]) && !/Poppins|Nunito|Roboto/.test(fHead.fonts[0]), short(fHead.fonts));
   check('follower-bar: keeps the two preconnect links', fHead.preconnects === 2, String(fHead.preconnects));
-  check('follower-bar: does not load AYARLAR.local.js (credentials stay out)', !fHead.scripts.includes('AYARLAR.local.js') && fHead.scripts.join() === 'AYARLAR.js,shared/kick-core.js', fHead.scripts.join());
+  check('follower-bar: does not load AYARLAR.local.js (credentials stay out)', !fHead.scripts.includes('AYARLAR.local.js') && fHead.scripts.join() === 'AYARLAR.js,AYARLAR.relay.js,shared/kick-core.js', fHead.scripts.join());
   await f.shot('follower.png');
   await f.close();
 
@@ -213,7 +213,7 @@ async function offlineChecks() {
   check('subscriber-bar: no session delta chip', sInfo.deltaHidden);
   check('subscriber-bar: no unexpected errors', unexpected(s.logs).length === 0, short(unexpected(s.logs)));
   const sScripts = await s.eval(`Array.from(document.scripts).map((e) => e.getAttribute('src')).filter(Boolean).join()`);
-  check('subscriber-bar: loads AYARLAR.js, AYARLAR.local.js, kick-core.js in that order', sScripts === 'AYARLAR.js,AYARLAR.local.js,shared/kick-core.js', sScripts);
+  check('subscriber-bar: loads AYARLAR.js, AYARLAR.local.js, AYARLAR.relay.js, kick-core.js in that order', sScripts === 'AYARLAR.js,AYARLAR.local.js,AYARLAR.relay.js,shared/kick-core.js', sScripts);
   await s.shot('subscriber.png');
   await s.close();
 
@@ -533,7 +533,8 @@ async function relayChecks() {
     publicKeyEncoding: { type: 'spki', format: 'pem' },
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
   });
-  const relay = createRelay({ publicKeyPem: publicKey, webhookPort: 0, eventsPort: 0, broadcasterUserId: '113812015' });
+  const accessKey = crypto.randomBytes(16).toString('hex');
+  const relay = createRelay({ publicKeyPem: publicKey, webhookPort: 0, eventsPort: 0, broadcasterUserId: '113812015', accessKey });
   const { webhookPort, eventsPort } = await relay.start();
 
   // A copy of the overlay that points at this relay and at the test channel.
@@ -546,6 +547,10 @@ async function relayChecks() {
     `  kanal: "${CHANNEL}",\n` +
     `  relayAdresi: "http://127.0.0.1:${eventsPort}"\n` +
     '};\n');
+  // The relay's access key, as the relay writes it to AYARLAR.relay.js.
+  fs.writeFileSync(path.join(copy, 'AYARLAR.relay.js'), `window.KICK_RELAY_KEY = "${accessKey}";\n`);
+  const noKey = await fetch(`http://127.0.0.1:${eventsPort}/health`);
+  check('relay chat: a request without the access key is refused (401)', noKey.status === 401, `status=${noKey.status}`);
 
   const chat = await openPageFrom(copy, 'chat.html', '', [460, 760]);
   try {

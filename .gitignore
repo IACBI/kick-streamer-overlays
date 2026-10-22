@@ -1,6 +1,9 @@
 # Kick app credentials (client id and secret). Never commit.
 AYARLAR.local.js
 
+# Local relay access key, written by the relay on first start. Never commit.
+AYARLAR.relay.js
+
 # Environment files and key material. Never commit.
 .env
 .env.*

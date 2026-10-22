@@ -649,6 +649,14 @@
   var RELAY_RETRY_MS = 5 * 60 * 1000;
   var relayMemo = {};
 
+  // The relay answers only requests that carry its local access key (AYARLAR.relay.js, read at call time).
+  // Without the key it answers 401, and callers fall back as they do when the relay is down.
+  function relayUrl(url) {
+    var key = global.KICK_RELAY_KEY;
+    if (!key) return url;
+    return url + (url.indexOf('?') === -1 ? '?' : '&') + 'key=' + encodeURIComponent(key);
+  }
+
   // Asks the local relay what it can do. Memoized per page; a failed probe is retried at most every 5 minutes.
   function relayInfo(s) {
     var base = s && s.relayAdresi;
@@ -659,7 +667,7 @@
       if (Date.now() - m.failedAt < RELAY_RETRY_MS) return Promise.resolve(null);
     }
     m = relayMemo[base] = { promise: null, failedAt: 0 };
-    var p = getJson(base + '/health', { timeoutMs: 1500 }).then(function (r) {
+    var p = getJson(relayUrl(base + '/health'), { timeoutMs: 1500 }).then(function (r) {
       var info = r.ok && r.data.ok !== false ? r.data : null;
       if (!info) { m.promise = null; m.failedAt = Date.now(); }
       return info;
@@ -677,7 +685,7 @@
     if (s) {
       var info = await relayInfo(s);
       if (info && info.features && info.features.channel) {
-        var rr = await getJson(s.relayAdresi + '/channel?slug=' + enc);
+        var rr = await getJson(relayUrl(s.relayAdresi + '/channel?slug=' + enc));
         if (rr.ok) return { ok: true, data: rr.data, src: rr.source === 'v1' ? 'relay-v1' : 'relay-v2', status: rr.status };
         if (rr.status === 429) {
           return { ok: false, error: rr.error, status: 429, src: 'relay-v2', retryAfterMs: rr.retryAfterMs || 60000 };
@@ -782,7 +790,7 @@
 
     // Returns null when the relay is unreachable and this page has credentials of its own.
     async function relayPoll() {
-      var r = await getJson(s.relayAdresi + '/subscribers?slug=' + encodeURIComponent(s.kanal));
+      var r = await getJson(relayUrl(s.relayAdresi + '/subscribers?slug=' + encodeURIComponent(s.kanal)));
       if (r.ok) {
         var subs = numOrNull(r.data.subs);
         return subs === null ? state('no-data', total) : state('ok', subs);
@@ -867,11 +875,11 @@
     }
     function reopen() {
       if (stopped) return;
-      try { es = new global.EventSource(url); } catch (e) { retry(); return; }
+      try { es = new global.EventSource(relayUrl(url)); } catch (e) { retry(); return; }
       attach(es);
     }
     status('connecting');
-    es = new global.EventSource(url);
+    es = new global.EventSource(relayUrl(url));
     attach(es);
     return function stop() {
       stopped = true;
@@ -885,7 +893,7 @@
   function schemaKeys() { return Object.keys(SCHEMA); }
 
   global.KickOverlay = {
-    version: '2.3.3',
+    version: '2.3.4',
     enums: enumsOf,
     schemaKeys: schemaKeys,
     normalize: normalize,
@@ -916,6 +924,7 @@
       time: parseTime
     },
     relayInfo: relayInfo,
+    relayUrl: relayUrl,
     kick: { channel: kickChannel },
     official: { token: appToken, channel: officialChannel, clearToken: clearToken },
     createSubscriberSource: createSubscriberSource,

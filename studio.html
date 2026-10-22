@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/themes.css">
+<script src="AYARLAR.relay.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   /* ---- Studio tokens (UI only; overlay styling lives in shared/themes.css) ---- */
@@ -896,6 +897,7 @@
       'relay.ok': 'Relay çalışıyor (v{v}, {n} bağlantı). Özellikler: {feats}.',
       'relay.down': 'Relay çalışmıyor ya da ulaşılamıyor ({url}). “node relay/server.js” ile başlat.',
       'relay.bad': 'Relay beklenmeyen bir yanıt verdi (HTTP {status}).',
+      'relay.key': 'Relay erişim anahtarı eksik ya da yanlış. Relay’i bir kez başlat (“node relay/server.js”): proje klasöründe AYARLAR.relay.js dosyasını oluşturur. Sonra bu sayfayı yenile.',
       'relay.f.chat': 'sohbet',
       'relay.f.channel': 'kanal',
       'relay.f.subscribers': 'aboneler',
@@ -1081,6 +1083,7 @@
       'relay.ok': 'Relay is running (v{v}, {n} clients). Features: {feats}.',
       'relay.down': 'Relay is not running or not reachable ({url}). Start it with “node relay/server.js”.',
       'relay.bad': 'The relay gave an unexpected answer (HTTP {status}).',
+      'relay.key': 'The relay access key is missing or wrong. Start the relay once (“node relay/server.js”): it creates AYARLAR.relay.js in the project folder. Then reload this page.',
       'relay.f.chat': 'chat',
       'relay.f.channel': 'channel',
       'relay.f.subscribers': 'subscribers',
@@ -1855,7 +1858,8 @@
     var ctl = new AbortController();
     var timer = setTimeout(function () { ctl.abort(); }, 2000);
     try {
-      var res = await fetch(base + '/health', { signal: ctl.signal, cache: 'no-store' });
+      var res = await fetch(K.relayUrl(base + '/health'), { signal: ctl.signal, cache: 'no-store' });
+      if (res.status === 401) { say(box, 'err', t('relay.key')); return; }
       var data = res.ok ? await res.json() : null;
       if (!res.ok || !data || data.ok !== true) { say(box, 'err', t('relay.bad', { status: res.status })); return; }
       var f = data.features && typeof data.features === 'object' ? data.features : {};

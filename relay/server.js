@@ -11,12 +11,13 @@
 //
 // Run:  node relay/server.js            (Node.js 18 or newer, no packages)
 
+const crypto = require('crypto');
 const http = require('http');
 const { HEADER, verifySignature, isFresh, ReplayGuard, TokenBucket, normalizeEvent } = require('./webhook.js');
-const { loadConfig, fetchTimeout } = require('./config.js');
+const { loadConfig, fetchTimeout, loadRelayKey } = require('./config.js');
 const { createKickApi, retryAfterSec } = require('./kick-api.js');
 
-const VERSION = '2.3.3';
+const VERSION = '2.3.4';
 const KEY_TTL_MS = 60 * 60 * 1000;
 const FORCE_MIN_GAP_MS = 60 * 1000;      // forged requests must not make the relay hammer Kick
 const KEY_FAIL_CACHE_MS = 30 * 1000;
@@ -71,8 +72,8 @@ function readRaw(req) {
 
 // Answers, then drops the connection so the rest of a refused upload is never read. The delay
 // lets the response reach the client before the socket is torn down.
-function refuse(req, res, status, body) {
-  send(res, status, body, { Connection: 'close' });
+function refuse(req, res, status, body, extra) {
+  send(res, status, body, Object.assign({ Connection: 'close' }, extra));
   res.once('finish', () => { setTimeout(() => req.destroy(), 1000).unref(); });
 }
 
@@ -137,7 +138,8 @@ function subscribersFrom(body) {
   };
 }
 
-// Overlays run from file:// (Origin "null") or a local web server; nothing else may read the API.
+// Overlays run from file:// (Origin "null") or a local web server. Origin is only defense in depth:
+// a sandboxed iframe sends Origin "null" as well, so the access key is what really gates the API.
 function originAllowed(origin) {
   if (origin === 'null') return true;
   try {
@@ -160,11 +162,20 @@ function createRelay(opts) {
     kickBase: 'https://kick.com',
     credentials: undefined,    // { id, secret } or false; undefined reads env / AYARLAR.local.js
     channelSlug: undefined,    // undefined reads KICK_CHANNEL / AYARLAR.js
-    webhookRate: { perSec: 30, burst: 60 },
+    webhookPreAuthRate: { perSec: 200, burst: 400 },   // unsigned traffic: an emergency ceiling only
+    webhookRate: { perSec: 30, burst: 60 },            // signed traffic: what Kick really sends
+    accessKey: undefined,      // events port key; undefined reads or creates AYARLAR.relay.js
     normalizeEvent,
     logger: console,
     now: () => Date.now()
   }, opts || {});
+
+  const accessKey = o.accessKey === undefined ? loadRelayKey() : String(o.accessKey);
+  const keyOk = (given) => {
+    if (typeof given !== 'string' || !given || !accessKey) return false;
+    const a = Buffer.from(given, 'utf8'), b = Buffer.from(accessKey, 'utf8');
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  };
 
   let fileConfig = null;
   const config = () => fileConfig || (fileConfig = loadConfig());
@@ -176,6 +187,7 @@ function createRelay(opts) {
     ? async () => o.publicKeyPem
     : kickKeySource(o);
   const replay = new ReplayGuard();
+  const preAuth = new TokenBucket(o.webhookPreAuthRate.perSec, o.webhookPreAuthRate.burst);
   const bucket = new TokenBucket(o.webhookRate.perSec, o.webhookRate.burst);
   const clients = new Set();
   let broadcasterId = o.broadcasterUserId ? String(o.broadcasterUserId) : '';
@@ -231,19 +243,20 @@ function createRelay(opts) {
   async function handleWebhook(req, res) {
     if (req.url !== '/kick/webhook') return send(res, 404, { error: 'not found' });
     if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' }, { Allow: 'POST' });
-    if (!bucket.take(o.now())) return send(res, 429, { error: 'too many requests' }, { 'Retry-After': '1' });
+
+    // Refused before the body is read, so a flood of junk cannot make the relay drain uploads.
+    const messageId = req.headers[HEADER.messageId];
+    const timestamp = req.headers[HEADER.timestamp];
+    const signature = req.headers[HEADER.signature];
+    const type = req.headers[HEADER.type];
+    if (!messageId || !timestamp || !signature) return refuse(req, res, 401, { error: 'missing headers' });
+    if (!isFresh(timestamp, o.now())) return refuse(req, res, 401, { error: 'stale' });
+    if (!preAuth.take(o.now())) return refuse(req, res, 429, { error: 'too many requests' }, { 'Retry-After': '1' });
 
     let raw;
     try { raw = await readRaw(req); } catch (e) {
       return refuse(req, res, e.status || 400, { error: e.status === 413 ? 'too large' : 'bad request' });
     }
-
-    const messageId = req.headers[HEADER.messageId];
-    const timestamp = req.headers[HEADER.timestamp];
-    const signature = req.headers[HEADER.signature];
-    const type = req.headers[HEADER.type];
-    if (!messageId || !timestamp || !signature) return send(res, 401, { error: 'missing headers' });
-    if (!isFresh(timestamp, o.now())) return send(res, 401, { error: 'stale' });
 
     let key;
     try { key = await getKey(false); } catch (e) { return send(res, 503, { error: 'key unavailable' }); }
@@ -255,6 +268,7 @@ function createRelay(opts) {
       if (key2 !== key) ok = verifySignature({ messageId, timestamp, rawBody: raw, signature, publicKeyPem: key2 });
     }
     if (!ok) return send(res, 401, { error: 'bad signature' });
+    if (!bucket.take(o.now())) return send(res, 429, { error: 'too many requests' }, { 'Retry-After': '1' });
 
     // Accepted: Kick may resend, so answer 200 for repeats without showing them again.
     if (!replay.accept(String(messageId), o.now())) return send(res, 200, { ok: true, duplicate: true });
@@ -390,6 +404,7 @@ function createRelay(opts) {
 
     let url;
     try { url = new URL(req.url, 'http://localhost'); } catch (e) { return send(res, 400, { error: 'bad request' }); }
+    if (!keyOk(url.searchParams.get('key'))) return send(res, 401, { ok: false, error: 'bad key' });
     const p = url.pathname;
 
     if (p === '/health') {
@@ -477,6 +492,9 @@ if (require.main === module) {
       console.warn('  WARNING: broadcaster id unknown, so chat events will be DROPPED.');
       console.warn('  Set RELAY_BROADCASTER_ID, or add Kick app credentials and kanal so it can be looked up.');
     }
+    console.log(env.RELAY_KEY
+      ? '  Overlay access key: taken from RELAY_KEY (overlays need the same value).'
+      : '  Overlay access key: stored in AYARLAR.relay.js (overlays load it automatically).');
   }).catch((e) => {
     console.error('Could not start the relay:', e.message);
     process.exit(1);

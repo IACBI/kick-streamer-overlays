@@ -157,6 +157,8 @@ The relay is one small Node.js program with no packages. It has two listeners, b
 | `GET /channel?slug=NAME` | Kick's public channel data, cached for 20 seconds. The `X-Kick-Source` header says whether it came from Kick's v2 or v1 API. |
 | `GET /subscribers?slug=NAME` | Your subscriber total from Kick's official API, using the app credentials the relay holds. Cached for 15 seconds. Returns `subs`, `gifted`, `canceled`, `live`, `viewers`, `startMs` and `title`. |
 
+Every request must carry the access key from `AYARLAR.relay.js` as a `key` query parameter, for example `/health?key=…`. The relay writes that file next to the overlays on its first start, and the overlays read it from there. Without a valid key the relay answers `401`. The file is git-ignored, so do not share it.
+
 When Kick limits the relay, it answers `429` with `Retry-After`. Without credentials `/subscribers` answers `503`, and a rejected login answers `401`.
 
 The subscriber bars need no client secret in the browser when the relay runs. Put the app credentials in `AYARLAR.local.js` or the environment and start the relay. The bars then get the total from `/subscribers`, and the page sends no request to Kick itself. If the relay is not running, the bars use `AYARLAR.local.js` directly. If that is missing too, they show `aboneSayisi`.
@@ -401,6 +403,8 @@ Relay, paket gerektirmeyen küçük bir Node.js programıdır. İki dinleyicisi 
 | `GET /health` | Relay sürümü, açık olay bağlantısı sayısı ve neler yapabildiği: `chat`, `channel`, `subscribers`. |
 | `GET /channel?slug=AD` | Kick'in herkese açık kanal verisi, 20 saniye önbellekte tutulur. `X-Kick-Source` başlığı verinin Kick'in v2 mi v1 mi API'sinden geldiğini söyler. |
 | `GET /subscribers?slug=AD` | Relay'in tuttuğu uygulama bilgileriyle Kick'in resmi API'sinden abone toplamın. 15 saniye önbellekte tutulur. `subs`, `gifted`, `canceled`, `live`, `viewers`, `startMs` ve `title` döndürür. |
+
+Her istek erişim anahtarını `key` sorgu parametresiyle taşımalıdır, örneğin `/health?key=…`. Relay ilk başlatıldığında bu anahtarı içeren `AYARLAR.relay.js` dosyasını overlay'lerin yanına yazar; overlay'ler anahtarı oradan okur. Geçerli anahtar yoksa relay `401` döndürür. Dosya git'e eklenmez, kimseyle paylaşma.
 
 Kick sınır koyarsa relay `429` ve `Retry-After` ile yanıt verir. Uygulama bilgisi yoksa `/subscribers` `503`, reddedilen giriş `401` döndürür.
 

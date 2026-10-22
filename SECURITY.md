@@ -18,10 +18,14 @@ You can expect an answer within a few days.
 - **Relay, webhook port** (`127.0.0.1:8788` by default, the only port meant for a tunnel). It answers
   `POST /kick/webhook` and nothing else. Each request needs Kick's signature headers, a timestamp within five
   minutes, and a signature that verifies against Kick's public key. The key is refetched at most once a minute when
-  a signature fails. Repeated message IDs are acknowledged but not shown again. Bodies are limited to 64 KiB and the
-  rate is limited. A report that bypasses signature or freshness checks is in scope.
+  a signature fails. Repeated message IDs are acknowledged but not shown again. Bodies are limited to 64 KiB. The
+  rate is limited before the signature check, and verified deliveries have a separate quota, so unsigned traffic
+  cannot starve real events. A report that bypasses signature or freshness checks is in scope.
 - **Relay, overlay port** (`127.0.0.1:8790` by default). It serves `/health`, `/events`, `/channel` and
   `/subscribers`, and only accepts `GET` and `OPTIONS`. Never put this port behind a tunnel.
+  - **Access key.** Every request must carry the key from the git-ignored `AYARLAR.relay.js` as a `key` query
+    parameter. The relay writes that file next to the overlays on first start. Without a valid key it answers `401`.
+    This matters because a sandboxed frame can send `Origin: null` and pass the origin check below.
   - **Host.** Only `127.0.0.1`, `localhost` and `[::1]` are accepted, which blocks DNS rebinding. Anything else gets 403.
   - **Origin.** A request with no `Origin`, with `Origin: null` (an overlay opened from disk), or from a loopback
     `http(s)` origin is answered. Any other origin gets 403. The allowed origin is echoed back, never `*`, and

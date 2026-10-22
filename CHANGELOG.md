@@ -4,6 +4,12 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [2.3.4] - 2026-10-22
+
+### Security
+- The relay's overlay port now requires a local access key. On first start the relay writes it to `AYARLAR.relay.js` next to the overlays (git-ignored, never commit it), and the overlays read it from there. Requests without a valid key get `401`, so a sandboxed page that sends `Origin: null` can no longer read the relay.
+- Webhook rate limiting is split into a pre-auth ceiling and a separate quota for verified Kick deliveries, so unsigned traffic cannot starve real events.
+
 ## [2.3.3] - 2026-10-20
 
 ### Changed

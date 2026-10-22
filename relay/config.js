@@ -2,12 +2,15 @@
 // Settings shared by the relay server and the subscribe script: Kick app credentials and the
 // channel name. Environment variables win, then AYARLAR.local.js / AYARLAR.js next to the repo.
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const FETCH_TIMEOUT_MS = 10000;
+const RELAY_KEY_FILE = 'AYARLAR.relay.js';
+const RELAY_KEY_FORMAT = /^[A-Za-z0-9_-]{32,128}$/;
 
 // Reads window.<key> from a classic settings file. The file is the user's own local config.
 function readSetting(file, key) {
@@ -52,4 +55,18 @@ function fetchTimeout(fetchImpl, url, options, ms) {
   return fetchImpl(url, Object.assign({}, options, { signal: AbortSignal.timeout(ms || FETCH_TIMEOUT_MS) }));
 }
 
-module.exports = { ROOT, FETCH_TIMEOUT_MS, readSetting, normalizeSlug, loadConfig, fetchTimeout };
+// The events port key. Overlays read it from AYARLAR.relay.js; a sandboxed iframe can send
+// Origin "null" too, so this key is what keeps other local pages out of the events API.
+function loadRelayKey(opts) {
+  const o = Object.assign({ root: ROOT, env: process.env }, opts || {});
+  if (typeof o.env.RELAY_KEY === 'string' && o.env.RELAY_KEY) return o.env.RELAY_KEY;
+  const file = path.join(o.root, RELAY_KEY_FILE);
+  let key;
+  try { key = readSetting(file, 'KICK_RELAY_KEY'); } catch (e) { key = undefined; }
+  if (typeof key === 'string' && RELAY_KEY_FORMAT.test(key)) return key;
+  key = crypto.randomBytes(32).toString('hex');
+  fs.writeFileSync(file, `window.KICK_RELAY_KEY = "${key}";\n`, { mode: 0o600 });
+  return key;
+}
+
+module.exports = { ROOT, FETCH_TIMEOUT_MS, readSetting, normalizeSlug, loadConfig, fetchTimeout, loadRelayKey };
