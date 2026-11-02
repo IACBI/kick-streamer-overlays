@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<!-- OBS Browser source (Local file): 640 x 200. Follow, subscription, gift and Kicks alerts. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kick Alerts Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="shared/themes.css">
+<script src="AYARLAR.js"></script>
+<script src="AYARLAR.relay.js"></script>
+<script src="shared/kick-core.js"></script>
+<style>
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+  body { position: relative; font-family: var(--font); -webkit-font-smoothing: antialiased; }
+</style>
+</head>
+<body>
+<div class="ko-alert-stage" id="stage" role="status" aria-live="polite"></div>
+<div class="ko-note is-hidden" id="note" aria-live="polite"></div>
+
+<script>
+(function(){
+  const K = window.KickOverlay;
+  const S = K.readSettings();
+  const PREVIEW = K.isPreview();
+  K.applyLook(S);
+  K.loadFont(S);
+
+  const stage = document.getElementById('stage');
+  const noteEl = document.getElementById('note');
+  const DWELL_MS = S.uyariSn * 1000;
+  // A raid of follows must not hold the screen for minutes: past QUEUE_MAX the oldest follow is dropped first,
+  // and while more than BACKLOG alerts wait, each one stays half as long (never under MIN_DWELL_MS).
+  const QUEUE_MAX = 25;
+  const BACKLOG = 5;
+  const MIN_DWELL_MS = 3000;
+  const GAP_MS = 250;
+  const OUT_FALLBACK_MS = 350;   // .ko-alert.is-out in themes.css, used when the computed length is unreadable
+  const RELAY_DOWN_MS = 5000;
+  const SEEN_CAP = 500;
+  const ENABLED = { follow: S.uyariTakip, sub: S.uyariAbone, gift: S.uyariHediye, kicks: S.uyariKicks };
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const ICONS = {
+    follow: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z'],
+    sub: ['M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6 6.8 19.4l1-5.9L3.5 9.4l5.9-.8L12 3.2z'],
+    gift: ['M4 10h16v10H4z', 'M3 7h18v3H3zM12 7v13', 'M12 7C12 7 11.4 3.5 9 4c-1.9.4-1.4 3 3 3zM12 7c0 0 .6-3.5 3-3 1.9.4 1.4 3-3 3z'],
+    kicks: ['M13 2L4 14h7l-1 8 9-12h-7l1-8z']
+  };
+
+  const queue = [];
+  const seen = new Set();
+  let current = null;       // the alert element on screen
+  let dwellTimer = null, outTimer = null, previewTimer = null, downTimer = null;
+  let stopRelay = null;
+  let shown = 0, dropped = 0;
+
+  function icon(kind){
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    for (const d of ICONS[kind]) {
+      const p = document.createElementNS(SVG_NS, 'path');
+      p.setAttribute('d', d);
+      svg.appendChild(p);
+    }
+    return svg;
+  }
+
+  // Title, name and detail per kind. Everything is set as text; nothing from an event is parsed as markup.
+  function content(ev){
+    const n = K.fmt;
+    switch (ev.kind) {
+      case 'follow':
+        return { title: K.label(S, 'Yeni takipçi', 'New follower'), name: ev.username, detail: '' };
+      case 'sub':
+        if (ev.renewal) return { title: K.label(S, 'Abonelik yenilendi', 'Resubscribed'), name: ev.username,
+          detail: K.label(S, n(ev.months) + '. ay', 'Month ' + n(ev.months)) };
+        return { title: K.label(S, 'Yeni abone', 'New subscriber'), name: ev.username,
+          detail: ev.months > 1 ? K.label(S, n(ev.months) + ' aylık', n(ev.months) + ' months') : '' };
+      case 'gift':
+        return { title: K.label(S, 'Hediye abonelik', 'Gifted subs'),
+          name: ev.anonymous ? K.label(S, 'Anonim', 'Anonymous') : ev.username,
+          detail: K.label(S, n(ev.count) + ' abonelik hediye etti', ev.count === 1 ? 'gifted a sub' : 'gifted ' + n(ev.count) + ' subs') };
+      case 'kicks':
+        return { title: 'Kicks', name: ev.username,
+          detail: n(ev.amount) + ' Kicks' + (ev.giftName ? ' · ' + ev.giftName : ''), message: ev.message || '' };
+    }
+    return null;
+  }
+
+  function build(ev){
+    const c = content(ev);
+    const el = document.createElement('div');
+    el.className = 'ko-alert is-' + ev.kind;
+    const ic = document.createElement('span');
+    ic.className = 'ko-alert-icon';
+    ic.appendChild(icon(ev.kind));
+    const body = document.createElement('div');
+    body.className = 'ko-alert-body';
+    const title = document.createElement('div');
+    title.className = 'ko-alert-title';
+    title.textContent = c.title;
+    const name = document.createElement('div');
+    name.className = 'ko-alert-name';
+    name.textContent = c.name;
+    body.append(title, name);
+    if (c.detail) {
+      const d = document.createElement('div');
+      d.className = 'ko-alert-detail';
+      d.textContent = c.detail;
+      body.appendChild(d);
+    }
+    if (c.message) {
+      const m = document.createElement('div');
+      m.className = 'ko-alert-msg';
+      m.textContent = '“' + c.message + '”';
+      body.appendChild(m);
+    }
+    el.append(ic, body);
+    return el;
+  }
+
+  // Shape check for what reaches the page, so a malformed frame can never throw inside the queue.
+  function valid(ev){
+    if (!ev || !Object.hasOwn(ENABLED, ev.kind) || !ENABLED[ev.kind]) return false;
+    if (ev.kind === 'gift') return ev.anonymous === true || (typeof ev.username === 'string' && ev.username !== '');
+    return typeof ev.username === 'string' && ev.username !== '';
+  }
+
+  function enqueue(raw){
+    if (!valid(raw)) return;
+    const ev = {
+      kind: raw.kind, id: raw.id != null ? String(raw.id) : '',
+      username: String(raw.username || '').slice(0, 60),
+      anonymous: raw.anonymous === true, renewal: raw.renewal === true,
+      months: Math.max(1, Math.trunc(Number(raw.months)) || 1),
+      count: Math.max(1, Math.trunc(Number(raw.count)) || 1),
+      amount: Math.max(0, Math.trunc(Number(raw.amount)) || 0),
+      giftName: String(raw.giftName || '').slice(0, 40),
+      message: String(raw.message || '').slice(0, 200)
+    };
+    if (ev.id) {
+      if (seen.has(ev.id)) return;
+      seen.add(ev.id);
+      if (seen.size > SEEN_CAP) seen.delete(seen.values().next().value);
+    }
+    if (queue.length >= QUEUE_MAX) {
+      const f = queue.findIndex(q => q.kind === 'follow');
+      queue.splice(f >= 0 ? f : 0, 1);
+      dropped += 1;
+    }
+    queue.push(ev);
+    K.debug({ queued: queue.length, dropped: dropped });
+    if (!current && outTimer === null) showNext();
+  }
+
+  function motionOff(){ return S.animasyon === 'off'; }
+
+  function outMs(el){
+    if (motionOff()) return 0;
+    const parts = (window.getComputedStyle(el).animationDuration || '').split(',')
+      .map(x => parseFloat(x) * (/ms\s*$/.test(x) ? 1 : 1000));
+    const ms = Math.max.apply(null, parts);
+    return Number.isFinite(ms) && ms > 0 ? ms : OUT_FALLBACK_MS;
+  }
+
+  function showNext(){
+    const ev = queue.shift();
+    if (!ev) { K.debug({ queued: 0 }); return; }
+    current = build(ev);
+    stage.appendChild(current);
+    shown += 1;
+    K.debug({ shown: shown, queued: queue.length, last: ev.kind });
+    const dwell = queue.length >= BACKLOG ? Math.max(MIN_DWELL_MS, DWELL_MS / 2) : DWELL_MS;
+    dwellTimer = setTimeout(leave, dwell);
+  }
+
+  function leave(){
+    dwellTimer = null;
+    const el = current;
+    current = null;
+    if (!el) return;
+    el.classList.add('is-out');
+    outTimer = setTimeout(() => {
+      outTimer = null;
+      el.remove();
+      setTimeout(() => { if (!current && outTimer === null) showNext(); }, motionOff() ? 0 : GAP_MS);
+    }, outMs(el));
+  }
+
+  function onStatus(st){
+    K.debug({ relay: st });
+    if (st === 'open') {
+      if (downTimer !== null) { clearTimeout(downTimer); downTimer = null; }
+      K.note(noteEl, S, '');
+    } else if (downTimer === null) {
+      downTimer = setTimeout(() => { downTimer = null; K.note(noteEl, S, K.label(S, 'Bildirim köprüsü çalışmıyor', 'Alert relay not running')); }, RELAY_DOWN_MS);
+    }
+  }
+
+  // One of each kind, in turn; a sample kind the settings turn off is skipped like a live one.
+  const SAMPLES = [
+    { kind: 'follow', username: 'Mia' },
+    { kind: 'sub', username: 'Kenji', months: 1, renewal: false },
+    { kind: 'gift', username: 'Alex', count: 5 },
+    { kind: 'kicks', username: 'Luna', amount: 500, giftName: 'Rage Quit', message: 'GG!' },
+    { kind: 'sub', username: 'Sora', months: 6, renewal: true }
+  ];
+  function startPreview(withHint){
+    if (withHint) {
+      const hint = document.createElement('div');
+      hint.className = 'ko-hint';
+      hint.textContent = K.text(S).hint;
+      document.body.appendChild(hint);
+    }
+    let i = 0;
+    const tick = () => {
+      for (let n = 0; n < SAMPLES.length; n++) {
+        const s = SAMPLES[(i + n) % SAMPLES.length];
+        if (ENABLED[s.kind]) { enqueue(Object.assign({ id: 'demo-' + i }, s)); break; }
+      }
+      i += 1;
+    };
+    tick();
+    previewTimer = setInterval(tick, DWELL_MS + 900);
+  }
+
+  window.addEventListener('pagehide', function(){
+    [dwellTimer, outTimer, downTimer].forEach(t => { if (t !== null) clearTimeout(t); });
+    if (previewTimer !== null) clearInterval(previewTimer);
+    if (stopRelay) stopRelay();
+  });
+
+  // Alerts come only from the local relay, which receives Kick's signed webhooks (see relay/).
+  if (PREVIEW || !S.kanal) startPreview(!S.kanal && !PREVIEW);
+  else stopRelay = K.connectRelay(S.relayAdresi + '/events', { onMessage: enqueue, onStatus: onStatus });
+})();
+</script>
+</body>
+</html>
