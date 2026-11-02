@@ -405,6 +405,9 @@
     .st-actions .st-btn { flex: 1 1 100%; }
     .st-color-row input[type="text"] { max-width: none; }
   }
+  /* 13 themes leave one card alone in 2, 3 or 4 columns. Five columns (5, 5, 3) wherever the names still fit. */
+  .st-themes-box { container-type: inline-size; }
+  @container (min-width: 540px) { .st-themes { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     * { transition: none !important; }
@@ -466,7 +469,7 @@
           <p class="st-hint" data-i18n="presets.hint"></p>
         </div>
 
-        <fieldset>
+        <fieldset class="st-themes-box">
           <legend data-i18n="f.stil"></legend>
           <div id="stil-secenekleri" class="st-themes"></div>
         </fieldset>
