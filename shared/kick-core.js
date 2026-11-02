@@ -174,6 +174,19 @@
     return !!(global.location && /(?:^|[?&])debug=1(?:&|$)/.test(global.location.search));
   }
 
+  // The studio reloads its preview after every edit. With ?sessiz=1 (preview only) that reload opens in its final
+  // state: for a moment html.ko-quiet zeroes the intro durations and count-ups jump straight to their value.
+  // 1.6 s outlasts every intro, so lifting the class later restarts nothing.
+  var quiet = false;
+  (function quietIntro() {
+    if (!isPreview() || !/(?:^|[?&])sessiz=1(?:&|$)/.test(global.location.search)) return;
+    var root = global.document && global.document.documentElement;
+    if (!root || !root.classList || typeof setTimeout !== 'function') return;
+    quiet = true;
+    root.classList.add('ko-quiet');
+    setTimeout(function () { quiet = false; root.classList.remove('ko-quiet'); }, 1600);
+  })();
+
   var SAMPLE = {
     followers: 1234,
     subs: 42,
@@ -271,7 +284,7 @@
   // Eases a number from `from` to `to`. Returns a cancel function. Duration 0 (or the OS reduced-motion
   // setting) jumps straight to the end. onDone runs after the last frame, and not after a cancel.
   function tween(from, to, ms, onFrame, onDone) {
-    if (!ms || reducedMotion()) {
+    if (!ms || quiet || reducedMotion()) {
       onFrame(to);
       if (onDone) onDone();
       return function () {};
