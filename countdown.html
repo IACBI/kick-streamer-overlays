@@ -42,7 +42,8 @@
   .cd.is-done .cd-fill { transition: transform var(--ko-dur-fill, 1.2s) var(--ko-ease-out, cubic-bezier(.22, 1, .36, 1)); }
   .cd.is-done { border-color: rgb(var(--accent-rgb) / 70%); box-shadow: var(--shadow), 0 0 18px rgb(var(--accent-rgb) / 45%); }
   .cd.is-done .cd-title { color: var(--text); font-weight: 800; }
-  .cd.is-done .cd-time { animation: cd-pop 1.2s ease-in-out infinite; }
+  /* Three beats mark the moment, then the time rests: an endless pulse pulls the eye off the stream. */
+  .cd.is-done .cd-time { animation: cd-pop 1.2s ease-in-out 3; }
   @keyframes cd-pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
   /* Low, off and reduced motion set the fill at once: no slide at every tick. */
   body.motion-low .cd-fill, body.motion-off .cd-fill, body.motion-low .cd.is-done .cd-fill, body.motion-off .cd.is-done .cd-fill,
