@@ -41,6 +41,7 @@ const DEFAULTS = {
 const RELAY = 'http://127.0.0.1:8790';
 
 const CORE_SOURCE = fs.readFileSync(CORE_FILE, 'utf8');
+const PKG_VERSION = require('../package.json').version;
 
 // ---- Runner ------------------------------------------------------------------
 
@@ -280,7 +281,7 @@ async function testCoreApi() {
     ['followers', 'live', 'subBadges', 'time', 'official'].forEach((n) =>
       ok(typeof K.parse[n] === 'function', 'missing parse.' + n));
     ok(typeof K.kick.channel === 'function', 'missing kick.channel');
-    eq(K.version, '2.3.6', 'version');
+    eq(K.version, PKG_VERSION, 'version (kept equal to package.json by tools/sync-version.js)');
     ['token', 'channel', 'clearToken'].forEach((n) => ok(typeof K.official[n] === 'function', 'missing official.' + n));
   });
 }
@@ -1118,7 +1119,7 @@ function fakeVisibilityDocument(hidden) {
 
 const jsonRes = (body, headers) => ({ status: 200, body, headers });
 const SUBS_OK = (subs) => jsonRes({ ok: true, subs, gifted: 3, canceled: 1, live: true, viewers: 12, startMs: null, title: 'x' });
-const HEALTH = (features) => jsonRes({ ok: true, version: '2.3.6', clients: 0, features: Object.assign({ chat: false, channel: true, subscribers: false }, features) });
+const HEALTH = (features) => jsonRes({ ok: true, version: PKG_VERSION, clients: 0, features: Object.assign({ chat: false, channel: true, subscribers: false }, features) });
 
 async function testSettingsV23() {
   section('v2.3.0 settings: new keys, clock, asBool, kanal');
@@ -1830,7 +1831,7 @@ async function testRelayInfoAndChannel() {
     const { K } = loadCore({ fetch: net.fetch });
     const a = await K.relayInfo(S());
     const b = await K.relayInfo(S());
-    eq(a.version, '2.3.6', 'version');
+    eq(a.version, PKG_VERSION, 'version');
     eq(a.features.channel, true, 'features');
     eq(net.calls.length, 1, 'requests');
     eq(net.calls[0].url, RELAY + '/health', 'url');
@@ -2424,6 +2425,49 @@ async function testSyntax() {
   }
 }
 
+async function testVersionSync() {
+  section('Version');
+  const SV = require('../tools/sync-version.js');
+
+  await check('kick-core.js carries the package.json version', () => {
+    const r = SV.read();
+    eq(r.coreVersion, r.version, 'core version');
+  });
+
+  // Runs the real tool on a scratch copy of the two files it touches.
+  await check('sync-version detects a stale core version, rewrites only that line, then reports it in sync', () => {
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ko-version-'));
+    try {
+      fs.mkdirSync(path.join(dir, 'shared'));
+      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ version: '9.8.7' }));
+      const stale = CORE_SOURCE.replace(/^(\s*version: ')[^']*(',)$/m, '$10.0.1$2');
+      fs.writeFileSync(path.join(dir, 'shared', 'kick-core.js'), stale);
+      eq(SV.read(dir).coreVersion, '0.0.1', 'stale version read');
+      eq(SV.sync(dir), '0.0.1', 'sync returns the replaced version');
+      const after = fs.readFileSync(path.join(dir, 'shared', 'kick-core.js'), 'utf8');
+      eq(SV.read(dir).coreVersion, '9.8.7', 'version after sync');
+      eq(after, stale.replace("version: '0.0.1',", "version: '9.8.7',"), 'nothing else changed');
+      eq(SV.sync(dir), null, 'second sync is a no-op');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  await check('sync-version refuses a package.json version that is not x.y.z', () => {
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ko-version-'));
+    try {
+      fs.mkdirSync(path.join(dir, 'shared'));
+      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ version: '2.4' }));
+      fs.writeFileSync(path.join(dir, 'shared', 'kick-core.js'), CORE_SOURCE);
+      let err = null;
+      try { SV.sync(dir); } catch (e) { err = e; }
+      ok(err && /not x\.y\.z/.test(err.message), 'throws');
+      eq(fs.readFileSync(path.join(dir, 'shared', 'kick-core.js'), 'utf8'), CORE_SOURCE, 'core untouched');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
 
 // ---- Main ------------------------------------------------------------------------
 
@@ -2447,6 +2491,7 @@ async function testSyntax() {
   await testConnectRelayReconnect();
   await testThemesAndPages();
   await testSyntax();
+  await testVersionSync();
 
   const total = counts.PASS + counts.FAIL + counts.PENDING;
   console.log('\nSummary: ' + counts.PASS + ' passed, ' + counts.FAIL + ' failed, ' +

@@ -17,7 +17,7 @@ const { HEADER, verifySignature, isFresh, ReplayGuard, TokenBucket, normalizeEve
 const { loadConfig, fetchTimeout, loadRelayKey, parsePort } = require('./config.js');
 const { createKickApi, retryAfterSec } = require('./kick-api.js');
 
-const VERSION = '2.3.6';
+const { version: VERSION } = require('../package.json');
 const KEY_TTL_MS = 60 * 60 * 1000;
 const FORCE_MIN_GAP_MS = 60 * 1000;      // forged requests must not make the relay hammer Kick
 const KEY_FAIL_CACHE_MS = 30 * 1000;
