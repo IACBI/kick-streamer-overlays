@@ -128,7 +128,68 @@ function normalizeEvent(type, body) {
       username: cap(String(u.username || '').toLowerCase(), 60)
     };
   }
+  return normalizeAlert(type, body, isObj);
+}
+
+const nameOf = (u) => (u && typeof u.username === 'string' ? cap(u.username.trim(), 60) : '');
+const countOf = (v, min) => {
+  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+  return Number.isSafeInteger(n) && n >= min ? n : null;
+};
+const MAX_GIFTEES_SHOWN = 10;
+
+// Follow, subscription and Kicks events (docs.kick.com/events/event-types, version 1), for the alert overlay.
+// Every alert names a real user except an anonymous gift, whose gifter fields are null by design.
+function normalizeAlert(type, body, isObj) {
+  if (body.broadcaster !== undefined && !isObj(body.broadcaster)) return null;
+  const broadcasterId = idOf(body.broadcaster && body.broadcaster.user_id);
+  const createdAt = cap(String(body.created_at || ''), 40);
+  if (type === 'channel.followed') {
+    const u = body.follower;
+    if (!isObj(u) || !nameOf(u)) return null;
+    return { kind: 'follow', broadcasterId, userId: idOf(u.user_id), username: nameOf(u) };
+  }
+  if (type === 'channel.subscription.new' || type === 'channel.subscription.renewal') {
+    const u = body.subscriber;
+    if (!isObj(u) || !nameOf(u)) return null;
+    // duration is the subscription length in months; a missing or odd value still shows the alert, as month 1.
+    return {
+      kind: 'sub', broadcasterId, userId: idOf(u.user_id), username: nameOf(u),
+      months: countOf(body.duration, 1) || 1, renewal: type === 'channel.subscription.renewal', createdAt
+    };
+  }
+  if (type === 'channel.subscription.gifts') {
+    const g = body.gifter;
+    if (!isObj(g) || !Array.isArray(body.giftees) || body.giftees.length === 0) return null;
+    const anonymous = g.is_anonymous === true || !nameOf(g);
+    return {
+      kind: 'gift', broadcasterId, anonymous,
+      userId: anonymous ? '' : idOf(g.user_id), username: anonymous ? '' : nameOf(g),
+      count: body.giftees.length,
+      giftees: body.giftees.slice(0, MAX_GIFTEES_SHOWN).map(nameOf).filter(Boolean),
+      createdAt
+    };
+  }
+  if (type === 'kicks.gifted') {
+    const u = body.sender, gift = body.gift;
+    if (!isObj(u) || !nameOf(u) || !isObj(gift)) return null;
+    const amount = countOf(gift.amount, 1);
+    if (amount === null) return null;
+    return {
+      kind: 'kicks', broadcasterId, userId: idOf(u.user_id), username: nameOf(u), amount,
+      giftName: cap(typeof gift.name === 'string' ? gift.name.trim() : '', 40),
+      message: cap(typeof gift.message === 'string' ? gift.message.trim() : '', 200),
+      createdAt
+    };
+  }
   return null;
 }
 
-module.exports = { HEADER, MAX_SKEW_MS, verifySignature, parseTimestamp, isFresh, ReplayGuard, TokenBucket, normalizeEvent };
+// Every event type the relay understands; relay/subscribe.js subscribes to exactly these.
+const EVENT_TYPES = [
+  'chat.message.sent', 'moderation.banned',
+  'channel.followed', 'channel.subscription.new', 'channel.subscription.renewal', 'channel.subscription.gifts',
+  'kicks.gifted'
+];
+
+module.exports = { HEADER, MAX_SKEW_MS, EVENT_TYPES, verifySignature, parseTimestamp, isFresh, ReplayGuard, TokenBucket, normalizeEvent };

@@ -52,6 +52,8 @@ function sign(messageId, timestamp, bodyStr, keyPem) {
   return s.sign(keyPem, 'base64');
 }
 
+const fixture = (name) => JSON.parse(require('fs').readFileSync(path.join(__dirname, 'fixtures', `webhook-${name}.json`), 'utf8'));
+
 function chatBody(id, text, broadcasterId) {
   return JSON.stringify({
     message_id: id,
@@ -164,8 +166,45 @@ function statusOf(port, p, headers) {
     check('normalizeEvent keeps badges with counts', chat.badges.length === 2 && chat.badges[1].count === 5);
     const ban = W.normalizeEvent('moderation.banned', { broadcaster: { user_id: 1 }, banned_user: { user_id: 9, username: 'SpamBot' }, metadata: {} });
     check('normalizeEvent maps a ban and lowercases the name', ban.kind === 'ban' && ban.username === 'spambot' && ban.userId === '9');
-    check('normalizeEvent ignores events the overlay does not show', W.normalizeEvent('channel.followed', {}) === null);
+    check('normalizeEvent ignores event types the overlays do not show', W.normalizeEvent('livestream.status.updated', { broadcaster: { user_id: 1 }, is_live: true }) === null);
+    check('normalizeEvent rejects a follow without a follower', W.normalizeEvent('channel.followed', {}) === null);
     check('normalizeEvent caps very long text', W.normalizeEvent('chat.message.sent', { content: 'x'.repeat(5000), sender: {} }).message.length === 500);
+  }
+  {
+    const eqJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const follow = W.normalizeEvent('channel.followed', fixture('channel-followed'));
+    check('alerts: a documented follow maps to kind follow', eqJson(follow, { kind: 'follow', broadcasterId: '123456789', userId: '987654321', username: 'follower_name' }), JSON.stringify(follow));
+    const sub = W.normalizeEvent('channel.subscription.new', fixture('subscription-new'));
+    check('alerts: a new subscription carries its months and is not a renewal', sub.kind === 'sub' && sub.months === 1 && sub.renewal === false && sub.username === 'subscriber_name' && sub.createdAt === '2025-01-14T16:08:06Z', JSON.stringify(sub));
+    const ren = W.normalizeEvent('channel.subscription.renewal', fixture('subscription-renewal'));
+    check('alerts: a renewal is flagged and keeps its month count', ren.kind === 'sub' && ren.renewal === true && ren.months === 3);
+    const odd = W.normalizeEvent('channel.subscription.new', Object.assign(fixture('subscription-new'), { duration: 'soon' }));
+    const strMonths = W.normalizeEvent('channel.subscription.new', Object.assign(fixture('subscription-new'), { duration: '6' }));
+    check('alerts: an unreadable duration still alerts, as month 1; a numeric string is read', odd.months === 1 && strMonths.months === 6);
+    const gift = W.normalizeEvent('channel.subscription.gifts', fixture('subscription-gifts'));
+    check('alerts: a gift names the gifter and counts the giftees', gift.kind === 'gift' && gift.anonymous === false && gift.username === 'gifter_name' && gift.count === 1 && eqJson(gift.giftees, ['giftee_name']), JSON.stringify(gift));
+    const anon = W.normalizeEvent('channel.subscription.gifts', fixture('subscription-gifts-anonymous'));
+    check('alerts: an anonymous gift has no name or user id, and still counts', anon.anonymous === true && anon.username === '' && anon.userId === '' && anon.count === 2, JSON.stringify(anon));
+    const bigGift = Object.assign(fixture('subscription-gifts'), { giftees: Array.from({ length: 50 }, (_, i) => ({ user_id: i, username: 'g' + i })) });
+    const big = W.normalizeEvent('channel.subscription.gifts', bigGift);
+    check('alerts: a 50-sub gift counts all 50 but lists only 10 names', big.count === 50 && big.giftees.length === 10);
+    check('alerts: a gift without giftees is rejected', W.normalizeEvent('channel.subscription.gifts', Object.assign(fixture('subscription-gifts'), { giftees: [] })) === null);
+    const kicks = W.normalizeEvent('kicks.gifted', fixture('kicks-gifted'));
+    check('alerts: Kicks carry the amount, gift name and message', eqJson(kicks, { kind: 'kicks', broadcasterId: '123456789', userId: '987654321', username: 'gift_sender', amount: 500, giftName: 'Rage Quit', message: 'w', createdAt: '2025-10-20T04:00:08.634Z' }), JSON.stringify(kicks));
+    const kf = fixture('kicks-gifted');
+    check('alerts: Kicks with a zero, negative, fractional or missing amount are rejected',
+      [0, -5, 1.5, 'lots', undefined].every((amount) => W.normalizeEvent('kicks.gifted', Object.assign({}, kf, { gift: Object.assign({}, kf.gift, { amount }) })) === null));
+    const longMsg = W.normalizeEvent('kicks.gifted', Object.assign({}, kf, { gift: Object.assign({}, kf.gift, { message: 'y'.repeat(900), name: 'n'.repeat(90) }) }));
+    check('alerts: a long Kicks message and gift name are capped', longMsg.message.length === 200 && longMsg.giftName.length === 40);
+    check('alerts: a payload under the wrong type is rejected',
+      W.normalizeEvent('channel.followed', fixture('subscription-new')) === null &&
+      W.normalizeEvent('channel.subscription.new', fixture('channel-followed')) === null &&
+      W.normalizeEvent('kicks.gifted', fixture('channel-followed')) === null);
+    check('alerts: a non-object user or broadcaster is rejected',
+      W.normalizeEvent('channel.followed', { follower: 'bob' }) === null &&
+      W.normalizeEvent('channel.followed', Object.assign(fixture('channel-followed'), { broadcaster: 5 })) === null &&
+      W.normalizeEvent('channel.followed', { follower: { username: '   ' } }) === null);
+    check('EVENT_TYPES lists chat, bans and the five alert events, each once', W.EVENT_TYPES.length === 7 && new Set(W.EVENT_TYPES).size === 7 && W.EVENT_TYPES.includes('kicks.gifted'));
   }
 
   console.log('\n== relay: webhook listener (real sockets)');
@@ -219,8 +258,37 @@ function statusOf(port, p, headers) {
   check('a signed ban reaches the overlay stream', banRes.status === 200 && stream.frames.some((f) => f.event === 'ban' && f.data.username === 'spambot'));
 
   const unknown = JSON.stringify({ foo: 1 });
-  const unk = await post(webhookPort, { id: 'x-1', ts, body: unknown, sig: sign('x-1', ts, unknown, privateKey), type: 'channel.followed' });
-  check('an event type the overlay does not show is acknowledged and ignored', unk.status === 200);
+  const unk = await post(webhookPort, { id: 'x-1', ts, body: unknown, sig: sign('x-1', ts, unknown, privateKey), type: 'livestream.status.updated' });
+  await sleep(100);
+  check('an event type the overlays do not show is acknowledged and not streamed', unk.status === 200 && !stream.frames.some((f) => f.data.id === 'x-1'));
+
+  // Alerts: the documented payloads, signed like Kick signs them, reach the stream with the delivery id as their id.
+  const before = Date.now();
+  for (const [file, type, id] of [
+    ['channel-followed', 'channel.followed', 'al-follow'],
+    ['subscription-new', 'channel.subscription.new', 'al-sub'],
+    ['subscription-gifts', 'channel.subscription.gifts', 'al-gift'],
+    ['kicks-gifted', 'kicks.gifted', 'al-kicks']
+  ]) {
+    const b = JSON.stringify(Object.assign(fixture(file), { broadcaster: Object.assign(fixture(file).broadcaster, { user_id: 113812015 }) }));
+    const r = await post(webhookPort, { id, ts, body: b, sig: sign(id, ts, b, privateKey), type });
+    check(`signed ${type} is accepted (200)`, r.status === 200, `status=${r.status}`);
+  }
+  await sleep(150);
+  const alertFrames = stream.frames.filter((f) => /^al-/.test(f.data.id));
+  check('each alert reaches the stream once, under its own event name', alertFrames.map((f) => f.event + ':' + f.data.id).join() === 'follow:al-follow,sub:al-sub,gift:al-gift,kicks:al-kicks', alertFrames.map((f) => f.event + ':' + f.data.id).join());
+  const fol = alertFrames.find((f) => f.event === 'follow');
+  check('the follow alert carries the follower name', !!fol && fol.data.username === 'follower_name' && fol.data.kind === 'follow');
+  const redo = JSON.stringify(Object.assign(fixture('channel-followed'), { broadcaster: { user_id: 113812015 } }));
+  await post(webhookPort, { id: 'al-follow', ts, body: redo, sig: sign('al-follow', ts, redo, privateKey), type: 'channel.followed' });
+  await sleep(100);
+  check('a redelivered alert is shown once', stream.frames.filter((f) => f.data.id === 'al-follow').length === 1);
+  const otherFollow = JSON.stringify(fixture('channel-followed'));   // broadcaster 123456789: not this channel
+  await post(webhookPort, { id: 'al-other', ts, body: otherFollow, sig: sign('al-other', ts, otherFollow, privateKey), type: 'channel.followed' });
+  await sleep(100);
+  check('an alert for another broadcaster is not shown', !stream.frames.some((f) => f.data.id === 'al-other'));
+  const hAfter = JSON.parse((await eget(eventsPort, '/health')).body);
+  check('/health reports when the last verified event arrived, and alerts are ready', typeof hAfter.lastEventAt === 'number' && hAfter.lastEventAt >= before && hAfter.features.alerts === true, JSON.stringify(hAfter));
 
   const badJson = 'not json';
   const bj = await post(webhookPort, { id: 'j-1', ts, body: badJson, sig: sign('j-1', ts, badJson, privateKey) });

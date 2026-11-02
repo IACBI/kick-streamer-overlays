@@ -34,6 +34,8 @@ const RESOLVE_GAP_MS = 60 * 1000;
 const SLUG = /^[a-z0-9_-]{1,40}$/;
 const LOOPBACK_HOST = /^(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/i;
 const LOOPBACK_NAME = /^(?:127\.0\.0\.1|localhost|\[::1\])$/i;
+// Alert bodies carry no id of their own; the signed delivery id is unique, so it becomes the overlay's dedupe key.
+const ALERT_KINDS = new Set(['follow', 'sub', 'gift', 'kicks']);
 
 function send(res, status, body, extra) {
   if (res.headersSent || res.destroyed) { try { res.end(); } catch (e) { /* already gone */ } return; }
@@ -192,6 +194,7 @@ function createRelay(opts) {
   const clients = new Set();
   let broadcasterId = o.broadcasterUserId ? String(o.broadcasterUserId) : '';
   let heartbeat = null;
+  let lastEventAt = null;     // last verified, non-duplicate delivery: proves the tunnel and the Kick app settings work
 
   // ---- broadcaster id: events are only accepted for a known channel ----
   let resolving = null, lastResolve = -Infinity, lastWarn = -Infinity;
@@ -272,10 +275,12 @@ function createRelay(opts) {
 
     // Accepted: Kick may resend, so answer 200 for repeats without showing them again.
     if (!replay.accept(String(messageId), o.now())) return send(res, 200, { ok: true, duplicate: true });
+    lastEventAt = o.now();
 
     let body;
     try { body = JSON.parse(raw.toString('utf8')); } catch (e) { return send(res, 400, { error: 'bad json' }); }
     const ev = o.normalizeEvent(String(type || ''), body);
+    if (ev && ALERT_KINDS.has(ev.kind)) ev.id = String(messageId);
     if (ev) {
       if (broadcasterId ? ev.broadcasterId === broadcasterId : o.allowAnyBroadcaster) broadcast(ev);
       else if (!broadcasterId) {
@@ -409,8 +414,8 @@ function createRelay(opts) {
 
     if (p === '/health') {
       return send(res, 200, {
-        ok: true, version: VERSION, clients: clients.size,
-        features: { chat: chatReady(), channel: true, subscribers: api.hasCredentials() }
+        ok: true, version: VERSION, clients: clients.size, lastEventAt,
+        features: { chat: chatReady(), alerts: chatReady(), channel: true, subscribers: api.hasCredentials() }
       });
     }
     if (p === '/channel' || p === '/subscribers') {

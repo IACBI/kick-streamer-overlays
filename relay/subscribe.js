@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
-// Creates Kick webhook subscriptions for chat messages and bans on your channel.
+// Creates Kick webhook subscriptions on your channel: chat messages and bans for the chat overlay, and follows,
+// subscriptions, gifted subscriptions and Kicks for the alert overlay.
 //
 // Needs a Kick developer app. Credentials come from the environment (KICK_CLIENT_ID,
 // KICK_CLIENT_SECRET) or from AYARLAR.local.js next to AYARLAR.js. They are never printed.
@@ -13,11 +14,9 @@
 
 const { loadConfig, fetchTimeout } = require('./config.js');
 const { createKickApi } = require('./kick-api.js');
+const { EVENT_TYPES } = require('./webhook.js');
 
-const EVENTS = [
-  { name: 'chat.message.sent', version: 1 },
-  { name: 'moderation.banned', version: 1 }
-];
+const EVENTS = EVENT_TYPES.map((name) => ({ name, version: 1 }));
 
 async function call(url, options) {
   const res = await fetchTimeout(fetch, url, options);
