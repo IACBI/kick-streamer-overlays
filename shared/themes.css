@@ -187,6 +187,7 @@ body.theme-terminal {
 body.theme-terminal .ko-fill::after { display: none; }
 body.theme-terminal .ko-bar,
 body.theme-terminal .ko-panel,
+body.theme-terminal .ko-alert,
 body.theme-terminal .ko-msg { border-width: 1px; backdrop-filter: none; -webkit-backdrop-filter: none; }
 
 /* Aurora: navy glass and a teal-to-violet fill, with a light sweep that runs across the fill. */
@@ -331,6 +332,7 @@ body.theme-paper {
 }
 body.theme-paper .ko-bar,
 body.theme-paper .ko-panel,
+body.theme-paper .ko-alert,
 body.theme-paper .ko-msg { backdrop-filter: none; -webkit-backdrop-filter: none; }
 /* Isolation keeps the multiply blend inside the bar, so it blends with the cream and not the page behind. */
 body.theme-paper .ko-bar { isolation: isolate; }
@@ -361,6 +363,7 @@ body.theme-retro {
 }
 body.theme-retro .ko-bar,
 body.theme-retro .ko-panel,
+body.theme-retro .ko-alert,
 body.theme-retro .ko-msg { border-width: 2px; backdrop-filter: none; -webkit-backdrop-filter: none; }
 body.theme-retro .ko-chip,
 body.theme-retro .ko-badge { border-radius: 0; }
@@ -375,15 +378,16 @@ body.motion-off *,
 body.motion-off *::before,
 body.motion-off *::after { animation: none !important; transition: none !important; }
 body.motion-off .ko-msg.is-leaving,
-body.motion-off .ko-msg.is-fading { opacity: 0; }
+body.motion-off .ko-msg.is-fading,
+body.motion-off .ko-alert.is-out { opacity: 0; }
 
-/* Low: only the message enter and leave survive, shortened. Loops, flourishes and the fill slide stop. */
+/* Low: only the message and alert enter and leave survive, shortened. Loops, flourishes and the fill slide stop. */
 body.motion-low {
   --ko-dur-in: .25s; --ko-dur-out: .2s; --ko-rise: 4px; --ko-dur-fill: 0s;
 }
-body.motion-low *:not(.ko-msg),
-body.motion-low *:not(.ko-msg)::before,
-body.motion-low *:not(.ko-msg)::after { animation: none !important; }
+body.motion-low *:not(.ko-msg):not(.ko-alert),
+body.motion-low *:not(.ko-msg):not(.ko-alert)::before,
+body.motion-low *:not(.ko-msg):not(.ko-alert)::after { animation: none !important; }
 body.motion-low *,
 body.motion-low *::before,
 body.motion-low *::after { transition-duration: .25s !important; }
@@ -393,9 +397,11 @@ body.motion-low .cd-fill { transition: none !important; }
 /* Without the blur the scrims carry the contrast alone. */
 body.motion-low .ko-bar,
 body.motion-low .ko-panel,
+body.motion-low .ko-alert,
 body.motion-low .ko-msg,
 body.motion-off .ko-bar,
 body.motion-off .ko-panel,
+body.motion-off .ko-alert,
 body.motion-off .ko-msg { backdrop-filter: none; -webkit-backdrop-filter: none; }
 
 /* Studio preview reload after an edit (?sessiz=1, set by kick-core): open in the final state, no intro. */
@@ -407,9 +413,9 @@ html.ko-quiet .cd-fill { transition: none; }
   body {
     --ko-dur-in: .25s; --ko-dur-out: .2s; --ko-rise: 4px; --ko-dur-fill: 0s;
   }
-  body *:not(.ko-msg),
-  body *:not(.ko-msg)::before,
-  body *:not(.ko-msg)::after { animation: none !important; }
+  body *:not(.ko-msg):not(.ko-alert),
+  body *:not(.ko-msg):not(.ko-alert)::before,
+  body *:not(.ko-msg):not(.ko-alert)::after { animation: none !important; }
   body *,
   body *::before,
   body *::after { transition-duration: .25s !important; }
@@ -601,6 +607,54 @@ body.theme-paper .ko-stat svg { filter: none; }
   background-image: linear-gradient(90deg, #c81e1e, #b23a0a, #8f5206, #136f35, #0c6580, #4338ca, #6d1fa8, #a9174f);
   text-shadow: 0 1px 2px rgba(0, 0, 0, .6); box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
 }
+
+/* ---- alerts ---- */
+.ko-alert-stage {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 18px 20px;
+}
+/* One card at a time. It rises in a little further than a bar does, and leaves upward like a chat message. */
+.ko-alert {
+  display: flex; align-items: center; gap: 16px; min-width: 0; max-width: 100%;
+  padding: 14px 24px 14px 16px; border-radius: var(--r-card);
+  background: linear-gradient(var(--surface-boost), var(--surface-boost)), var(--surface);
+  border: 1px solid var(--surface-border);
+  backdrop-filter: blur(var(--blur)) saturate(140%); -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+  box-shadow: var(--shadow);
+  animation: ko-alert-in var(--ko-dur-in) var(--ko-ease-out) backwards;
+}
+.ko-alert.is-out { animation: ko-alert-out var(--ko-dur-out) var(--ko-ease) forwards; }
+@keyframes ko-alert-in { from { opacity: 0; transform: translateY(calc(var(--ko-rise) * 2)) scale(.96); } }
+@keyframes ko-alert-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(calc(var(--ko-rise) * -1)) scale(.98); }
+}
+/* The icon tile uses the chip pair, whose text colour applyLook picks by contrast with the accent. */
+.ko-alert-icon {
+  flex: 0 0 auto; display: grid; place-items: center; width: 50px; height: 50px;
+  border-radius: calc(var(--r-card) * .75); background: var(--chip-bg); color: var(--chip-text);
+}
+.ko-alert-icon svg {
+  width: 26px; height: 26px; fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.ko-alert-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ko-alert-title {
+  font-size: 14px; font-weight: 700; letter-spacing: .3px; color: var(--muted); text-shadow: var(--text-shadow);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ko-alert-name {
+  font-size: 25px; font-weight: 800; line-height: 1.15; color: var(--text); text-shadow: var(--text-shadow);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ko-alert-detail {
+  font-size: 16px; font-weight: 600; color: var(--text); text-shadow: var(--text-shadow);
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ko-alert-msg {
+  margin-top: 2px; font-size: 15px; color: var(--muted); text-shadow: var(--text-shadow); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+body.theme-retro .ko-alert-icon { border-radius: 0; }
 
 /* Long single-line text (ticker, title). Static with an ellipsis; scrolls only at full motion. */
 .ko-marquee { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

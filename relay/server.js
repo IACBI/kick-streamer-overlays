@@ -10,14 +10,16 @@
 //      /health, /channel and /subscribers. It is never exposed publicly.
 //
 // Run:  node relay/server.js            (Node.js 20 or newer, no packages)
+//   or  kick-relay(.exe) from a release, placed next to AYARLAR.js (no Node.js needed)
 
 const crypto = require('crypto');
 const http = require('http');
 const { HEADER, verifySignature, isFresh, ReplayGuard, TokenBucket, normalizeEvent } = require('./webhook.js');
 const { loadConfig, fetchTimeout, loadRelayKey, parsePort } = require('./config.js');
 const { createKickApi, retryAfterSec } = require('./kick-api.js');
+const { createLogger } = require('./log.js');
 
-const VERSION = '2.3.6';
+const { version: VERSION } = require('../package.json');
 const KEY_TTL_MS = 60 * 60 * 1000;
 const FORCE_MIN_GAP_MS = 60 * 1000;      // forged requests must not make the relay hammer Kick
 const KEY_FAIL_CACHE_MS = 30 * 1000;
@@ -34,6 +36,8 @@ const RESOLVE_GAP_MS = 60 * 1000;
 const SLUG = /^[a-z0-9_-]{1,40}$/;
 const LOOPBACK_HOST = /^(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/i;
 const LOOPBACK_NAME = /^(?:127\.0\.0\.1|localhost|\[::1\])$/i;
+// Alert bodies carry no id of their own; the signed delivery id is unique, so it becomes the overlay's dedupe key.
+const ALERT_KINDS = new Set(['follow', 'sub', 'gift', 'kicks']);
 
 function send(res, status, body, extra) {
   if (res.headersSent || res.destroyed) { try { res.end(); } catch (e) { /* already gone */ } return; }
@@ -118,7 +122,7 @@ const numOrNull = (v) => {
 function parseTime(v) {
   if (typeof v !== 'string' || !v) return null;
   const st = v.replace(' ', 'T');
-  const ms = Date.parse(/Z$|[+\-]\d\d:?\d\d$/.test(st) ? st : st + 'Z');
+  const ms = Date.parse(/Z$|[+-]\d\d:?\d\d$/.test(st) ? st : st + 'Z');
   return Number.isNaN(ms) ? null : ms;
 }
 
@@ -192,6 +196,7 @@ function createRelay(opts) {
   const clients = new Set();
   let broadcasterId = o.broadcasterUserId ? String(o.broadcasterUserId) : '';
   let heartbeat = null;
+  let lastEventAt = null;     // last verified, non-duplicate delivery: proves the tunnel and the Kick app settings work
 
   // ---- broadcaster id: events are only accepted for a known channel ----
   let resolving = null, lastResolve = -Infinity, lastWarn = -Infinity;
@@ -272,10 +277,12 @@ function createRelay(opts) {
 
     // Accepted: Kick may resend, so answer 200 for repeats without showing them again.
     if (!replay.accept(String(messageId), o.now())) return send(res, 200, { ok: true, duplicate: true });
+    lastEventAt = o.now();
 
     let body;
     try { body = JSON.parse(raw.toString('utf8')); } catch (e) { return send(res, 400, { error: 'bad json' }); }
     const ev = o.normalizeEvent(String(type || ''), body);
+    if (ev && ALERT_KINDS.has(ev.kind)) ev.id = String(messageId);
     if (ev) {
       if (broadcasterId ? ev.broadcasterId === broadcasterId : o.allowAnyBroadcaster) broadcast(ev);
       else if (!broadcasterId) {
@@ -409,8 +416,8 @@ function createRelay(opts) {
 
     if (p === '/health') {
       return send(res, 200, {
-        ok: true, version: VERSION, clients: clients.size,
-        features: { chat: chatReady(), channel: true, subscribers: api.hasCredentials() }
+        ok: true, version: VERSION, clients: clients.size, lastEventAt,
+        features: { chat: chatReady(), alerts: chatReady(), channel: true, subscribers: api.hasCredentials() }
       });
     }
     if (p === '/channel' || p === '/subscribers') {
@@ -471,9 +478,14 @@ function createRelay(opts) {
 }
 
 // ---- command line ----
-if (require.main === module) {
-  const env = process.env;
-  process.on('unhandledRejection', (e) => console.error('Unhandled error (relay keeps running):', e && e.message ? e.message : e));
+// Also the entry of the single-file executable (relay/sea-main.js), where require.main is not this module.
+function main(env = process.env) {
+  let log;
+  try { log = createLogger(env.RELAY_LOG_FORMAT); } catch (e) {
+    console.error('Could not start the relay:', e.message);
+    process.exit(1);
+  }
+  process.on('unhandledRejection', (/** @type {any} */ e) => log.error('Unhandled error (relay keeps running):', e && e.message ? e.message : e));
   let relay;
   try {
     relay = createRelay({
@@ -481,30 +493,37 @@ if (require.main === module) {
       eventsPort: parsePort(env.RELAY_EVENTS_PORT, 8790, 'RELAY_EVENTS_PORT'),
       broadcasterUserId: String(env.RELAY_BROADCASTER_ID || ''),
       allowAnyBroadcaster: env.RELAY_ALLOW_ANY_BROADCASTER === '1',
-      fetchImpl: globalThis.fetch
+      fetchImpl: globalThis.fetch,
+      logger: log
     });
   } catch (e) {
-    console.error('Could not start the relay:', e.message);
+    log.error('Could not start the relay:', e.message);
     process.exit(1);
   }
-  console.log(`Kick relay ${VERSION} starting...`);
+  // Ctrl+C or a service stop closes the sockets and ends open overlay streams before the process exits.
+  const shutdown = (sig) => { log.log(`Kick relay stopping (${sig}).`); relay.stop(); process.exit(0); };
+  process.once('SIGINT', () => shutdown('SIGINT'));
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  log.log(`Kick relay ${VERSION} starting...`);
   relay.start().then(({ webhookPort, eventsPort, chat }) => {
-    console.log('Kick relay running.');
-    console.log(`  Webhook (expose this through a tunnel): http://127.0.0.1:${webhookPort}/kick/webhook`);
-    console.log(`  Overlay events (local only):            http://127.0.0.1:${eventsPort}/events`);
+    log.log('Kick relay running.');
+    log.log(`  Webhook (expose this through a tunnel): http://127.0.0.1:${webhookPort}/kick/webhook`);
+    log.log(`  Overlay events (local only):            http://127.0.0.1:${eventsPort}/events`);
     if (chat) {
-      if (env.RELAY_ALLOW_ANY_BROADCASTER === '1' && !env.RELAY_BROADCASTER_ID) console.log('  Chat: accepting events for ANY broadcaster (RELAY_ALLOW_ANY_BROADCASTER=1).');
+      if (env.RELAY_ALLOW_ANY_BROADCASTER === '1' && !env.RELAY_BROADCASTER_ID) log.log('  Chat and alerts: accepting events for ANY broadcaster (RELAY_ALLOW_ANY_BROADCASTER=1).');
     } else {
-      console.warn('  WARNING: broadcaster id unknown, so chat events will be DROPPED.');
-      console.warn('  Set RELAY_BROADCASTER_ID, or add Kick app credentials and kanal so it can be looked up.');
+      log.warn('  WARNING: broadcaster id unknown, so chat and alert events will be DROPPED.');
+      log.warn('  Set RELAY_BROADCASTER_ID, or add Kick app credentials and kanal so it can be looked up.');
     }
-    console.log(env.RELAY_KEY
+    log.log(env.RELAY_KEY
       ? '  Overlay access key: taken from RELAY_KEY (overlays need the same value).'
       : '  Overlay access key: stored in AYARLAR.relay.js (overlays load it automatically).');
   }).catch((e) => {
-    console.error('Could not start the relay:', e.message);
+    log.error('Could not start the relay:', e.message);
     process.exit(1);
   });
 }
 
-module.exports = { createRelay, VERSION };
+if (require.main === module) main();
+
+module.exports = { createRelay, main, VERSION };

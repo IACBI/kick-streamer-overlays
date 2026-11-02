@@ -43,7 +43,29 @@
     sohbetGizliKullanicilar: { t: 'str', d: '', max: 300 },
     sohbetSilinmeSn:   { t: 'int', d: 0, min: 0, max: 600 },
     hataNotu:          { t: 'bool', d: true },
-    hedefKutlama:      { t: 'bool', d: true }
+    hedefKutlama:      { t: 'bool', d: true },
+    uyariSn:           { t: 'int', d: 6, min: 3, max: 30 },
+    uyariTakip:        { t: 'bool', d: true },
+    uyariAbone:        { t: 'bool', d: true },
+    uyariHediye:       { t: 'bool', d: true },
+    uyariKicks:        { t: 'bool', d: true }
+  };
+
+  // English names accepted for every setting. The Turkish name stays canonical: it is what the studio writes and
+  // what the pages read, and when one source sets both, the Turkish one wins.
+  var ALIASES = {
+    channel: 'kanal', theme: 'stil', shape: 'sekil', font: 'yaziTipi', language: 'dil', motion: 'animasyon',
+    accent: 'renk', streamerLabel: 'yayinciYazisi',
+    followerGoal: 'takipciHedefi', followerFallback: 'takipciYedek', subscriberGoal: 'aboneHedefi',
+    subscriberCount: 'aboneSayisi', showSessionGain: 'oturumFarkiGoster', showPercent: 'yuzdeGoster',
+    goalCelebration: 'hedefKutlama', statusNote: 'hataNotu', refreshSeconds: 'yenilemeSn',
+    chatMaxMessages: 'sohbetMaksMesaj', chatHideCommands: 'sohbetKomutGizle', chatHiddenUsers: 'sohbetGizliKullanicilar',
+    chatFadeSeconds: 'sohbetSilinmeSn',
+    countdownMinutes: 'geriSayimDk', countdownTime: 'geriSayimSaat', countdownTitle: 'geriSayimBaslik',
+    announcements: 'duyuruMetinleri', announcementSeconds: 'duyuruSn',
+    alertSeconds: 'uyariSn', alertFollows: 'uyariTakip', alertSubs: 'uyariAbone', alertGifts: 'uyariHediye',
+    alertKicks: 'uyariKicks',
+    relayAddress: 'relayAdresi'
   };
 
   // Local-only keys. Never read from the URL, so secrets never end up in a URL.
@@ -96,7 +118,7 @@
   function cleanChannel(v) {
     if (typeof v !== 'string') return '';
     var t = v.trim().replace(/^(?:https?:\/\/)?(?:www\.)?kick\.com\//i, '').replace(/^@/, '');
-    return t.split(/[\/?#\s]/)[0].replace(/^@/, '').toLowerCase().slice(0, 40);
+    return t.split(/[/?#\s]/)[0].replace(/^@/, '').toLowerCase().slice(0, 40);
   }
   function asUrl(v, d) {
     return typeof v === 'string' && URL_RE.test(v.trim()) ? v.trim().replace(/\/+$/, '') : d;
@@ -116,8 +138,9 @@
   }
 
   // Normalizes raw values against the schema. Unknown or invalid values fall back to defaults.
+  // English names (ALIASES) are accepted; a Turkish key in the same object wins.
   function normalize(raw) {
-    raw = raw || {};
+    raw = canonical(raw);
     var out = {};
     Object.keys(SCHEMA).forEach(function (k) {
       out[k] = coerce(SCHEMA[k], k === 'kanal' ? cleanChannel(raw[k]) : raw[k]);
@@ -126,7 +149,7 @@
   }
 
   function normalizeLocal(raw) {
-    raw = raw || {};
+    raw = canonical(raw);
     var out = {};
     Object.keys(LOCAL_SCHEMA).forEach(function (k) {
       var spec = LOCAL_SCHEMA[k];
@@ -136,20 +159,38 @@
   }
 
 
-  function urlOverrides(search) {
+  var ALIAS_OF = {};   // Turkish key -> English alias
+  Object.keys(ALIASES).forEach(function (en) { ALIAS_OF[ALIASES[en]] = en; });
+  var own = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
+
+  // One settings source with English names resolved. Only known keys are copied, so nothing else from the
+  // source (an own "__proto__" from parsed JSON, say) reaches the merged settings.
+  function canonical(raw) {
     var out = {};
-    if (!search || typeof URLSearchParams === 'undefined') return out;
-    var params = new URLSearchParams(search);
-    Object.keys(SCHEMA).forEach(function (k) {
-      if (params.has(k)) out[k] = params.get(k);
+    if (!raw || typeof raw !== 'object') return out;
+    Object.keys(SCHEMA).concat(Object.keys(LOCAL_SCHEMA)).forEach(function (k) {
+      if (own(raw, k)) out[k] = raw[k];
+      else if (own(ALIAS_OF, k) && own(raw, ALIAS_OF[k])) out[k] = raw[ALIAS_OF[k]];
     });
     return out;
   }
 
+  // Public keys only, under either name; local keys (credentials, API bases, relay address) never come from a URL.
+  function urlOverrides(search) {
+    var raw = {};
+    if (!search || typeof URLSearchParams === 'undefined') return raw;
+    var params = new URLSearchParams(search);
+    Object.keys(SCHEMA).forEach(function (k) {
+      if (params.has(k)) raw[k] = params.get(k);
+      else if (own(ALIAS_OF, k) && params.has(ALIAS_OF[k])) raw[k] = params.get(ALIAS_OF[k]);
+    });
+    return raw;
+  }
+
   // Precedence: defaults < AYARLAR.js < AYARLAR.local.js < URL parameters (public keys only).
   function readSettings() {
-    var file = global.KICK_OVERLAY_AYARLAR || {};
-    var local = global.KICK_OVERLAY_YEREL || {};
+    var file = canonical(global.KICK_OVERLAY_AYARLAR);
+    var local = canonical(global.KICK_OVERLAY_YEREL);
     var search = global.location ? global.location.search : '';
     var pub = Object.assign({}, file, local, urlOverrides(search));
     var secrets = normalizeLocal(Object.assign({}, file, local));
@@ -320,7 +361,8 @@
   function loadFont(s) {
     var d = global.document;
     if (!d || !d.head || typeof d.createElement !== 'function') return null;
-    var link = typeof d.getElementById === 'function' ? d.getElementById('ko-font') : null;
+    /** @type {HTMLLinkElement} */
+    var link = typeof d.getElementById === 'function' ? /** @type {HTMLLinkElement} */ (d.getElementById('ko-font')) : null;
     if (!link) {
       link = d.createElement('link');
       link.id = 'ko-font';
@@ -603,7 +645,7 @@
   function parseTime(v) {
     if (typeof v !== 'string' || !v) return null;
     var st = v.replace(' ', 'T');
-    var hasZone = /Z$|[+\-]\d\d:?\d\d$/.test(st);
+    var hasZone = /Z$|[+-]\d\d:?\d\d$/.test(st);
     var ms = Date.parse(hasZone ? st : st + 'Z');
     return isNaN(ms) ? null : ms;
   }
@@ -854,8 +896,10 @@
   // ---- Live chat from the local relay (relay/server.js). ----
 
   var ES_CLOSED = 2;
+  // Event names the relay streams (relay/server.js). Each page acts on the kinds it shows and ignores the rest.
+  var RELAY_EVENTS = ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks'];
 
-  // Server-Sent Events: the relay sends "chat" and "ban" frames already in the overlay's shape.
+  // Server-Sent Events: the relay sends chat, ban and alert frames (RELAY_EVENTS) already in the overlay's shape.
   // h = { onMessage(event), onStatus(status) }. Status: 'connecting', 'open', 'reconnecting'.
   // A browser retries a dropped stream by itself, but gives up for good after some failures
   // (readyState CLOSED); then we reopen it ourselves with backoff: 1 s, 2 s, ... up to 30 s.
@@ -869,8 +913,7 @@
           if (ev && typeof ev === 'object') { ev.kind = name; if (h.onMessage) h.onMessage(ev); }
         });
       }
-      forward('chat');
-      forward('ban');
+      RELAY_EVENTS.forEach(forward);
       src.onopen = function () { attempt = 0; status('open'); };
       src.onerror = function () {
         status('reconnecting');
@@ -904,11 +947,13 @@
   // Schema-level assertion helper for tests and the studio.
   function enumsOf(name) { return ENUMS[name] ? ENUMS[name].slice() : null; }
   function schemaKeys() { return Object.keys(SCHEMA); }
+  function aliases() { return Object.assign({}, ALIASES); }
 
   global.KickOverlay = {
-    version: '2.3.6',
+    version: '2.4.0',
     enums: enumsOf,
     schemaKeys: schemaKeys,
+    aliases: aliases,
     normalize: normalize,
     normalizeLocal: normalizeLocal,
     readSettings: readSettings,

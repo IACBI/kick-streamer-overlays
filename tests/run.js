@@ -18,7 +18,7 @@ const CORE_FILE = path.join(ROOT, 'shared', 'kick-core.js');
 const CSS_FILE = path.join(ROOT, 'shared', 'themes.css');
 const SETTINGS_FILE = path.join(ROOT, 'AYARLAR.js');
 const FIXTURE_DIR = path.join(__dirname, 'fixtures');
-const OVERLAY_PAGES = ['follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html', 'countdown.html', 'ticker.html'];
+const OVERLAY_PAGES = ['follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html', 'countdown.html', 'ticker.html', 'alerts.html'];
 // The studio is a configurator: it generates AYARLAR.js, so it does not load the settings scripts.
 const STUDIO_PAGE = 'studio.html';
 
@@ -36,11 +36,13 @@ const DEFAULTS = {
   aboneHedefi: 100, aboneSayisi: 0, oturumFarkiGoster: true, yuzdeGoster: false,
   yenilemeSn: 30, sohbetMaksMesaj: 8, geriSayimDk: 5, geriSayimBaslik: '', duyuruMetinleri: '', duyuruSn: 6,
   geriSayimSaat: '', sohbetKomutGizle: false, sohbetGizliKullanicilar: '', sohbetSilinmeSn: 0,
-  hataNotu: true, hedefKutlama: true
+  hataNotu: true, hedefKutlama: true,
+  uyariSn: 6, uyariTakip: true, uyariAbone: true, uyariHediye: true, uyariKicks: true
 };
 const RELAY = 'http://127.0.0.1:8790';
 
 const CORE_SOURCE = fs.readFileSync(CORE_FILE, 'utf8');
+const PKG_VERSION = require('../package.json').version;
 
 // ---- Runner ------------------------------------------------------------------
 
@@ -217,23 +219,6 @@ function fakeDocument(bodyClass) {
   };
 }
 
-function fakeWebSocket(sockets) {
-  return class FakeWebSocket {
-    constructor(url) {
-      this.url = url;
-      this.readyState = 0;
-      this.sent = [];
-      sockets.push(this);
-    }
-    send(text) { this.sent.push(JSON.parse(text)); }
-    close() {
-      if (this.readyState === 3) return;
-      this.readyState = 3;
-      if (this.onclose) this.onclose();
-    }
-  };
-}
-
 function stripCss(css) {
   return css.replace(/\/\*[\s\S]*?\*\//g, '');
 }
@@ -297,7 +282,7 @@ async function testCoreApi() {
     ['followers', 'live', 'subBadges', 'time', 'official'].forEach((n) =>
       ok(typeof K.parse[n] === 'function', 'missing parse.' + n));
     ok(typeof K.kick.channel === 'function', 'missing kick.channel');
-    eq(K.version, '2.3.6', 'version');
+    eq(K.version, PKG_VERSION, 'version (kept equal to package.json by tools/sync-version.js)');
     ['token', 'channel', 'clearToken'].forEach((n) => ok(typeof K.official[n] === 'function', 'missing official.' + n));
   });
 }
@@ -385,6 +370,57 @@ async function testReadSettings() {
     eq(s.stil, 'pastel', 'stil from URL wins');
     eq(s.takipciHedefi, 700, 'takipciHedefi from AYARLAR.local.js');
     eq(s.sekil, 'pill', 'sekil default');
+  });
+
+  await check('readSettings: English names work in AYARLAR.js, AYARLAR.local.js and the URL', () => {
+    const { K } = loadCore({
+      ayarlar: { channel: 'FromFile', theme: 'neon', followerGoal: 500, alertSeconds: 99 },
+      yerel: { theme: 'minimal', relayAddress: 'http://127.0.0.1:9100' },
+      search: '?shape=square&alertFollows=false'
+    });
+    const s = K.readSettings();
+    eqFields(s, { kanal: 'fromfile', stil: 'minimal', takipciHedefi: 500, uyariSn: 30, sekil: 'square', uyariTakip: false, relayAdresi: 'http://127.0.0.1:9100' }, '');
+    ok(!('channel' in s) && !('theme' in s), 'aliases are resolved, not copied into the settings');
+  });
+
+  await check('readSettings: within one source the Turkish name wins; a later source wins under either name', () => {
+    const { K } = loadCore({ ayarlar: { stil: 'neon', theme: 'pastel', kanal: 'a' }, search: '?channel=b' });
+    const s = K.readSettings();
+    eq(s.stil, 'neon', 'Turkish key beats its alias in AYARLAR.js');
+    eq(s.kanal, 'b', 'URL alias beats the file');
+  });
+
+  await check('readSettings: the relayAddress alias is local-only, like relayAdresi', () => {
+    const { K } = loadCore({ search: '?relayAddress=https://evil.example.com&relayAdresi=https://evil.example.com' });
+    eq(K.readSettings().relayAdresi, 'http://127.0.0.1:8790', 'relay address from the URL');
+  });
+
+  await check('settings: unknown keys and an own __proto__ from parsed JSON never reach the settings', () => {
+    const { K } = loadCore({ ayarlar: JSON.parse('{"__proto__": {"stil": "neon"}, "evil": 1, "kanal": "ok"}') });
+    const s = K.readSettings();
+    eq(s.stil, 'glass', 'stil from a polluted prototype');
+    eq(s.kanal, 'ok', 'kanal');
+    ok(!('evil' in s), 'unknown key copied');
+    eq(K.normalize(JSON.parse('{"__proto__": {"renk": "#ffffff"}}')).renk, '#53fc18', 'normalize ignores __proto__');
+  });
+
+  await check('aliases: every English name points at a real setting, and none shadows a Turkish key', () => {
+    const { K } = loadCore();
+    const al = K.aliases();
+    const keys = K.schemaKeys().concat(['relayAdresi']);
+    Object.keys(al).forEach((en) => {
+      ok(keys.includes(al[en]), en + ' -> ' + al[en] + ' is not a setting');
+      ok(!keys.includes(en), en + ' is also a Turkish key');
+    });
+    eq(new Set(Object.values(al)).size, Object.keys(al).length, 'one alias per setting');
+    eq(K.schemaKeys().filter((k) => !Object.values(al).includes(k)), [], 'public settings without an English name');
+  });
+
+  await check('alert settings: uyariSn is clamped to 3..30; the four kinds are booleans', () => {
+    const { K } = loadCore();
+    eqFields(K.normalize({ uyariSn: 1 }), { uyariSn: 3 }, '');
+    eqFields(K.normalize({ uyariSn: '12' }), { uyariSn: 12 }, '');
+    eqFields(K.normalize({ uyariSn: 600, uyariKicks: '0', uyariHediye: 'yes' }), { uyariSn: 30, uyariKicks: false, uyariHediye: true }, '');
   });
 
   await check('readSettings: URL values are normalized like file values', () => {
@@ -906,7 +942,7 @@ function fakeEventSource(list) {
 async function testChatFeed() {
   section('Live chat (local relay)');
 
-  await check('connectRelay: opens the relay stream and forwards chat and ban frames in the overlay shape', () => {
+  await check('connectRelay: opens the relay stream and forwards chat, ban and alert frames in the overlay shape', () => {
     const sources = [];
     const statuses = [];
     const messages = [];
@@ -918,7 +954,9 @@ async function testChatFeed() {
       sources[0].onopen();
       sources[0].emit('chat', JSON.stringify({ kind: 'chat', id: 'm-1', username: 'viewer_one', message: 'hello', badges: [] }));
       sources[0].emit('ban', JSON.stringify({ userId: '9', username: 'spammer' }));
-      eq(messages.map((m) => m.kind), ['chat', 'ban'], 'kinds');
+      ['follow', 'sub', 'gift', 'kicks'].forEach((name, i) => sources[0].emit(name, JSON.stringify({ id: 'a-' + i, username: 'u' + i })));
+      sources[0].emit('livestream', JSON.stringify({ id: 'x' }));
+      eq(messages.map((m) => m.kind), ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks'], 'kinds (an unknown event name is not listened to)');
       eq(messages[0].message, 'hello', 'chat text');
       eq(statuses, ['connecting', 'open'], 'statuses');
     } finally {
@@ -1135,7 +1173,7 @@ function fakeVisibilityDocument(hidden) {
 
 const jsonRes = (body, headers) => ({ status: 200, body, headers });
 const SUBS_OK = (subs) => jsonRes({ ok: true, subs, gifted: 3, canceled: 1, live: true, viewers: 12, startMs: null, title: 'x' });
-const HEALTH = (features) => jsonRes({ ok: true, version: '2.3.6', clients: 0, features: Object.assign({ chat: false, channel: true, subscribers: false }, features) });
+const HEALTH = (features) => jsonRes({ ok: true, version: PKG_VERSION, clients: 0, features: Object.assign({ chat: false, channel: true, subscribers: false }, features) });
 
 async function testSettingsV23() {
   section('v2.3.0 settings: new keys, clock, asBool, kanal');
@@ -1847,7 +1885,7 @@ async function testRelayInfoAndChannel() {
     const { K } = loadCore({ fetch: net.fetch });
     const a = await K.relayInfo(S());
     const b = await K.relayInfo(S());
-    eq(a.version, '2.3.6', 'version');
+    eq(a.version, PKG_VERSION, 'version');
     eq(a.features.channel, true, 'features');
     eq(net.calls.length, 1, 'requests');
     eq(net.calls[0].url, RELAY + '/health', 'url');
@@ -2382,7 +2420,8 @@ async function testThemesAndPages() {
   await check('themes.css: every overlay component class is defined', () => {
     const components = ['ko-bar', 'ko-fill', 'ko-row', 'ko-cur', 'ko-label', 'ko-sep', 'ko-goal', 'ko-chip', 'is-neg',
       'ko-bump', 'ko-panel', 'is-off', 'ko-dot', 'ko-stat', 'ko-val', 'ko-sep-v', 'ko-feed', 'ko-msg', 'is-leaving',
-      'ko-badges', 'ko-badge', 'ko-user', 'ko-text', 'ko-emote', 'ko-bcast', 'ko-note', 'is-hidden', 'ko-hint'];
+      'ko-badges', 'ko-badge', 'ko-user', 'ko-text', 'ko-emote', 'ko-bcast', 'ko-note', 'is-hidden', 'ko-hint',
+      'ko-alert-stage', 'ko-alert', 'is-out', 'ko-alert-icon', 'ko-alert-body', 'ko-alert-title', 'ko-alert-name', 'ko-alert-detail', 'ko-alert-msg'];
     components.forEach((c) => ok(new RegExp('\\.' + c + '(?![\\w-])').test(css), 'missing .' + c));
   });
 
@@ -2410,7 +2449,7 @@ async function testThemesAndPages() {
     for (const m of html.matchAll(/data-i18n(?:-ph|-aria)?="([^"]+)"/g)) used.add(m[1]);
     for (const m of html.matchAll(/\bt\('([^']+)'/g)) used.add(m[1]);
     // Keys built from an id at run time.
-    ['follower', 'subscriber', 'combined', 'info', 'countdown', 'ticker', 'chat'].forEach((id) => { used.add('ov.' + id); used.add('ov.' + id + '.d'); });
+    ['follower', 'subscriber', 'combined', 'info', 'countdown', 'ticker', 'chat', 'alerts'].forEach((id) => { used.add('ov.' + id); used.add('ov.' + id + '.d'); });
     ['minimal', 'neon', 'pastel', 'gece', 'kagit'].forEach((id) => used.add('preset.' + id));
     ['checker', 'dark', 'light', 'scene'].forEach((id) => used.add('bg.' + id));
     for (let n = 1; n <= 4; n++) used.add('help.c' + n);
@@ -2441,6 +2480,65 @@ async function testSyntax() {
   }
 }
 
+async function testVersionSync() {
+  section('Version');
+  const SV = require('../tools/sync-version.js');
+
+  await check('kick-core.js carries the package.json version', () => {
+    const r = SV.read();
+    eq(r.coreVersion, r.version, 'core version');
+  });
+
+  // Runs the real tool on a scratch copy of the two files it touches.
+  await check('sync-version detects a stale core version, rewrites only that line, then reports it in sync', () => {
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ko-version-'));
+    try {
+      fs.mkdirSync(path.join(dir, 'shared'));
+      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ version: '9.8.7' }));
+      const stale = CORE_SOURCE.replace(/^(\s*version: ')[^']*(',)$/m, '$10.0.1$2');
+      fs.writeFileSync(path.join(dir, 'shared', 'kick-core.js'), stale);
+      eq(SV.read(dir).coreVersion, '0.0.1', 'stale version read');
+      eq(SV.sync(dir), '0.0.1', 'sync returns the replaced version');
+      const after = fs.readFileSync(path.join(dir, 'shared', 'kick-core.js'), 'utf8');
+      eq(SV.read(dir).coreVersion, '9.8.7', 'version after sync');
+      eq(after, stale.replace("version: '0.0.1',", "version: '9.8.7',"), 'nothing else changed');
+      eq(SV.sync(dir), null, 'second sync is a no-op');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  await check('sync-version refuses a package.json version that is not x.y.z', () => {
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ko-version-'));
+    try {
+      fs.mkdirSync(path.join(dir, 'shared'));
+      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ version: '2.4' }));
+      fs.writeFileSync(path.join(dir, 'shared', 'kick-core.js'), CORE_SOURCE);
+      let err = null;
+      try { SV.sync(dir); } catch (e) { err = e; }
+      ok(err && /not x\.y\.z/.test(err.message), 'throws');
+      eq(fs.readFileSync(path.join(dir, 'shared', 'kick-core.js'), 'utf8'), CORE_SOURCE, 'core untouched');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  const { notesFor } = require('../tools/changelog-notes.js');
+  await check('the release notes for the package version come from CHANGELOG.md', () => {
+    const notes = notesFor(fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8'), 'v' + PKG_VERSION);
+    ok(notes && /^### /.test(notes), 'section starts with a ### heading');
+    ok(!/^## \[/m.test(notes), 'no other version heading inside');
+  });
+
+  await check('changelog-notes stops at the next version, skips link definitions and refuses an empty section', () => {
+    const md = '# Changelog\n\n## [Unreleased]\n\n## [2.0.0] - 2026-01-02\r\n\r\n### Added\r\n- B\r\n\r\n## [1.0.0] - 2026-01-01\n\n- A\n\n[1.0.0]: https://example.com/1.0.0\n';
+    eq(notesFor(md, '2.0.0'), '### Added\n- B', '2.0.0 (CRLF)');
+    eq(notesFor(md, 'v1.0.0'), '- A', '1.0.0, last section');
+    eq(notesFor(md, 'Unreleased'), null, 'empty section');
+    eq(notesFor(md, '2.0'), null, 'prefix of another version');
+  });
+}
+
 // ---- Main ------------------------------------------------------------------------
 
 (async function main() {
@@ -2463,6 +2561,7 @@ async function testSyntax() {
   await testConnectRelayReconnect();
   await testThemesAndPages();
   await testSyntax();
+  await testVersionSync();
 
   const total = counts.PASS + counts.FAIL + counts.PENDING;
   console.log('\nSummary: ' + counts.PASS + ' passed, ' + counts.FAIL + ' failed, ' +

@@ -4,3 +4,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Dev tools only (lint, type check, relay build); the overlays and the relay have no runtime dependencies.
+    groups:
+      dev-tools:
+        patterns: ['*']

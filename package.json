@@ -1,18 +1,40 @@
 {
   "name": "kick-streamer-overlays",
-  "version": "2.3.6",
+  "version": "2.4.0",
   "description": "Free OBS overlays for Kick: goal bars, viewer panel, chat, countdown, announcement bar and a settings studio.",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "author": "A.C.B",
   "homepage": "https://github.com/IACBI/kick-streamer-overlays",
-  "repository": { "type": "git", "url": "git+https://github.com/IACBI/kick-streamer-overlays.git" },
-  "bugs": { "url": "https://github.com/IACBI/kick-streamer-overlays/issues" },
-  "engines": { "node": ">=20" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IACBI/kick-streamer-overlays.git"
+  },
+  "bugs": {
+    "url": "https://github.com/IACBI/kick-streamer-overlays/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "node tests/run.js && node tests/relay-test.js",
     "test:browser": "node tests/e2e-chrome.js",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "build:relay": "node tools/build-relay.js",
+    "test:relay-binary": "node tests/relay-binary-test.js",
+    "check": "npm run lint && npm run typecheck && node tools/sync-version.js --check && npm test",
+    "version": "node tools/sync-version.js && git add shared/kick-core.js",
     "relay": "node relay/server.js",
     "record": "node tools/record-previews.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "20.19.43",
+    "esbuild": "0.28.2",
+    "eslint": "10.13.0",
+    "globals": "17.13.0",
+    "postject": "1.0.0-alpha.6",
+    "typescript": "7.0.2"
   }
 }

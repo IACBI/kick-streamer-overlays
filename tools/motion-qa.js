@@ -468,7 +468,7 @@ async function compositedAnimations(p) {
   const out = [];
   for (const l of layers.values()) {
     if (!l.backendNodeId) continue;
-    let reasons = [];
+    let reasons;
     try { reasons = (await c.send('LayerTree.compositingReasons', { layerId: l.layerId })).compositingReasonIds || []; } catch (e) { continue; }
     const anim = reasons.filter((r) => /animation/i.test(r));
     if (!anim.length) continue;

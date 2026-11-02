@@ -7,7 +7,11 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const ROOT = path.resolve(__dirname, '..');
+// Inside the single-file executable the files live next to the executable, not next to this source.
+function isSea() {
+  try { return require('node:sea').isSea(); } catch (e) { return false; }
+}
+const ROOT = isSea() ? path.dirname(process.execPath) : path.resolve(__dirname, '..');
 const FETCH_TIMEOUT_MS = 10000;
 const RELAY_KEY_FILE = 'AYARLAR.relay.js';
 const RELAY_KEY_FORMAT = /^[A-Za-z0-9_-]{32,128}$/;
@@ -45,7 +49,8 @@ function loadConfig(opts) {
   const secret = o.env.KICK_CLIENT_SECRET || local.kickClientSecret;
   return {
     credentials: id && secret ? { id: String(id), secret: String(secret) } : null,
-    slug: normalizeSlug(o.env.KICK_CHANNEL || pub.kanal),
+    // "channel" is the English name the overlays also accept; "kanal" wins when both are set.
+    slug: normalizeSlug(o.env.KICK_CHANNEL || (pub.kanal !== undefined ? pub.kanal : pub.channel)),
     warnings
   };
 }

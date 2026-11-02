@@ -1,23 +1,23 @@
 #!/usr/bin/env node
 'use strict';
-// Creates Kick webhook subscriptions for chat messages and bans on your channel.
+// Creates Kick webhook subscriptions on your channel: chat messages and bans for the chat overlay, and follows,
+// subscriptions, gifted subscriptions and Kicks for the alert overlay.
 //
 // Needs a Kick developer app. Credentials come from the environment (KICK_CLIENT_ID,
 // KICK_CLIENT_SECRET) or from AYARLAR.local.js next to AYARLAR.js. They are never printed.
 //
 //   node relay/subscribe.js            create the subscriptions for the channel in AYARLAR.js
 //   node relay/subscribe.js --list     list the subscriptions that exist for the channel
+//   kick-relay-win-x64.exe subscribe [--list]   the same from the single-file relay executable
 //
 // Kick sends the events to the webhook address configured in your Kick app settings. This
 // script does not set that address; see the README for where to find it.
 
 const { loadConfig, fetchTimeout } = require('./config.js');
 const { createKickApi } = require('./kick-api.js');
+const { EVENT_TYPES } = require('./webhook.js');
 
-const EVENTS = [
-  { name: 'chat.message.sent', version: 1 },
-  { name: 'moderation.banned', version: 1 }
-];
+const EVENTS = EVENT_TYPES.map((name) => ({ name, version: 1 }));
 
 async function call(url, options) {
   const res = await fetchTimeout(fetch, url, options);
@@ -39,8 +39,9 @@ function findIds(node, out = []) {
   return out;
 }
 
-async function main() {
-  const list = process.argv.includes('--list');
+/** @param {string[]} argv command line arguments after the script name */
+async function main(argv) {
+  const list = argv.includes('--list');
   const cfg = loadConfig();
   cfg.warnings.forEach((w) => console.warn('Warning:', w));
   if (!cfg.credentials) throw new Error('Kick app credentials are missing (set KICK_CLIENT_ID and KICK_CLIENT_SECRET, or AYARLAR.local.js).');
@@ -71,10 +72,17 @@ async function main() {
   const ids = findIds(body);
   console.log(`Subscribed to: ${EVENTS.map((e) => e.name).join(', ')}.`);
   console.log(ids.length ? `Subscription ids: ${ids.join(', ')}` : 'Kick accepted the request.');
-  console.log('Next: start the relay (node relay/server.js) and make its webhook address public (see README).');
+  console.log('Next: start the relay and make its webhook address public (see README).');
 }
 
-main().catch((e) => {
-  console.error('Subscription failed:', e.message);
-  process.exit(1);
-});
+/** Runs the command line and exits 1 with the reason on failure. @param {string[]} argv */
+function cli(argv) {
+  return main(argv).catch((e) => {
+    console.error('Subscription failed:', e.message);
+    process.exit(1);
+  });
+}
+
+if (require.main === module) cli(process.argv.slice(2));
+
+module.exports = { cli, EVENTS };

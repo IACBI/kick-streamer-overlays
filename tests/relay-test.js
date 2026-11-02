@@ -10,6 +10,7 @@ const path = require('path');
 
 const { createRelay } = require(path.join(__dirname, '..', 'relay', 'server.js'));
 const W = require(path.join(__dirname, '..', 'relay', 'webhook.js'));
+const PKG_VERSION = require(path.join(__dirname, '..', 'package.json')).version;
 
 const results = [];
 function check(name, ok, detail) {
@@ -50,6 +51,8 @@ function sign(messageId, timestamp, bodyStr, keyPem) {
   s.update(Buffer.from(bodyStr, 'utf8'));
   return s.sign(keyPem, 'base64');
 }
+
+const fixture = (name) => JSON.parse(require('fs').readFileSync(path.join(__dirname, 'fixtures', `webhook-${name}.json`), 'utf8'));
 
 function chatBody(id, text, broadcasterId) {
   return JSON.stringify({
@@ -163,8 +166,45 @@ function statusOf(port, p, headers) {
     check('normalizeEvent keeps badges with counts', chat.badges.length === 2 && chat.badges[1].count === 5);
     const ban = W.normalizeEvent('moderation.banned', { broadcaster: { user_id: 1 }, banned_user: { user_id: 9, username: 'SpamBot' }, metadata: {} });
     check('normalizeEvent maps a ban and lowercases the name', ban.kind === 'ban' && ban.username === 'spambot' && ban.userId === '9');
-    check('normalizeEvent ignores events the overlay does not show', W.normalizeEvent('channel.followed', {}) === null);
+    check('normalizeEvent ignores event types the overlays do not show', W.normalizeEvent('livestream.status.updated', { broadcaster: { user_id: 1 }, is_live: true }) === null);
+    check('normalizeEvent rejects a follow without a follower', W.normalizeEvent('channel.followed', {}) === null);
     check('normalizeEvent caps very long text', W.normalizeEvent('chat.message.sent', { content: 'x'.repeat(5000), sender: {} }).message.length === 500);
+  }
+  {
+    const eqJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const follow = W.normalizeEvent('channel.followed', fixture('channel-followed'));
+    check('alerts: a documented follow maps to kind follow', eqJson(follow, { kind: 'follow', broadcasterId: '123456789', userId: '987654321', username: 'follower_name' }), JSON.stringify(follow));
+    const sub = W.normalizeEvent('channel.subscription.new', fixture('subscription-new'));
+    check('alerts: a new subscription carries its months and is not a renewal', sub.kind === 'sub' && sub.months === 1 && sub.renewal === false && sub.username === 'subscriber_name' && sub.createdAt === '2025-01-14T16:08:06Z', JSON.stringify(sub));
+    const ren = W.normalizeEvent('channel.subscription.renewal', fixture('subscription-renewal'));
+    check('alerts: a renewal is flagged and keeps its month count', ren.kind === 'sub' && ren.renewal === true && ren.months === 3);
+    const odd = W.normalizeEvent('channel.subscription.new', Object.assign(fixture('subscription-new'), { duration: 'soon' }));
+    const strMonths = W.normalizeEvent('channel.subscription.new', Object.assign(fixture('subscription-new'), { duration: '6' }));
+    check('alerts: an unreadable duration still alerts, as month 1; a numeric string is read', odd.months === 1 && strMonths.months === 6);
+    const gift = W.normalizeEvent('channel.subscription.gifts', fixture('subscription-gifts'));
+    check('alerts: a gift names the gifter and counts the giftees', gift.kind === 'gift' && gift.anonymous === false && gift.username === 'gifter_name' && gift.count === 1 && eqJson(gift.giftees, ['giftee_name']), JSON.stringify(gift));
+    const anon = W.normalizeEvent('channel.subscription.gifts', fixture('subscription-gifts-anonymous'));
+    check('alerts: an anonymous gift has no name or user id, and still counts', anon.anonymous === true && anon.username === '' && anon.userId === '' && anon.count === 2, JSON.stringify(anon));
+    const bigGift = Object.assign(fixture('subscription-gifts'), { giftees: Array.from({ length: 50 }, (_, i) => ({ user_id: i, username: 'g' + i })) });
+    const big = W.normalizeEvent('channel.subscription.gifts', bigGift);
+    check('alerts: a 50-sub gift counts all 50 but lists only 10 names', big.count === 50 && big.giftees.length === 10);
+    check('alerts: a gift without giftees is rejected', W.normalizeEvent('channel.subscription.gifts', Object.assign(fixture('subscription-gifts'), { giftees: [] })) === null);
+    const kicks = W.normalizeEvent('kicks.gifted', fixture('kicks-gifted'));
+    check('alerts: Kicks carry the amount, gift name and message', eqJson(kicks, { kind: 'kicks', broadcasterId: '123456789', userId: '987654321', username: 'gift_sender', amount: 500, giftName: 'Rage Quit', message: 'w', createdAt: '2025-10-20T04:00:08.634Z' }), JSON.stringify(kicks));
+    const kf = fixture('kicks-gifted');
+    check('alerts: Kicks with a zero, negative, fractional or missing amount are rejected',
+      [0, -5, 1.5, 'lots', undefined].every((amount) => W.normalizeEvent('kicks.gifted', Object.assign({}, kf, { gift: Object.assign({}, kf.gift, { amount }) })) === null));
+    const longMsg = W.normalizeEvent('kicks.gifted', Object.assign({}, kf, { gift: Object.assign({}, kf.gift, { message: 'y'.repeat(900), name: 'n'.repeat(90) }) }));
+    check('alerts: a long Kicks message and gift name are capped', longMsg.message.length === 200 && longMsg.giftName.length === 40);
+    check('alerts: a payload under the wrong type is rejected',
+      W.normalizeEvent('channel.followed', fixture('subscription-new')) === null &&
+      W.normalizeEvent('channel.subscription.new', fixture('channel-followed')) === null &&
+      W.normalizeEvent('kicks.gifted', fixture('channel-followed')) === null);
+    check('alerts: a non-object user or broadcaster is rejected',
+      W.normalizeEvent('channel.followed', { follower: 'bob' }) === null &&
+      W.normalizeEvent('channel.followed', Object.assign(fixture('channel-followed'), { broadcaster: 5 })) === null &&
+      W.normalizeEvent('channel.followed', { follower: { username: '   ' } }) === null);
+    check('EVENT_TYPES lists chat, bans and the five alert events, each once', W.EVENT_TYPES.length === 7 && new Set(W.EVENT_TYPES).size === 7 && W.EVENT_TYPES.includes('kicks.gifted'));
   }
 
   console.log('\n== relay: webhook listener (real sockets)');
@@ -218,8 +258,37 @@ function statusOf(port, p, headers) {
   check('a signed ban reaches the overlay stream', banRes.status === 200 && stream.frames.some((f) => f.event === 'ban' && f.data.username === 'spambot'));
 
   const unknown = JSON.stringify({ foo: 1 });
-  const unk = await post(webhookPort, { id: 'x-1', ts, body: unknown, sig: sign('x-1', ts, unknown, privateKey), type: 'channel.followed' });
-  check('an event type the overlay does not show is acknowledged and ignored', unk.status === 200);
+  const unk = await post(webhookPort, { id: 'x-1', ts, body: unknown, sig: sign('x-1', ts, unknown, privateKey), type: 'livestream.status.updated' });
+  await sleep(100);
+  check('an event type the overlays do not show is acknowledged and not streamed', unk.status === 200 && !stream.frames.some((f) => f.data.id === 'x-1'));
+
+  // Alerts: the documented payloads, signed like Kick signs them, reach the stream with the delivery id as their id.
+  const before = Date.now();
+  for (const [file, type, id] of [
+    ['channel-followed', 'channel.followed', 'al-follow'],
+    ['subscription-new', 'channel.subscription.new', 'al-sub'],
+    ['subscription-gifts', 'channel.subscription.gifts', 'al-gift'],
+    ['kicks-gifted', 'kicks.gifted', 'al-kicks']
+  ]) {
+    const b = JSON.stringify(Object.assign(fixture(file), { broadcaster: Object.assign(fixture(file).broadcaster, { user_id: 113812015 }) }));
+    const r = await post(webhookPort, { id, ts, body: b, sig: sign(id, ts, b, privateKey), type });
+    check(`signed ${type} is accepted (200)`, r.status === 200, `status=${r.status}`);
+  }
+  await sleep(150);
+  const alertFrames = stream.frames.filter((f) => /^al-/.test(f.data.id));
+  check('each alert reaches the stream once, under its own event name', alertFrames.map((f) => f.event + ':' + f.data.id).join() === 'follow:al-follow,sub:al-sub,gift:al-gift,kicks:al-kicks', alertFrames.map((f) => f.event + ':' + f.data.id).join());
+  const fol = alertFrames.find((f) => f.event === 'follow');
+  check('the follow alert carries the follower name', !!fol && fol.data.username === 'follower_name' && fol.data.kind === 'follow');
+  const redo = JSON.stringify(Object.assign(fixture('channel-followed'), { broadcaster: { user_id: 113812015 } }));
+  await post(webhookPort, { id: 'al-follow', ts, body: redo, sig: sign('al-follow', ts, redo, privateKey), type: 'channel.followed' });
+  await sleep(100);
+  check('a redelivered alert is shown once', stream.frames.filter((f) => f.data.id === 'al-follow').length === 1);
+  const otherFollow = JSON.stringify(fixture('channel-followed'));   // broadcaster 123456789: not this channel
+  await post(webhookPort, { id: 'al-other', ts, body: otherFollow, sig: sign('al-other', ts, otherFollow, privateKey), type: 'channel.followed' });
+  await sleep(100);
+  check('an alert for another broadcaster is not shown', !stream.frames.some((f) => f.data.id === 'al-other'));
+  const hAfter = JSON.parse((await eget(eventsPort, '/health')).body);
+  check('/health reports when the last verified event arrived, and alerts are ready', typeof hAfter.lastEventAt === 'number' && hAfter.lastEventAt >= before && hAfter.features.alerts === true, JSON.stringify(hAfter));
 
   const badJson = 'not json';
   const bj = await post(webhookPort, { id: 'j-1', ts, body: badJson, sig: sign('j-1', ts, badJson, privateKey) });
@@ -258,14 +327,18 @@ function statusOf(port, p, headers) {
     const CFG = require(path.join(__dirname, '..', 'relay', 'config.js'));
     check('normalizeSlug follows the kanal rules', CFG.normalizeSlug('  https://kick.com/@Foo_Bar/videos ') === 'foo_bar' && CFG.normalizeSlug('@Name') === 'name' && CFG.normalizeSlug('kick.com/ABC') === 'abc' && CFG.normalizeSlug('x'.repeat(60)).length === 40, CFG.normalizeSlug('  https://kick.com/@Foo_Bar/videos '));
     const fs = require('fs');
-    const tmp = path.join(require('os').tmpdir(), 'ko-relay-cfg-' + process.pid);
-    fs.mkdirSync(tmp, { recursive: true });
+    const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ko-relay-cfg-'));
     fs.writeFileSync(path.join(tmp, 'AYARLAR.js'), 'window.KICK_OVERLAY_AYARLAR = { kanal: "FromFile" };');
     fs.writeFileSync(path.join(tmp, 'AYARLAR.local.js'), 'window.KICK_OVERLAY_YEREL = { kickClientId: "fid", kickClientSecret: "fsecret" };');
     const fromFiles = CFG.loadConfig({ root: tmp, env: {} });
     const fromEnv = CFG.loadConfig({ root: tmp, env: { KICK_CLIENT_ID: 'eid', KICK_CLIENT_SECRET: 'esecret', KICK_CHANNEL: 'EnvChan' } });
     check('loadConfig reads the settings files', fromFiles.slug === 'fromfile' && fromFiles.credentials && fromFiles.credentials.id === 'fid');
     check('loadConfig prefers the environment', fromEnv.slug === 'envchan' && fromEnv.credentials.id === 'eid');
+    fs.writeFileSync(path.join(tmp, 'AYARLAR.js'), 'window.KICK_OVERLAY_AYARLAR = { channel: "EnglishName" };');
+    check('loadConfig accepts the English "channel" name', CFG.loadConfig({ root: tmp, env: {} }).slug === 'englishname');
+    fs.writeFileSync(path.join(tmp, 'AYARLAR.js'), 'window.KICK_OVERLAY_AYARLAR = { kanal: "Turkish", channel: "English" };');
+    check('loadConfig: kanal wins over channel', CFG.loadConfig({ root: tmp, env: {} }).slug === 'turkish');
+    fs.writeFileSync(path.join(tmp, 'AYARLAR.js'), 'window.KICK_OVERLAY_AYARLAR = { kanal: "FromFile" };');
     fs.writeFileSync(path.join(tmp, 'AYARLAR.local.js'), 'this is not javascript (');
     const broken = CFG.loadConfig({ root: tmp, env: {} });
     check('loadConfig survives a broken settings file', broken.credentials === null && broken.warnings.length === 1 && broken.slug === 'fromfile');
@@ -367,7 +440,7 @@ function statusOf(port, p, headers) {
     check('PUT is refused (405) with an Allow header', put.status === 405 && /GET/.test(put.headers.allow || ''));
 
     const h = JSON.parse((await eget(ep, '/health')).body);
-    check('/health has the 2.3.6 shape', h.ok === true && h.version === '2.3.6' && h.clients === 0 && h.features && typeof h.features.chat === 'boolean' && h.features.channel === true && typeof h.features.subscribers === 'boolean', JSON.stringify(h));
+    check('/health has the documented shape and the package.json version', h.ok === true && h.version === PKG_VERSION && h.clients === 0 && h.features && typeof h.features.chat === 'boolean' && h.features.channel === true && typeof h.features.subscribers === 'boolean', JSON.stringify(h));
     check('/health: chat true with a broadcaster id, subscribers false without credentials', h.features.chat === true && h.features.subscribers === false);
     check('/health ignores a query string', (await eget(ep, '/health?x=1')).status === 200);
     check('/events with a CORS origin still streams (SSE)', await new Promise((resolve) => {
@@ -745,6 +818,59 @@ function statusOf(port, p, headers) {
     r2.stop();
   }
   mock.close();
+
+  console.log('\n== relay: logging and the command line (child processes)');
+  {
+    const { createLogger } = require(path.join(__dirname, '..', 'relay', 'log.js'));
+    const sink = () => { const s = { text: '', write(c) { s.text += c; return true; } }; return s; };
+    const out = sink(), err = sink();
+    const j = createLogger('json', { out, err, now: () => Date.parse('2026-11-03T10:00:00Z') });
+    j.log('started on %d', 8790);
+    j.warn('careful:', { a: 1 });
+    const lines = (out.text + err.text).trim().split('\n').map((l) => JSON.parse(l));
+    check('json logger: one parseable object per line with time, level and the formatted message',
+      lines.length === 2 && lines[0].time === '2026-11-03T10:00:00.000Z' && lines[0].level === 'info' && lines[0].msg === 'started on 8790' && lines[1].level === 'warn' && lines[1].msg === 'careful: { a: 1 }', out.text + err.text);
+    check('json logger: warnings and errors go to stderr, info to stdout', out.text.split('\n').filter(Boolean).length === 1 && err.text.split('\n').filter(Boolean).length === 1);
+    const t = sink();
+    createLogger(undefined, { out: t, err: t }).log('plain', 1);
+    check('text logger (default) writes what console would', t.text === 'plain 1\n', JSON.stringify(t.text));
+    let bad = null;
+    try { createLogger('xml'); } catch (e) { bad = e; }
+    check('an unknown log format is refused with the allowed values', !!bad && /text, json/.test(bad.message));
+
+    const { spawn } = require('child_process');
+    const freePort = () => new Promise((r) => { const s = require('net').createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)); }); });
+    const runRelay = (env, until) => new Promise((resolve) => {
+      const child = spawn(process.execPath, [path.join(__dirname, '..', 'relay', 'server.js')], { env: Object.assign({}, process.env, { KICK_CLIENT_ID: '', KICK_CLIENT_SECRET: '', KICK_CHANNEL: '' }, env), stdio: ['ignore', 'pipe', 'pipe'] });
+      let outText = '', errText = '';
+      child.stdout.on('data', (c) => { outText += c; if (until && until(outText)) resolve({ child, out: outText, err: errText }); });
+      child.stderr.on('data', (c) => { errText += c; });
+      child.on('exit', (code, signal) => resolve({ child, code, signal, out: outText, err: errText }));
+    });
+    const [wp, ep] = [await freePort(), await freePort()];
+    const key = 'cli-key-0123456789abcdef0123456789abcdef';
+    const run = await runRelay({ RELAY_LOG_FORMAT: 'json', RELAY_WEBHOOK_PORT: String(wp), RELAY_EVENTS_PORT: String(ep), RELAY_KEY: key, RELAY_ALLOW_ANY_BROADCASTER: '1' }, (o) => /Overlay access key/.test(o));
+    const startLines = run.out.trim().split('\n');
+    check('CLI: RELAY_LOG_FORMAT=json makes every startup line a JSON object', startLines.length >= 4 && startLines.every((l) => { try { const o = JSON.parse(l); return o.level === 'info' && typeof o.msg === 'string'; } catch (e) { return false; } }), run.out.slice(0, 200));
+    const h = await get(ep, withKey('/health', key));
+    check('CLI: the started relay serves /health on the configured port', h.status === 200 && JSON.parse(h.body).version === PKG_VERSION, h.body);
+    if (process.platform !== 'win32') {
+      // run.out is what was printed up to startup; collect what follows, until 'close' (all stdout read).
+      let tail = '';
+      run.child.stdout.on('data', (c) => { tail += c; });
+      const closed = new Promise((r) => run.child.on('close', (code) => r(code)));
+      run.child.kill('SIGTERM');
+      const code = await closed;
+      check('CLI: SIGTERM stops the relay cleanly (exit 0, logged)', code === 0 && /stopping \(SIGTERM\)/.test(tail), `code=${code} ${tail.trim()}`);
+    } else {
+      // Windows has no catchable SIGTERM for a child; CI checks the clean stop on Linux.
+      run.child.kill();
+    }
+    const badFmt = await runRelay({ RELAY_LOG_FORMAT: 'xml', RELAY_KEY: key });
+    check('CLI: a bad RELAY_LOG_FORMAT stops at startup with exit 1', badFmt.code === 1 && /RELAY_LOG_FORMAT/.test(badFmt.err), badFmt.err);
+    const badPort = await runRelay({ RELAY_EVENTS_PORT: '99999', RELAY_KEY: key });
+    check('CLI: an invalid port stops at startup with exit 1', badPort.code === 1 && /RELAY_EVENTS_PORT/.test(badPort.err), badPort.err);
+  }
 
   const failed = results.filter((ok) => !ok).length;
   console.log(`\n${results.length - failed} passed, ${failed} failed`);

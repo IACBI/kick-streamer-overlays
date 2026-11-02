@@ -259,6 +259,20 @@ async function offlineChecks() {
   await tk2.shot('ticker.png');
   await tk2.close();
 
+  const al = await openPage('alerts.html', '', [640, 200]);
+  await sleep(1500);
+  const alInfo = await al.eval(`({ hint: !!document.querySelector('.ko-hint'), cards: document.querySelectorAll('.ko-alert').length, title: (document.querySelector('.ko-alert-title') || {}).textContent || '' })`);
+  check('alerts: with no channel, a sample alert plays under the setup hint', alInfo.hint && alInfo.cards === 1 && /New follower/.test(alInfo.title), JSON.stringify(alInfo));
+  check('alerts: no unexpected errors', unexpected(al.logs).length === 0, short(unexpected(al.logs)));
+  await al.shot('alerts.png');
+  await al.close();
+
+  const alOff = await openPage('alerts.html', '?onizleme=1&uyariTakip=0&uyariAbone=0&dil=en', [640, 200]);
+  await sleep(1500);
+  const offInfo = await alOff.eval(`({ cls: (document.querySelector('.ko-alert') || {}).className || '', title: (document.querySelector('.ko-alert-title') || {}).textContent || '', detail: (document.querySelector('.ko-alert-detail') || {}).textContent || '' })`);
+  check('alerts: kinds switched off are skipped (first sample shown is the gift)', /is-gift/.test(offInfo.cls) && offInfo.title === 'Gifted subs' && offInfo.detail === 'gifted 5 subs', JSON.stringify(offInfo));
+  await alOff.close();
+
   const ch = await openPage('chat.html', '', [460, 760]);
   await sleep(5000);
   const chInfo = await ch.eval(`({ msgs: document.querySelectorAll('.ko-msg:not(.is-leaving)').length })`);
@@ -282,7 +296,7 @@ async function offlineChecks() {
   // Studio behaviour: links, tabs, presets, language, reset.
   const urlOf = (id) => `document.querySelector('[data-url="${id}"]').value`;
   const base = await st.eval(`({ follower: ${urlOf('follower')}, tabs: document.querySelectorAll('[role=tab]').length, cards: document.querySelectorAll('[data-card]').length, warn: !document.querySelector('[data-card="follower"] .st-card-warn').hidden })`);
-  check('studio: seven overlay tabs and seven link cards', base.tabs === 7 && base.cards === 7, JSON.stringify(base));
+  check('studio: eight overlay tabs and eight link cards', base.tabs === 8 && base.cards === 8, JSON.stringify(base));
   check('studio: default link has no query string', /follower-bar\.html$/.test(base.follower), base.follower);
   check('studio: card warns when the channel is empty', base.warn);
 
@@ -540,6 +554,8 @@ async function relayChecks() {
   // A copy of the overlay that points at this relay and at the test channel.
   const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'kick-relay-'));
   fs.copyFileSync(path.join(ROOT, 'chat.html'), path.join(copy, 'chat.html'));
+  fs.copyFileSync(path.join(ROOT, 'alerts.html'), path.join(copy, 'alerts.html'));
+  fs.copyFileSync(path.join(ROOT, 'studio.html'), path.join(copy, 'studio.html'));
   fs.cpSync(path.join(ROOT, 'shared'), path.join(copy, 'shared'), { recursive: true });
   // chat.html loads only AYARLAR.js (it needs no credentials); relayAdresi is allowed there.
   fs.writeFileSync(path.join(copy, 'AYARLAR.js'),
@@ -585,6 +601,9 @@ async function relayChecks() {
     const stillThere = await chat.eval(`Array.from(document.querySelectorAll('.ko-msg:not(.is-leaving)')).some((m) => m.textContent.includes('Relay canli mesaj'))`);
     check('relay chat: a ban removes that user\'s messages', stillThere === false);
 
+    await alertRelayChecks(copy, webhookPort, privateKey);
+    await studioRelayChecks(copy, eventsPort);
+
     relay.stop();
     const noteState = `(() => { const n = document.querySelector('.ko-note'); return n && !n.classList.contains('is-hidden') ? n.textContent : ''; })()`;
     await sleep(2000);
@@ -597,6 +616,86 @@ async function relayChecks() {
     await chat.close();
     try { relay.stop(); } catch (e) { /* already stopped */ }
     fs.rmSync(copy, { recursive: true, force: true });
+  }
+}
+
+// The studio's relay check against the live relay, after events have arrived: every line is a real condition.
+async function studioRelayChecks(copy, eventsPort) {
+  const st = await openPageFrom(copy, 'studio.html', '', [1280, 900]);
+  try {
+    await sleep(1500);
+    await st.eval(`(() => { const i = document.getElementById('relayAdresi'); i.value = 'http://127.0.0.1:${eventsPort}'; i.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('relayKontrol').click(); return true; })()`);
+    await sleep(1500);
+    const d = await st.eval(`({ status: document.getElementById('relay-durum').className, lines: Array.from(document.querySelectorAll('#relay-tani li')).map((li) => li.className + ' ' + li.textContent) })`);
+    const line = (re) => d.lines.find((l) => re.test(l)) || '';
+    check('studio relay check: the relay answers and four diagnosis lines are shown', /is-ok/.test(d.status) && d.lines.length === 4, JSON.stringify(d));
+    check('studio relay check: same version, channel id known, a verified event seen', /^is-ok/.test(line(/version|sürüm/i)) && /^is-ok/.test(line(/channel id|Kanal kimliği/i)) && /^is-ok/.test(line(/Kick event|olay/i)), JSON.stringify(d.lines));
+    check('studio relay check: missing Kick app credentials are a warning, not an error', /^is-warn/.test(line(/credentials|uygulama bilgileri/i)), line(/credentials|uygulama bilgileri/i));
+    check('studio relay check: no unexpected errors', unexpected(st.logs).length === 0, short(unexpected(st.logs)));
+
+    // A second relay that cannot resolve the channel and has seen no event: those lines turn into instructions.
+    const { createRelay } = require(path.join(ROOT, 'relay', 'server.js'));
+    const key = fs.readFileSync(path.join(copy, 'AYARLAR.relay.js'), 'utf8').match(/"([^"]+)"/)[1];
+    const quiet = { log() {}, warn() {}, error() {} };
+    const bare = createRelay({ publicKeyPem: 'unused', webhookPort: 0, eventsPort: 0, accessKey: key, credentials: false, channelSlug: '', logger: quiet });
+    const p2 = await bare.start();
+    try {
+      await st.eval(`(() => { const i = document.getElementById('relayAdresi'); i.value = 'http://127.0.0.1:${p2.eventsPort}'; i.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('relayKontrol').click(); return true; })()`);
+      await sleep(1500);
+      const d2 = await st.eval(`Array.from(document.querySelectorAll('#relay-tani li')).map((li) => li.className + ' ' + li.textContent)`);
+      check('studio relay check: an unknown channel id is an error that says how to fix it', d2.some((l) => /^is-err/.test(l) && /RELAY_BROADCASTER_ID/.test(l)), JSON.stringify(d2));
+      check('studio relay check: no event yet points at the webhook URL and subscribe.js', d2.some((l) => /^is-warn/.test(l) && /\/kick\/webhook/.test(l) && /subscribe\.js/.test(l)), JSON.stringify(d2));
+    } finally {
+      bare.stop();
+    }
+  } finally {
+    await st.close();
+  }
+}
+
+// Alerts on the same relay: signed follow, gift and a hostile name, shown one at a time and only as text.
+async function alertRelayChecks(copy, webhookPort, privateKey) {
+  const al = await openPageFrom(copy, 'alerts.html', '?uyariSn=3&dil=en', [640, 200]);
+  const fixture = (name) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', `webhook-${name}.json`), 'utf8'));
+  const forUs = (obj) => JSON.stringify(Object.assign(obj, { broadcaster: Object.assign(obj.broadcaster, { user_id: 113812015 }) }));
+  try {
+    await sleep(2000);
+    const follow = fixture('channel-followed');
+    follow.follower.username = 'alert_fan';
+    check('relay alerts: a signed follow is accepted (200)', (await relayPost(webhookPort, 'e2e-al-1', forUs(follow), privateKey, 'channel.followed')) === 200);
+    const hostile = fixture('channel-followed');
+    hostile.follower.username = '<img src=x onerror="window.__pwned=1">';
+    await relayPost(webhookPort, 'e2e-al-2', forUs(hostile), privateKey, 'channel.followed');
+    await relayPost(webhookPort, 'e2e-al-3', forUs(fixture('subscription-gifts-anonymous')), privateKey, 'channel.subscription.gifts');
+    await sleep(800);
+    const first = await al.eval(`({ live: document.querySelectorAll('.ko-alert:not(.is-out)').length, name: (document.querySelector('.ko-alert:not(.is-out) .ko-alert-name') || {}).textContent || '' })`);
+    check('relay alerts: the follow is on screen, one card at a time while two wait', first.live === 1 && first.name === 'alert_fan', JSON.stringify(first));
+    await sleep(3800);
+    const second = await al.eval(`({ name: (document.querySelector('.ko-alert:not(.is-out) .ko-alert-name') || {}).textContent || '', imgs: document.querySelectorAll('#stage img').length, pwned: window.__pwned === 1 })`);
+    check('relay alerts: a name with markup is shown as text, never run', second.name.startsWith('<img') && second.imgs === 0 && !second.pwned, JSON.stringify(second));
+    await sleep(3800);
+    const third = await al.eval(`({ name: (document.querySelector('.ko-alert:not(.is-out) .ko-alert-name') || {}).textContent || '', detail: (document.querySelector('.ko-alert:not(.is-out) .ko-alert-detail') || {}).textContent || '' })`);
+    check('relay alerts: an anonymous gift follows in order, counting its giftees', third.name === 'Anonymous' && third.detail === 'gifted 2 subs', JSON.stringify(third));
+    check('relay alerts: no unexpected errors', unexpected(al.logs).length === 0, short(unexpected(al.logs)));
+  } finally {
+    await al.close();
+  }
+
+  // A follow raid: one shows, 25 wait, and every later arrival drops the oldest waiting follow.
+  const raid = await openPageFrom(copy, 'alerts.html', '?uyariSn=30&debug=1', [640, 200]);
+  try {
+    await sleep(2000);
+    for (let i = 0; i < 30; i++) {
+      const f = fixture('channel-followed');
+      f.follower.username = 'raider_' + i;
+      await relayPost(webhookPort, 'e2e-raid-' + i, forUs(f), privateKey, 'channel.followed');
+    }
+    await relayPost(webhookPort, 'e2e-raid-gift', forUs(fixture('subscription-gifts')), privateKey, 'channel.subscription.gifts');
+    await sleep(1200);
+    const dbg = await raid.eval(`(document.querySelector('.ko-debug') || {}).textContent || ''`);
+    check('relay alerts: a raid keeps the queue at 25 and counts every dropped arrival', /queued: 25$/m.test(dbg) && /dropped: 5$/m.test(dbg), JSON.stringify(dbg));
+  } finally {
+    await raid.close();
   }
 }
 
