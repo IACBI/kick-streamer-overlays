@@ -11,7 +11,7 @@ You can expect an answer within a few days.
 ## What matters most here
 
 - **Kick credentials.** The client secret is read from the `KICK_CLIENT_SECRET` environment variable or from the
-  git-ignored `AYARLAR.local.js`. The relay uses it for `/subscribers` and the chat broadcaster lookup. The
+  git-ignored `AYARLAR.local.js`. The relay uses it for `/subscribers` and the broadcaster lookup. The
   subscriber and combined bars read it from `AYARLAR.local.js` only as a fallback, when the relay is not running.
   The studio keeps it in the page's memory. It must never reach a URL, a saved draft, the JSON export, the
   generated `AYARLAR.js`, a log, or any page other than those two bars.
@@ -30,14 +30,17 @@ You can expect an answer within a few days.
   - **Origin.** A request with no `Origin`, with `Origin: null` (an overlay opened from disk), or from a loopback
     `http(s)` origin is answered. Any other origin gets 403. The allowed origin is echoed back, never `*`, and
     `Vary: Origin` is set. A web page on another site cannot read these endpoints.
-- **Broadcaster check.** Chat and ban events are passed on only when their broadcaster ID matches your channel. The ID
+- **Broadcaster check.** Chat, ban and alert events are passed on only when their broadcaster ID matches your channel. The ID
   comes from `RELAY_BROADCASTER_ID`, or is looked up from `kanal` with Kick app credentials. While the ID is unknown,
   events are dropped. `RELAY_ALLOW_ANY_BROADCASTER=1` turns the check off and is meant for testing only.
 - **Upstream requests.** The relay and the overlays use timeouts and cache Kick's answers, so a stalled Kick cannot
   hang them. When Kick answers `403` or `429` to a channel lookup, the relay stops asking for the time Kick asked for
   and answers `429` with `Retry-After` in the meantime.
-- **Chat rendering.** Kick data is inserted as text and as `<img>` elements built with the DOM API,
-  never as markup. A report that shows script or markup injection is in scope.
+- **Chat and alert rendering.** Kick data, including usernames and Kicks messages in alerts, is inserted as text
+  and as `<img>` elements built with the DOM API, never as markup. A report that shows script or markup injection
+  is in scope.
+- **Relay executable.** The release builds it in GitHub Actions from the tagged source and publishes its SHA-256 in
+  `SHA256SUMS.txt`. It is not code-signed. It writes `AYARLAR.relay.js` next to itself and nowhere else.
 - **Settings import.** The studio's JSON import keeps only known public settings with primitive values. Anything
   else in the file, including credentials, is ignored.
 
