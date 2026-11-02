@@ -1509,13 +1509,20 @@
 
   // Editing always previews sample data (onizleme=1); real data only after the "Live data" click.
   // Public settings only in the URL. The frame is touched only when its URL really changes.
+  var frameUrl = '', frameFile = '', frameMotion = '';
   function renderFrame() {
     var o = overlayById(activeId);
     var s = currentSettings();
     var canLive = o.data === true && !!s.kanal;
     if (!canLive) live = false;
     var url = o.file + '?' + previewQuery(o, s, !live);
-    if (frame.getAttribute('src') !== url) frame.setAttribute('src', url);
+    if (frameUrl !== url) {
+      // An edit to the overlay already shown reloads it without its intro (sessiz=1), so a colour tweak does not
+      // replay the count-up. A new tab, live data or a change of the motion setting itself still shows the intro.
+      var calm = !live && o.file === frameFile && s.animasyon === frameMotion;
+      frame.setAttribute('src', calm ? url + '&sessiz=1' : url);
+      frameUrl = url; frameFile = o.file; frameMotion = s.animasyon;
+    }
     frame.setAttribute('width', String(o.w));
     frame.setAttribute('height', String(o.h));
     frame.setAttribute('title', t('ov.' + o.id));

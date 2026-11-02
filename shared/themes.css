@@ -394,6 +394,10 @@ body.motion-off .ko-bar,
 body.motion-off .ko-panel,
 body.motion-off .ko-msg { backdrop-filter: none; -webkit-backdrop-filter: none; }
 
+/* Studio preview reload after an edit (?sessiz=1, set by kick-core): open in the final state, no intro. */
+html.ko-quiet body { --ko-dur-in: 0s; --ko-dur-fill: 0s; --ko-rise: 0px; }
+html.ko-quiet .cd-fill { transition: none; }
+
 /* Reduced motion from the OS acts like low for every motion setting. */
 @media (prefers-reduced-motion: reduce) {
   body {
