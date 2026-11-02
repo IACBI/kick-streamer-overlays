@@ -9,10 +9,14 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Studio: every hover and state transition uses one easing curve and two durations; the language switch, preview tabs and background buttons now have hover states.
 - Studio: the three setup steps are more compact on phones, so the settings start higher on the screen.
 - Countdown: when the time runs out, the time pulses three times and then rests instead of pulsing forever.
+- Studio: editing a setting updates the preview in place. The overlay no longer fades out and counts up from zero after every change; switching tabs or changing the motion setting still shows the intro.
+- Studio: with no channel set, one notice above the link cards explains the setup hint and jumps to the channel field. The affected cards show a short "Needs channel" chip instead of repeating the sentence.
+- Info panel: the live dot pulses more calmly.
 
 ### Fixed
 - Studio: the error toast in dark mode and the "Copied" button in light mode had text below 4.5:1 contrast; both now measure at least 5:1.
 - Studio: the Pastel and Paper theme swatches keep a visible edge in light mode.
+- Info panel: the live dot keeps a thin ring in the text colour, so it stays visible when the accent is close to the panel (violet or red on dark themes, yellow on Pastel).
 
 ## [2.3.4] - 2026-10-22
 
