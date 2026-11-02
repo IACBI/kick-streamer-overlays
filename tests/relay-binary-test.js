@@ -43,6 +43,13 @@ async function main() {
   check('a bad RELAY_LOG_FORMAT stops the executable with exit 1', bad.status === 1 && /RELAY_LOG_FORMAT must be one of/.test(bad.stderr), `status ${bad.status}`);
   check('no Node warning about an experimental feature is printed', !/ExperimentalWarning|single executable/i.test(bad.stderr));
 
+  // No credentials in the empty folder, so the subcommand must stop before any request to Kick.
+  for (const extra of [[], ['--list']]) {
+    const sub = spawnSync(exe, ['subscribe', ...extra], { cwd: dir, env: baseEnv, encoding: 'utf8', timeout: 30000 });
+    check(`"${['subscribe', ...extra].join(' ')}" runs the subscription tool, which stops on missing credentials`,
+      sub.status === 1 && /Subscription failed: Kick app credentials are missing/.test(sub.stderr) && !/Kick relay/.test(sub.stdout), `status ${sub.status}`);
+  }
+
   const [webhookPort, eventsPort] = [await freePort(), await freePort()];
   const child = spawn(exe, [], {
     cwd: os.tmpdir(), // not the executable's folder: files must still land next to the executable
