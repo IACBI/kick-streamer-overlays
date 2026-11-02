@@ -4,6 +4,24 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-03
+
+### Added
+- Alerts overlay (`alerts.html`, 640 × 200) for new followers, new and renewed subscriptions, gifted subscriptions and Kicks. One card at a time; with five or more waiting each card stays half as long (at least 3 s), and during a raid the queue keeps at most 25 and drops the oldest follows first. New settings: `uyariSn` (3–30 s) and a switch per type (`uyariTakip`, `uyariAbone`, `uyariHediye`, `uyariKicks`). Usernames and Kicks messages are inserted as text.
+- Relay: verifies and forwards Kick's `channel.followed`, `channel.subscription.new`, `channel.subscription.renewal`, `channel.subscription.gifts` and `kicks.gifted` events as `follow`, `sub`, `gift` and `kicks`. `relay/subscribe.js` subscribes to them.
+- Relay executable for Windows and Linux in every release, so the relay runs without Node.js. `kick-relay-… subscribe` replaces `node relay/subscribe.js`. Each release also has the overlay zip and `SHA256SUMS.txt`.
+- Relay: `RELAY_LOG_FORMAT=json` writes one `{time, level, msg}` object per line. `/health` reports `lastEventAt` and `features.alerts`.
+- Studio: an Alerts tab and settings group, and a step-by-step relay check (reachable, access key, chat and alerts ready, last event received).
+- Every setting has an English name (`channel`, `theme`, `followerGoal` …), accepted in `AYARLAR.js`, in links and by the relay. When both names are given, the Turkish one wins.
+
+### Changed
+- The version lives only in `package.json`; `npm version` copies it into `shared/kick-core.js`, and CI fails when they differ.
+- CI adds ESLint, a JSDoc type check, the Chrome tests with the relay, a visual contrast and layout gate, a build and smoke test of the relay executable on Ubuntu and Windows, and CodeQL. Pushing a `vX.Y.Z` tag publishes the release.
+- Development tools are pinned in `package.json` and tracked by Dependabot. The overlays and the relay still need no packages.
+
+### Fixed
+- Relay: Ctrl+C or a service stop closes the listeners and open overlay streams before the process exits.
+
 ## [2.3.6] - 2026-11-02
 
 ### Security
