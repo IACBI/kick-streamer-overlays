@@ -300,7 +300,13 @@
   .st-card-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .st-card-row input { flex: 1 1 100%; min-height: 36px; font-size: 12.5px; font-family: 'Roboto Mono', ui-monospace, Consolas, monospace; text-overflow: ellipsis; }
   .st-card-row .st-btn { white-space: nowrap; }
-  .st-card-warn { font-size: 12.5px; color: var(--st-warn); }
+  .st-card-warn { font-size: 12px; font-weight: 700; color: var(--st-warn); padding: 1px 9px; border: 1px solid currentColor; border-radius: 999px; white-space: nowrap; }
+  .st-warnbox { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--st-warn); border-radius: 10px; }
+  .st-linkbtn {
+    padding: 0; border: 0; background: none; font: inherit; font-weight: 700; color: var(--st-focus);
+    text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+  }
+  .st-linkbtn:hover { text-decoration-thickness: 2px; }
   .st-card-warn[hidden] { display: none; }
   .st-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--st-warn); border-radius: 10px; }
   .st-confirm[hidden] { display: none; }
@@ -640,6 +646,7 @@
         <li data-i18n="s4.step2"></li>
         <li data-i18n="s4.step3"></li>
       </ol>
+      <p class="st-warnline st-warnbox" id="kanal-uyari" role="status" hidden><span data-i18n="links.needChannel"></span> <button type="button" class="st-linkbtn" id="kanalaGit" data-i18n="links.goChannel"></button></p>
       <div id="kartlar" class="st-cards"></div>
       <div class="st-actions">
         <button type="button" id="hepsiniKopyala" class="st-btn">
@@ -826,7 +833,9 @@
       's4.again': 'Bir ayarı değiştirirsen bağlantıyı yeniden kopyala. Bağlantı, bu stüdyonun açık olduğu klasördeki dosyayı gösterir; klasörü taşırsan bağlantıları yenile.',
       'card.copy': 'Bağlantıyı kopyala',
       'card.preview': 'Önizle',
-      'card.needChannel': 'Kanal adı boş: bu overlay OBS’te kurulum ipucu gösterir.',
+      'card.needChannel': 'Kanal gerekli',
+      'links.needChannel': 'Kanal adı boş: “Kanal gerekli” işaretli overlay’ler OBS’te kurulum ipucu gösterir.',
+      'links.goChannel': 'Kanal adını gir',
       'ov.follower': 'Takipçi çubuğu', 'ov.follower.d': 'Takipçi hedefi ve sayısı',
       'ov.subscriber': 'Abone çubuğu', 'ov.subscriber.d': 'Abone hedefi ve sayısı',
       'ov.combined': 'Birleşik çubuk', 'ov.combined.d': 'Takipçi ve abone tek panelde',
@@ -1012,7 +1021,9 @@
       's4.again': 'Changed a setting? Copy the link again. The link points to the files in the folder this studio was opened from; if you move the folder, copy the links again.',
       'card.copy': 'Copy link',
       'card.preview': 'Preview',
-      'card.needChannel': 'Channel name is empty: this overlay will show a setup hint in OBS.',
+      'card.needChannel': 'Needs channel',
+      'links.needChannel': 'Channel name is empty: overlays marked “Needs channel” show a setup hint in OBS.',
+      'links.goChannel': 'Enter channel name',
       'ov.follower': 'Follower bar', 'ov.follower.d': 'Follower goal and count',
       'ov.subscriber': 'Subscriber bar', 'ov.subscriber.d': 'Subscriber goal and count',
       'ov.combined': 'Combined bar', 'ov.combined.d': 'Followers and subscribers in one panel',
@@ -1560,7 +1571,12 @@
       var size = document.createElement('span');
       size.className = 'st-card-size';
       size.textContent = o.w + ' × ' + o.h;
+      // Short chip here; the full explanation sits once above the cards (#kanal-uyari).
+      var warn = document.createElement('span');
+      warn.className = 'st-card-warn';
+      warn.hidden = true;
       head.appendChild(name);
+      head.appendChild(warn);
       head.appendChild(size);
 
       var desc = document.createElement('p');
@@ -1597,14 +1613,9 @@
       row.appendChild(copy);
       row.appendChild(show);
 
-      var warn = document.createElement('p');
-      warn.className = 'st-card-warn';
-      warn.hidden = true;
-
       card.appendChild(head);
       card.appendChild(desc);
       card.appendChild(row);
-      card.appendChild(warn);
       box.appendChild(card);
     });
   }
@@ -1617,6 +1628,7 @@
       if (input.value !== url) input.value = url;
       card.querySelector('.st-card-warn').hidden = !(o.needsChannel && !s.kanal);
     });
+    $('kanal-uyari').hidden = !!s.kanal;
   }
 
   var announceTimer = 0;
@@ -1999,6 +2011,11 @@
     // Two-step reset: an inline question instead of a native dialog, so keyboard and screen readers stay in the page.
     var resetBox = $('sifirla-onay');
     function closeReset() { resetBox.hidden = true; $('sifirla').focus(); }
+    $('kanalaGit').addEventListener('click', function () {
+      var k = $('kanal');
+      k.focus({ preventScroll: true });
+      k.scrollIntoView({ block: 'center' });
+    });
     $('sifirla').addEventListener('click', function () {
       resetBox.hidden = false;
       $('sifirlaIptal').focus();
