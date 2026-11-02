@@ -820,6 +820,56 @@ function statusOf(port, p, headers) {
   }
   mock.close();
 
+  console.log('\n== relay: logging and the command line (child processes)');
+  {
+    const { createLogger } = require(path.join(__dirname, '..', 'relay', 'log.js'));
+    const sink = () => { const s = { text: '', write(c) { s.text += c; return true; } }; return s; };
+    const out = sink(), err = sink();
+    const j = createLogger('json', { out, err, now: () => Date.parse('2026-11-03T10:00:00Z') });
+    j.log('started on %d', 8790);
+    j.warn('careful:', { a: 1 });
+    const lines = (out.text + err.text).trim().split('\n').map((l) => JSON.parse(l));
+    check('json logger: one parseable object per line with time, level and the formatted message',
+      lines.length === 2 && lines[0].time === '2026-11-03T10:00:00.000Z' && lines[0].level === 'info' && lines[0].msg === 'started on 8790' && lines[1].level === 'warn' && lines[1].msg === 'careful: { a: 1 }', out.text + err.text);
+    check('json logger: warnings and errors go to stderr, info to stdout', out.text.split('\n').filter(Boolean).length === 1 && err.text.split('\n').filter(Boolean).length === 1);
+    const t = sink();
+    createLogger(undefined, { out: t, err: t }).log('plain', 1);
+    check('text logger (default) writes what console would', t.text === 'plain 1\n', JSON.stringify(t.text));
+    let bad = null;
+    try { createLogger('xml'); } catch (e) { bad = e; }
+    check('an unknown log format is refused with the allowed values', !!bad && /text, json/.test(bad.message));
+
+    const { spawn } = require('child_process');
+    const freePort = () => new Promise((r) => { const s = require('net').createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)); }); });
+    const runRelay = (env, until) => new Promise((resolve) => {
+      const child = spawn(process.execPath, [path.join(__dirname, '..', 'relay', 'server.js')], { env: Object.assign({}, process.env, { KICK_CLIENT_ID: '', KICK_CLIENT_SECRET: '', KICK_CHANNEL: '' }, env), stdio: ['ignore', 'pipe', 'pipe'] });
+      let outText = '', errText = '';
+      child.stdout.on('data', (c) => { outText += c; if (until && until(outText)) resolve({ child, out: outText, err: errText }); });
+      child.stderr.on('data', (c) => { errText += c; });
+      child.on('exit', (code, signal) => resolve({ child, code, signal, out: outText, err: errText }));
+    });
+    const [wp, ep] = [await freePort(), await freePort()];
+    const key = 'cli-key-0123456789abcdef0123456789abcdef';
+    const run = await runRelay({ RELAY_LOG_FORMAT: 'json', RELAY_WEBHOOK_PORT: String(wp), RELAY_EVENTS_PORT: String(ep), RELAY_KEY: key, RELAY_ALLOW_ANY_BROADCASTER: '1' }, (o) => /Overlay access key/.test(o));
+    const startLines = run.out.trim().split('\n');
+    check('CLI: RELAY_LOG_FORMAT=json makes every startup line a JSON object', startLines.length >= 4 && startLines.every((l) => { try { const o = JSON.parse(l); return o.level === 'info' && typeof o.msg === 'string'; } catch (e) { return false; } }), run.out.slice(0, 200));
+    const h = await get(ep, withKey('/health', key));
+    check('CLI: the started relay serves /health on the configured port', h.status === 200 && JSON.parse(h.body).version === PKG_VERSION, h.body);
+    if (process.platform !== 'win32') {
+      const exited = new Promise((r) => run.child.on('exit', (code) => r(code)));
+      run.child.kill('SIGTERM');
+      const code = await exited;
+      check('CLI: SIGTERM stops the relay cleanly (exit 0, logged)', code === 0 && /stopping \(SIGTERM\)/.test(run.out + await new Promise((r) => setTimeout(() => r(''), 50))), `code=${code}`);
+    } else {
+      // Windows has no catchable SIGTERM for a child; CI checks the clean stop on Linux.
+      run.child.kill();
+    }
+    const badFmt = await runRelay({ RELAY_LOG_FORMAT: 'xml', RELAY_KEY: key });
+    check('CLI: a bad RELAY_LOG_FORMAT stops at startup with exit 1', badFmt.code === 1 && /RELAY_LOG_FORMAT/.test(badFmt.err), badFmt.err);
+    const badPort = await runRelay({ RELAY_EVENTS_PORT: '99999', RELAY_KEY: key });
+    check('CLI: an invalid port stops at startup with exit 1', badPort.code === 1 && /RELAY_EVENTS_PORT/.test(badPort.err), badPort.err);
+  }
+
   const failed = results.filter((ok) => !ok).length;
   console.log(`\n${results.length - failed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

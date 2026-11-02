@@ -10,12 +10,14 @@
 //      /health, /channel and /subscribers. It is never exposed publicly.
 //
 // Run:  node relay/server.js            (Node.js 20 or newer, no packages)
+//   or  kick-relay(.exe) from a release, placed next to AYARLAR.js (no Node.js needed)
 
 const crypto = require('crypto');
 const http = require('http');
 const { HEADER, verifySignature, isFresh, ReplayGuard, TokenBucket, normalizeEvent } = require('./webhook.js');
 const { loadConfig, fetchTimeout, loadRelayKey, parsePort } = require('./config.js');
 const { createKickApi, retryAfterSec } = require('./kick-api.js');
+const { createLogger } = require('./log.js');
 
 const { version: VERSION } = require('../package.json');
 const KEY_TTL_MS = 60 * 60 * 1000;
@@ -476,9 +478,14 @@ function createRelay(opts) {
 }
 
 // ---- command line ----
-if (require.main === module) {
-  const env = process.env;
-  process.on('unhandledRejection', (/** @type {any} */ e) => console.error('Unhandled error (relay keeps running):', e && e.message ? e.message : e));
+// Also the entry of the single-file executable (relay/sea-main.js), where require.main is not this module.
+function main(env = process.env) {
+  let log;
+  try { log = createLogger(env.RELAY_LOG_FORMAT); } catch (e) {
+    console.error('Could not start the relay:', e.message);
+    process.exit(1);
+  }
+  process.on('unhandledRejection', (/** @type {any} */ e) => log.error('Unhandled error (relay keeps running):', e && e.message ? e.message : e));
   let relay;
   try {
     relay = createRelay({
@@ -486,30 +493,37 @@ if (require.main === module) {
       eventsPort: parsePort(env.RELAY_EVENTS_PORT, 8790, 'RELAY_EVENTS_PORT'),
       broadcasterUserId: String(env.RELAY_BROADCASTER_ID || ''),
       allowAnyBroadcaster: env.RELAY_ALLOW_ANY_BROADCASTER === '1',
-      fetchImpl: globalThis.fetch
+      fetchImpl: globalThis.fetch,
+      logger: log
     });
   } catch (e) {
-    console.error('Could not start the relay:', e.message);
+    log.error('Could not start the relay:', e.message);
     process.exit(1);
   }
-  console.log(`Kick relay ${VERSION} starting...`);
+  // Ctrl+C or a service stop closes the sockets and ends open overlay streams before the process exits.
+  const shutdown = (sig) => { log.log(`Kick relay stopping (${sig}).`); relay.stop(); process.exit(0); };
+  process.once('SIGINT', () => shutdown('SIGINT'));
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  log.log(`Kick relay ${VERSION} starting...`);
   relay.start().then(({ webhookPort, eventsPort, chat }) => {
-    console.log('Kick relay running.');
-    console.log(`  Webhook (expose this through a tunnel): http://127.0.0.1:${webhookPort}/kick/webhook`);
-    console.log(`  Overlay events (local only):            http://127.0.0.1:${eventsPort}/events`);
+    log.log('Kick relay running.');
+    log.log(`  Webhook (expose this through a tunnel): http://127.0.0.1:${webhookPort}/kick/webhook`);
+    log.log(`  Overlay events (local only):            http://127.0.0.1:${eventsPort}/events`);
     if (chat) {
-      if (env.RELAY_ALLOW_ANY_BROADCASTER === '1' && !env.RELAY_BROADCASTER_ID) console.log('  Chat: accepting events for ANY broadcaster (RELAY_ALLOW_ANY_BROADCASTER=1).');
+      if (env.RELAY_ALLOW_ANY_BROADCASTER === '1' && !env.RELAY_BROADCASTER_ID) log.log('  Chat and alerts: accepting events for ANY broadcaster (RELAY_ALLOW_ANY_BROADCASTER=1).');
     } else {
-      console.warn('  WARNING: broadcaster id unknown, so chat events will be DROPPED.');
-      console.warn('  Set RELAY_BROADCASTER_ID, or add Kick app credentials and kanal so it can be looked up.');
+      log.warn('  WARNING: broadcaster id unknown, so chat and alert events will be DROPPED.');
+      log.warn('  Set RELAY_BROADCASTER_ID, or add Kick app credentials and kanal so it can be looked up.');
     }
-    console.log(env.RELAY_KEY
+    log.log(env.RELAY_KEY
       ? '  Overlay access key: taken from RELAY_KEY (overlays need the same value).'
       : '  Overlay access key: stored in AYARLAR.relay.js (overlays load it automatically).');
   }).catch((e) => {
-    console.error('Could not start the relay:', e.message);
+    log.error('Could not start the relay:', e.message);
     process.exit(1);
   });
 }
 
-module.exports = { createRelay, VERSION };
+if (require.main === module) main();
+
+module.exports = { createRelay, main, VERSION };
