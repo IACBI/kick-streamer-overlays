@@ -2522,6 +2522,21 @@ async function testVersionSync() {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  const { notesFor } = require('../tools/changelog-notes.js');
+  await check('the release notes for the package version come from CHANGELOG.md', () => {
+    const notes = notesFor(fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8'), 'v' + PKG_VERSION);
+    ok(notes && /^### /.test(notes), 'section starts with a ### heading');
+    ok(!/^## \[/m.test(notes), 'no other version heading inside');
+  });
+
+  await check('changelog-notes stops at the next version, skips link definitions and refuses an empty section', () => {
+    const md = '# Changelog\n\n## [Unreleased]\n\n## [2.0.0] - 2026-01-02\r\n\r\n### Added\r\n- B\r\n\r\n## [1.0.0] - 2026-01-01\n\n- A\n\n[1.0.0]: https://example.com/1.0.0\n';
+    eq(notesFor(md, '2.0.0'), '### Added\n- B', '2.0.0 (CRLF)');
+    eq(notesFor(md, 'v1.0.0'), '- A', '1.0.0, last section');
+    eq(notesFor(md, 'Unreleased'), null, 'empty section');
+    eq(notesFor(md, '2.0'), null, 'prefix of another version');
+  });
 }
 
 // ---- Main ------------------------------------------------------------------------

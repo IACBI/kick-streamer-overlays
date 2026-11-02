@@ -29,3 +29,57 @@ jobs:
         run: node tests/run.js
       - name: Relay tests
         run: node tests/relay-test.js
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run typecheck
+      - name: Version in shared/kick-core.js matches package.json
+        run: node tools/sync-version.js --check
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Chrome end-to-end tests (offline pages, local relay, studio)
+        run: node tests/e2e-chrome.js --relay
+      - name: Visual quality gate (contrast and layout)
+        run: node tools/visual-qa.js --out qa-out --only main --gate
+      - name: Keep the visual QA sheets when the gate fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: visual-qa
+          path: qa-out/
+          retention-days: 7
+
+  relay-executable:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build the single-file relay
+        run: npm run build:relay
+      - name: Smoke test the executable from an empty folder
+        run: npm run test:relay-binary
