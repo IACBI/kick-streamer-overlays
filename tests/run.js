@@ -2449,7 +2449,7 @@ async function testThemesAndPages() {
     for (const m of html.matchAll(/data-i18n(?:-ph|-aria)?="([^"]+)"/g)) used.add(m[1]);
     for (const m of html.matchAll(/\bt\('([^']+)'/g)) used.add(m[1]);
     // Keys built from an id at run time.
-    ['follower', 'subscriber', 'combined', 'info', 'countdown', 'ticker', 'chat'].forEach((id) => { used.add('ov.' + id); used.add('ov.' + id + '.d'); });
+    ['follower', 'subscriber', 'combined', 'info', 'countdown', 'ticker', 'chat', 'alerts'].forEach((id) => { used.add('ov.' + id); used.add('ov.' + id + '.d'); });
     ['minimal', 'neon', 'pastel', 'gece', 'kagit'].forEach((id) => used.add('preset.' + id));
     ['checker', 'dark', 'light', 'scene'].forEach((id) => used.add('bg.' + id));
     for (let n = 1; n <= 4; n++) used.add('help.c' + n);

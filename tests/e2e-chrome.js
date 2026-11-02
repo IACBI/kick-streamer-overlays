@@ -296,7 +296,7 @@ async function offlineChecks() {
   // Studio behaviour: links, tabs, presets, language, reset.
   const urlOf = (id) => `document.querySelector('[data-url="${id}"]').value`;
   const base = await st.eval(`({ follower: ${urlOf('follower')}, tabs: document.querySelectorAll('[role=tab]').length, cards: document.querySelectorAll('[data-card]').length, warn: !document.querySelector('[data-card="follower"] .st-card-warn').hidden })`);
-  check('studio: seven overlay tabs and seven link cards', base.tabs === 7 && base.cards === 7, JSON.stringify(base));
+  check('studio: eight overlay tabs and eight link cards', base.tabs === 8 && base.cards === 8, JSON.stringify(base));
   check('studio: default link has no query string', /follower-bar\.html$/.test(base.follower), base.follower);
   check('studio: card warns when the channel is empty', base.warn);
 
@@ -555,6 +555,7 @@ async function relayChecks() {
   const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'kick-relay-'));
   fs.copyFileSync(path.join(ROOT, 'chat.html'), path.join(copy, 'chat.html'));
   fs.copyFileSync(path.join(ROOT, 'alerts.html'), path.join(copy, 'alerts.html'));
+  fs.copyFileSync(path.join(ROOT, 'studio.html'), path.join(copy, 'studio.html'));
   fs.cpSync(path.join(ROOT, 'shared'), path.join(copy, 'shared'), { recursive: true });
   // chat.html loads only AYARLAR.js (it needs no credentials); relayAdresi is allowed there.
   fs.writeFileSync(path.join(copy, 'AYARLAR.js'),
@@ -601,6 +602,7 @@ async function relayChecks() {
     check('relay chat: a ban removes that user\'s messages', stillThere === false);
 
     await alertRelayChecks(copy, webhookPort, privateKey);
+    await studioRelayChecks(copy, eventsPort);
 
     relay.stop();
     const noteState = `(() => { const n = document.querySelector('.ko-note'); return n && !n.classList.contains('is-hidden') ? n.textContent : ''; })()`;
@@ -614,6 +616,40 @@ async function relayChecks() {
     await chat.close();
     try { relay.stop(); } catch (e) { /* already stopped */ }
     fs.rmSync(copy, { recursive: true, force: true });
+  }
+}
+
+// The studio's relay check against the live relay, after events have arrived: every line is a real condition.
+async function studioRelayChecks(copy, eventsPort) {
+  const st = await openPageFrom(copy, 'studio.html', '', [1280, 900]);
+  try {
+    await sleep(1500);
+    await st.eval(`(() => { const i = document.getElementById('relayAdresi'); i.value = 'http://127.0.0.1:${eventsPort}'; i.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('relayKontrol').click(); return true; })()`);
+    await sleep(1500);
+    const d = await st.eval(`({ status: document.getElementById('relay-durum').className, lines: Array.from(document.querySelectorAll('#relay-tani li')).map((li) => li.className + ' ' + li.textContent) })`);
+    const line = (re) => d.lines.find((l) => re.test(l)) || '';
+    check('studio relay check: the relay answers and four diagnosis lines are shown', /is-ok/.test(d.status) && d.lines.length === 4, JSON.stringify(d));
+    check('studio relay check: same version, channel id known, a verified event seen', /^is-ok/.test(line(/version|sürüm/i)) && /^is-ok/.test(line(/channel id|Kanal kimliği/i)) && /^is-ok/.test(line(/Kick event|olay/i)), JSON.stringify(d.lines));
+    check('studio relay check: missing Kick app credentials are a warning, not an error', /^is-warn/.test(line(/credentials|uygulama bilgileri/i)), line(/credentials|uygulama bilgileri/i));
+    check('studio relay check: no unexpected errors', unexpected(st.logs).length === 0, short(unexpected(st.logs)));
+
+    // A second relay that cannot resolve the channel and has seen no event: those lines turn into instructions.
+    const { createRelay } = require(path.join(ROOT, 'relay', 'server.js'));
+    const key = fs.readFileSync(path.join(copy, 'AYARLAR.relay.js'), 'utf8').match(/"([^"]+)"/)[1];
+    const quiet = { log() {}, warn() {}, error() {} };
+    const bare = createRelay({ publicKeyPem: 'unused', webhookPort: 0, eventsPort: 0, accessKey: key, credentials: false, channelSlug: '', logger: quiet });
+    const p2 = await bare.start();
+    try {
+      await st.eval(`(() => { const i = document.getElementById('relayAdresi'); i.value = 'http://127.0.0.1:${p2.eventsPort}'; i.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('relayKontrol').click(); return true; })()`);
+      await sleep(1500);
+      const d2 = await st.eval(`Array.from(document.querySelectorAll('#relay-tani li')).map((li) => li.className + ' ' + li.textContent)`);
+      check('studio relay check: an unknown channel id is an error that says how to fix it', d2.some((l) => /^is-err/.test(l) && /RELAY_BROADCASTER_ID/.test(l)), JSON.stringify(d2));
+      check('studio relay check: no event yet points at the webhook URL and subscribe.js', d2.some((l) => /^is-warn/.test(l) && /\/kick\/webhook/.test(l) && /subscribe\.js/.test(l)), JSON.stringify(d2));
+    } finally {
+      bare.stop();
+    }
+  } finally {
+    await st.close();
   }
 }
 

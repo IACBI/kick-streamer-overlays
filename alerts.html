@@ -84,7 +84,7 @@
           name: ev.anonymous ? K.label(S, 'Anonim', 'Anonymous') : ev.username,
           detail: K.label(S, n(ev.count) + ' abonelik hediye etti', ev.count === 1 ? 'gifted a sub' : 'gifted ' + n(ev.count) + ' subs') };
       case 'kicks':
-        return { title: 'Kicks', name: ev.username,
+        return { title: K.label(S, 'Kicks hediyesi', 'Kicks gift'), name: ev.username,
           detail: n(ev.amount) + ' Kicks' + (ev.giftName ? ' · ' + ev.giftName : ''), message: ev.message || '' };
     }
     return null;

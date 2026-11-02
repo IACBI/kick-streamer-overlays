@@ -369,6 +369,14 @@
 
   /* ---- Help ---- */
   .st-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+  /* Relay check: one line per condition; the mark carries the colour and the text says what to do. */
+  .st-diag { list-style: none; padding-left: 0; margin-top: 8px; }
+  .st-diag li { display: grid; grid-template-columns: 1.4em 1fr; gap: 4px; }
+  .st-diag .st-mark { font-weight: 800; }
+  .st-diag .is-ok .st-mark { color: var(--st-ok); }
+  .st-diag .is-warn .st-mark { color: var(--st-warn); }
+  .st-diag .is-err .st-mark { color: var(--st-err); }
+  .st-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
   .st-notes { margin: 0; display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
   .st-notes dt { font-weight: 700; }
   .st-notes dd { margin: 2px 0 0; color: var(--st-muted); }
@@ -599,6 +607,27 @@
           </div>
         </details>
 
+        <details class="st-group" id="g-alerts">
+          <summary><span data-i18n="g.alerts"></span></summary>
+          <div class="st-group-body st-grid">
+            <div class="st-field">
+              <label class="st-label" for="uyariSn" data-i18n="f.uyariSn"></label>
+              <input id="uyariSn" name="uyariSn" type="number" min="3" max="30" step="1" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.uyariSn"></p>
+            </div>
+            <fieldset class="st-field st-wide st-fieldset">
+              <legend class="st-label" data-i18n="f.uyariTurler"></legend>
+              <div class="st-checks">
+                <label class="st-check"><input type="checkbox" name="uyariTakip" /> <span data-i18n="f.uyariTakip"></span></label>
+                <label class="st-check"><input type="checkbox" name="uyariAbone" /> <span data-i18n="f.uyariAbone"></span></label>
+                <label class="st-check"><input type="checkbox" name="uyariHediye" /> <span data-i18n="f.uyariHediye"></span></label>
+                <label class="st-check"><input type="checkbox" name="uyariKicks" /> <span data-i18n="f.uyariKicks"></span></label>
+              </div>
+              <p class="st-hint" data-i18n="h.uyariTurler"></p>
+            </fieldset>
+          </div>
+        </details>
+
         <details class="st-group" id="g-countdown">
           <summary><span data-i18n="g.countdown"></span></summary>
           <div class="st-group-body st-grid">
@@ -649,6 +678,7 @@
                 <button type="button" class="st-btn st-btn--small" id="relayKontrol" data-i18n="relay.check"></button>
               </div>
               <p id="relay-durum" class="st-status" role="status" style="margin-top:0"></p>
+              <ul id="relay-tani" class="st-list st-diag" hidden></ul>
             </div>
           </div>
         </details>
@@ -822,6 +852,15 @@
       'g.goals': 'Hedefler ve sayılar',
       'g.goals.for': 'takipçi, abone, birleşik çubuk, yayın paneli',
       'g.chat': 'Sohbet',
+      'g.alerts': 'Bildirimler',
+      'f.uyariSn': 'Bir bildirim ekranda kaç saniye kalsın',
+      'h.uyariSn': '3 ile 30 arası. Sırada çok bildirim varsa her biri yarı süre kalır.',
+      'f.uyariTurler': 'Gösterilecek bildirimler',
+      'f.uyariTakip': 'Yeni takipçi',
+      'f.uyariAbone': 'Yeni ve yenilenen abonelik',
+      'f.uyariHediye': 'Hediye abonelik',
+      'f.uyariKicks': 'Kicks hediyesi',
+      'h.uyariTurler': 'Bildirimler yerel relay üzerinden gelir; kurulum sohbetle aynıdır.',
       'g.countdown': 'Geri sayım',
       'g.ticker': 'Duyuru çubuğu',
       'f.takipciHedefi': 'Takipçi hedefi',
@@ -861,6 +900,7 @@
       'ov.info': 'Yayın paneli', 'ov.info.d': 'İzleyici sayısı ve yayın süresi, yalnızca yayındayken',
       'ov.countdown': 'Geri sayım', 'ov.countdown.d': '“Birazdan başlıyoruz” sahnesi için',
       'ov.ticker': 'Duyuru çubuğu', 'ov.ticker.d': 'Sosyal medya, komut ve duyuruları sırayla gösterir',
+      'ov.alerts': 'Bildirimler', 'ov.alerts.d': 'Takip, abonelik, hediye ve Kicks bildirimleri. Yerel relay gerektirir',
       'ov.chat': 'Sohbet', 'ov.chat.d': 'Canlı sohbet. Yerel relay gerektirir (bkz. Sorun giderme)',
       'file.title': 'Ayar dosyası yöntemi',
       'file.sub': 'AYARLAR.js',
@@ -942,18 +982,23 @@
       'f.geriSayimSaat': 'Hedef saat (SS:DD)',
       'h.geriSayimSaat': '24 saatlik yerel saat, örn. 21:30. Doluysa süreden (dakika) önceliklidir; saat bugün geçtiyse yarına sayar. Boş bırak = süreyi kullan.',
       'g.relay': 'Gelişmiş: relay',
-      'g.relay.for': 'canlı sohbet köprüsü',
+      'g.relay.for': 'canlı sohbet ve bildirim köprüsü',
       'f.relayAdresi': 'Relay adresi',
       'h.relayAdresi': 'Yalnızca relay’i farklı bir adreste çalıştırıyorsan değiştir. Varsayılan dışındaysa AYARLAR.js dosyasına yazılır. Yalnızca https ya da 127.0.0.1 / localhost üzerinden http kabul edilir.',
       'relay.check': 'Relay’i kontrol et',
       'relay.checking': 'Relay kontrol ediliyor…',
-      'relay.ok': 'Relay çalışıyor (v{v}, {n} bağlantı). Özellikler: {feats}.',
+      'relay.ok': 'Relay çalışıyor (v{v}, {n} bağlı overlay).',
+      'relay.d.version': 'Relay sürümü {relay}, overlay paketi {pack}. İkisini aynı sürümden çalıştır.',
+      'relay.d.versionOk': 'Relay ve overlay paketi aynı sürümde.',
+      'relay.d.chatOk': 'Kanal kimliği biliniyor: sohbet ve bildirimler bu kanal için kabul ediliyor.',
+      'relay.d.chatNo': 'Kanal kimliği bilinmiyor, olaylar düşürülüyor. AYARLAR.js’te kanal ile AYARLAR.local.js’te Kick uygulama bilgilerini gir ya da RELAY_BROADCASTER_ID ayarla, sonra relay’i yeniden başlat.',
+      'relay.d.events': 'Kick’ten son doğrulanmış olay {ago} geldi: tünel ve webhook çalışıyor.',
+      'relay.d.noEvents': 'Relay açıldığından beri Kick’ten olay gelmedi. Kick uygulamandaki webhook adresinin tünel adresi + /kick/webhook olduğunu kontrol et ve bir kez “node relay/subscribe.js” çalıştır.',
+      'relay.d.subsOk': 'Kick uygulama bilgileri var: abone sayısı resmi API’den alınıyor.',
+      'relay.d.subsNo': 'Kick uygulama bilgileri yok: abone çubuğu elle girilen sayıyı gösterir (isteğe bağlı).',
       'relay.down': 'Relay çalışmıyor ya da ulaşılamıyor ({url}). “node relay/server.js” ile başlat.',
       'relay.bad': 'Relay beklenmeyen bir yanıt verdi (HTTP {status}).',
       'relay.key': 'Relay erişim anahtarı eksik ya da yanlış. Relay’i bir kez başlat (“node relay/server.js”): proje klasöründe AYARLAR.relay.js dosyasını oluşturur. Sonra bu sayfayı yenile.',
-      'relay.f.chat': 'sohbet',
-      'relay.f.channel': 'kanal',
-      'relay.f.subscribers': 'aboneler',
       'links.copyAll': 'Tüm linkleri kopyala',
       'links.copyAllDone': 'Tüm bağlantılar kopyalandı.',
       'copy.done': 'Kopyalandı ✓',
@@ -1010,6 +1055,15 @@
       'g.goals': 'Goals and numbers',
       'g.goals.for': 'follower, subscriber, combined bar, info panel',
       'g.chat': 'Chat',
+      'g.alerts': 'Alerts',
+      'f.uyariSn': 'Seconds each alert stays on screen',
+      'h.uyariSn': '3 to 30. When many alerts wait, each stays half as long.',
+      'f.uyariTurler': 'Alerts to show',
+      'f.uyariTakip': 'New follower',
+      'f.uyariAbone': 'New and renewed subscriptions',
+      'f.uyariHediye': 'Gifted subscriptions',
+      'f.uyariKicks': 'Kicks gifts',
+      'h.uyariTurler': 'Alerts arrive through the local relay; the setup is the same as for chat.',
       'g.countdown': 'Countdown',
       'g.ticker': 'Announcement bar',
       'f.takipciHedefi': 'Follower goal',
@@ -1049,6 +1103,7 @@
       'ov.info': 'Info panel', 'ov.info.d': 'Viewers and uptime, only while live',
       'ov.countdown': 'Countdown', 'ov.countdown.d': 'For your “starting soon” scene',
       'ov.ticker': 'Announcement bar', 'ov.ticker.d': 'Rotates your socials, commands and news',
+      'ov.alerts': 'Alerts', 'ov.alerts.d': 'Follow, subscription, gift and Kicks alerts. Needs the local relay',
       'ov.chat': 'Chat', 'ov.chat.d': 'Live chat. Needs the local relay (see Help)',
       'file.title': 'Settings file method',
       'file.sub': 'AYARLAR.js',
@@ -1130,18 +1185,23 @@
       'f.geriSayimSaat': 'Target time (HH:MM)',
       'h.geriSayimSaat': '24-hour local time, e.g. 21:30. When set it wins over the length in minutes; if the time has passed today it counts to tomorrow. Leave empty to use the length.',
       'g.relay': 'Advanced: relay',
-      'g.relay.for': 'live chat bridge',
+      'g.relay.for': 'live chat and alert bridge',
       'f.relayAdresi': 'Relay address',
       'h.relayAdresi': 'Change it only if you run the relay at a different address. If it differs from the default it is written to AYARLAR.js. Only https, or http on 127.0.0.1 / localhost, is accepted.',
       'relay.check': 'Check relay',
       'relay.checking': 'Checking the relay…',
-      'relay.ok': 'Relay is running (v{v}, {n} clients). Features: {feats}.',
+      'relay.ok': 'Relay is running (v{v}, {n} overlays connected).',
+      'relay.d.version': 'The relay is {relay} and the overlay pack is {pack}. Run both from the same release.',
+      'relay.d.versionOk': 'The relay and the overlay pack are the same version.',
+      'relay.d.chatOk': 'The channel id is known: chat and alerts for this channel are accepted.',
+      'relay.d.chatNo': 'The channel id is unknown, so events are dropped. Set kanal in AYARLAR.js and the Kick app in AYARLAR.local.js, or set RELAY_BROADCASTER_ID, then restart the relay.',
+      'relay.d.events': 'The last verified Kick event arrived {ago}: the tunnel and webhook work.',
+      'relay.d.noEvents': 'No Kick event has arrived since the relay started. Check that your Kick app’s webhook URL is the tunnel address + /kick/webhook, and run “node relay/subscribe.js” once.',
+      'relay.d.subsOk': 'Kick app credentials are set: the subscriber count comes from the official API.',
+      'relay.d.subsNo': 'No Kick app credentials: the subscriber bar shows the number you enter (optional).',
       'relay.down': 'Relay is not running or not reachable ({url}). Start it with “node relay/server.js”.',
       'relay.bad': 'The relay gave an unexpected answer (HTTP {status}).',
       'relay.key': 'The relay access key is missing or wrong. Start the relay once (“node relay/server.js”): it creates AYARLAR.relay.js in the project folder. Then reload this page.',
-      'relay.f.chat': 'chat',
-      'relay.f.channel': 'channel',
-      'relay.f.subscribers': 'subscribers',
       'links.copyAll': 'Copy all links',
       'links.copyAllDone': 'All links copied.',
       'copy.done': 'Copied ✓',
@@ -1207,7 +1267,8 @@
     { id: 'info', file: 'info-panel.html', w: 300, h: 80, group: 'g-goals', needsChannel: true, data: true, keys: ['yenilemeSn', 'hataNotu'] },
     { id: 'countdown', file: 'countdown.html', w: 520, h: 190, group: 'g-countdown', needsChannel: false, keys: ['geriSayimDk', 'geriSayimSaat', 'geriSayimBaslik', 'hataNotu'] },
     { id: 'ticker', file: 'ticker.html', w: 760, h: 80, group: 'g-ticker', needsChannel: false, keys: ['duyuruMetinleri', 'duyuruSn', 'hataNotu'] },
-    { id: 'chat', file: 'chat.html', w: 460, h: 760, group: 'g-chat', needsChannel: true, sampleOnly: true, keys: ['sohbetMaksMesaj', 'yayinciYazisi', 'sohbetKomutGizle', 'sohbetGizliKullanicilar', 'sohbetSilinmeSn', 'hataNotu'] }
+    { id: 'chat', file: 'chat.html', w: 460, h: 760, group: 'g-chat', needsChannel: true, sampleOnly: true, keys: ['sohbetMaksMesaj', 'yayinciYazisi', 'sohbetKomutGizle', 'sohbetGizliKullanicilar', 'sohbetSilinmeSn', 'hataNotu'] },
+    { id: 'alerts', file: 'alerts.html', w: 640, h: 200, group: 'g-alerts', needsChannel: true, sampleOnly: true, keys: ['uyariSn', 'uyariTakip', 'uyariAbone', 'uyariHediye', 'uyariKicks', 'hataNotu'] }
   ];
   var BACKGROUNDS = ['checker', 'dark', 'light', 'scene'];
 
@@ -1239,7 +1300,12 @@
     { key: 'geriSayimSaat', note: 'Countdown target time as 24-hour local HH:MM (e.g. "21:30").\nWhen set it wins over geriSayimDk; a time that has passed today means tomorrow. Empty = use minutes' },
     { key: 'geriSayimBaslik', note: 'Countdown title. Empty = "Starting soon" in your label language' },
     { key: 'duyuruMetinleri', note: 'Announcement bar (ticker.html): lines separated by |  (up to 12)\nExample: "Follow for more | !discord | New video every Friday"' },
-    { key: 'duyuruSn', note: 'Seconds each announcement stays on screen (3–60)' }
+    { key: 'duyuruSn', note: 'Seconds each announcement stays on screen (3–60)' },
+    { key: 'uyariSn', note: 'Alerts (alerts.html): seconds each alert stays on screen (3–30)' },
+    { key: 'uyariTakip', note: 'Which alerts to show: new followers, subscriptions, gifted subscriptions, Kicks' },
+    { key: 'uyariAbone' },
+    { key: 'uyariHediye' },
+    { key: 'uyariKicks' }
   ]; }
 
   var $ = function (id) { return document.getElementById(id); };
@@ -1912,11 +1978,51 @@
 
   // ---- Relay check -----------------------------------------------------------
 
+  // A running relay's /health as [level, text] lines, each telling the streamer what to do next.
+  // An older relay has no lastEventAt; its version line already asks for the update.
+  function relayDiag(data, now) {
+    var f = data.features && typeof data.features === 'object' ? data.features : {};
+    var v = String(data.version || '?').slice(0, 20);
+    var out = [];
+    out.push(v === K.version ? ['ok', t('relay.d.versionOk')] : ['warn', t('relay.d.version', { relay: v, pack: K.version })]);
+    out.push(f.chat === true ? ['ok', t('relay.d.chatOk')] : ['err', t('relay.d.chatNo')]);
+    if (typeof data.lastEventAt === 'number' && isFinite(data.lastEventAt)) out.push(['ok', t('relay.d.events', { ago: ago(now - data.lastEventAt) })]);
+    else if (Object.prototype.hasOwnProperty.call(data, 'lastEventAt')) out.push(['warn', t('relay.d.noEvents')]);
+    out.push(f.subscribers === true ? ['ok', t('relay.d.subsOk')] : ['warn', t('relay.d.subsNo')]);
+    return out;
+  }
+
+  function ago(ms) {
+    var sec = Math.max(0, Math.round(ms / 1000));
+    var pick = sec < 60 ? [sec, 'second'] : sec < 3600 ? [Math.round(sec / 60), 'minute'] : sec < 86400 ? [Math.round(sec / 3600), 'hour'] : [Math.round(sec / 86400), 'day'];
+    return new Intl.RelativeTimeFormat(lang, { numeric: 'auto' }).format(-pick[0], pick[1]);
+  }
+
+  var MARK = { ok: '✓', warn: '!', err: '✗' };
+  function showDiag(lines) {
+    var list = $('relay-tani');
+    list.textContent = '';
+    lines.forEach(function (l) {
+      var li = document.createElement('li');
+      li.className = 'is-' + l[0];
+      var mark = document.createElement('span');
+      mark.className = 'st-mark';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.textContent = MARK[l[0]];
+      var text = document.createElement('span');
+      text.textContent = l[1];
+      li.append(mark, text);
+      list.appendChild(li);
+    });
+    list.hidden = lines.length === 0;
+  }
+
   async function checkRelay() {
     var btn = $('relayKontrol');
     var box = $('relay-durum');
     var base = relayValue();
     btn.disabled = true;
+    showDiag([]);
     say(box, '', t('relay.checking'));
     var ctl = new AbortController();
     var timer = setTimeout(function () { ctl.abort(); }, 2000);
@@ -1925,9 +2031,8 @@
       if (res.status === 401) { say(box, 'err', t('relay.key')); return; }
       var data = res.ok ? await res.json() : null;
       if (!res.ok || !data || data.ok !== true) { say(box, 'err', t('relay.bad', { status: res.status })); return; }
-      var f = data.features && typeof data.features === 'object' ? data.features : {};
-      var feats = ['chat', 'channel', 'subscribers'].map(function (k) { return t('relay.f.' + k) + ' ' + (f[k] === true ? '✓' : '✗'); }).join(', ');
-      say(box, 'ok', t('relay.ok', { v: String(data.version || '?').slice(0, 20), n: Number(data.clients) || 0, feats: feats }));
+      say(box, 'ok', t('relay.ok', { v: String(data.version || '?').slice(0, 20), n: Number(data.clients) || 0 }));
+      showDiag(relayDiag(data, Date.now()));
     } catch (e) {
       say(box, 'err', t('relay.down', { url: base }));
     } finally {

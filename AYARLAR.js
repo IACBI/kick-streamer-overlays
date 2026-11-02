@@ -87,7 +87,16 @@ window.KICK_OVERLAY_AYARLAR = {
   // Seconds each announcement stays on screen (3–60)
   duyuruSn: 6,
 
-  // Only needed if you changed the chat relay's port (see relay/). Default: "http://127.0.0.1:8790"
+  // Alerts (alerts.html): seconds each alert stays on screen (3–30)
+  uyariSn: 6,
+
+  // Which alerts to show: new followers, subscriptions, gifted subscriptions, Kicks
+  uyariTakip: true,
+  uyariAbone: true,
+  uyariHediye: true,
+  uyariKicks: true,
+
+  // Only needed if you changed the relay's port (see relay/). Default: "http://127.0.0.1:8790"
   // The relay's access key is read from AYARLAR.relay.js automatically; nothing to set here.
   // relayAdresi: "http://127.0.0.1:8790",
 
