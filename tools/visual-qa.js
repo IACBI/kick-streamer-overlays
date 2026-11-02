@@ -139,17 +139,35 @@ function qaMeasure() {
       const cs = (e) => win.getComputedStyle(e);
       const effOpacity = (e) => { let o = 1; for (let n = e; n && n.nodeType === 1; n = n.parentElement) o *= parseFloat(cs(n).opacity); return o; };
       const visible = (e) => { if (!e.getClientRects().length) return false; for (let n = e; n && n.nodeType === 1; n = n.parentElement) { const s = cs(n); if (s.visibility === 'hidden' || s.display === 'none') return false; } return true; };
+      // The union box is used for layout checks; `lines` keeps one box per line, because the union of a wrapped
+      // inline span also covers whatever sits before its first line (a badge, a name).
       const rangeBox = (el) => {
-        const r = doc.createRange(); let u = null;
+        const r = doc.createRange(); let u = null; const lines = [];
         for (const n of el.childNodes) {
           if (n.nodeType !== 3 || !n.textContent.trim()) continue;
           r.selectNodeContents(n);
           for (const q of r.getClientRects()) {
             if (q.width < 0.5 || q.height < 0.5) continue;
+            lines.push({ x: ox + q.left, y: oy + q.top, w: q.width, h: q.height });
             u = u ? { l: Math.min(u.l, q.left), t: Math.min(u.t, q.top), r: Math.max(u.r, q.right), b: Math.max(u.b, q.bottom) } : { l: q.left, t: q.top, r: q.right, b: q.bottom };
           }
         }
+        if (u) u.lines = lines;
         return u;
+      };
+      // Color emoji keep their own colors under the transparent-text pass, so their pixels would be read as
+      // background; their boxes are left out of the contrast sample.
+      const EMOJI = /\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*/gu;
+      const emojiBoxes = (el) => {
+        const out = [], r = doc.createRange();
+        for (const n of el.childNodes) {
+          if (n.nodeType !== 3) continue;
+          for (const m of n.textContent.matchAll(EMOJI)) {
+            r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
+            for (const q of r.getClientRects()) out.push({ x: ox + q.left - 1, y: oy + q.top - 1, w: q.width + 2, h: q.height + 2 });
+          }
+        }
+        return out;
       };
       // The chat feed fades its top 56px out with a mask, so text there is meant to dissolve and is not measured.
       const feedEl = doc.querySelector('.ko-feed');
@@ -185,6 +203,7 @@ function qaMeasure() {
         res.items.push({
           kind, sel: label(el), text: kind === 'text' ? el.textContent.trim().slice(0, 28) : '',
           x: ox + box.l, y: oy + box.t, w: box.r - box.l, h: box.b - box.t,
+          lines: box.lines || null, skip: kind === 'text' ? emojiBoxes(el) : [],
           col: col.slice(0, 3), a: col[3] * eo, fs, fw,
           shadow: kind === 'text' && s.textShadow !== 'none', need: kind === 'icon' || large ? 3 : 4.5
         });
@@ -271,7 +290,7 @@ function qaMeasure() {
     const x0 = Math.max(0, Math.floor(x)), y0 = Math.max(0, Math.floor(y));
     const x1 = Math.min(img.w, Math.ceil(x + w)), y1 = Math.min(img.h, Math.ceil(y + h));
     const step = Math.max(1, Math.floor(Math.sqrt(((x1 - x0) * (y1 - y0)) / 3000)));
-    for (let yy = y0; yy < y1; yy += step) for (let xx = x0; xx < x1; xx += step) { const i = (yy * img.w + xx) * 4; fn(img.d[i], img.d[i + 1], img.d[i + 2]); }
+    for (let yy = y0; yy < y1; yy += step) for (let xx = x0; xx < x1; xx += step) { const i = (yy * img.w + xx) * 4; fn(img.d[i], img.d[i + 1], img.d[i + 2], xx, yy); }
   }
   function mean(img, x, y, w, h) {
     let r = 0, g = 0, b = 0, n = 0;
@@ -281,7 +300,11 @@ function qaMeasure() {
   function stats(img, it) {
     const rs = [];
     const a = it.a;
-    pixels(img, it.x, it.y, it.w, it.h, (r, g, b) => {
+    const skip = it.skip || [], lines = it.lines && it.lines.length > 1 ? it.lines : null;
+    const inside = (k, px, py) => px >= k.x && px < k.x + k.w && py >= k.y && py < k.y + k.h;
+    pixels(img, it.x, it.y, it.w, it.h, (r, g, b, px, py) => {
+      if (lines && !lines.some((k) => inside(k, px, py))) return;
+      if (skip.some((k) => inside(k, px, py))) return;
       const tr = a * it.col[0] + (1 - a) * r, tg = a * it.col[1] + (1 - a) * g, tb = a * it.col[2] + (1 - a) * b;
       rs.push(ratio(lum(tr, tg, tb), lum(r, g, b)));
     });
