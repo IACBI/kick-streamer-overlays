@@ -546,11 +546,14 @@ body.theme-paper .ko-stat svg { filter: none; }
   font-variant-numeric: tabular-nums; letter-spacing: .2px; white-space: nowrap;
 }
 .ko-sep-v { width: 1px; height: 18px; background: var(--surface-border); }
+/* The ring in the text colour keeps the live dot visible when the accent is close to the panel (violet or red on
+   dark, yellow on pastel). The pulse is a calm breath: a hard blink beside the numbers pulls the eye all stream. */
 .ko-dot {
   width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: var(--accent);
-  box-shadow: 0 0 8px var(--accent); animation: ko-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--text) 70%, transparent), 0 0 8px var(--accent);
+  animation: ko-pulse 2.4s ease-in-out infinite;
 }
-@keyframes ko-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.82); } }
+@keyframes ko-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.88); } }
 
 /* ---- chat ---- */
 .ko-feed {
