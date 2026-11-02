@@ -32,6 +32,7 @@ async function main() {
   }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kick-relay-'));
   const exe = path.join(dir, path.basename(built));
+  const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'kick-relay-cwd-'));
   fs.copyFileSync(built, exe);
   fs.chmodSync(exe, 0o755);
   // Only what the relay reads, so neither RELAY_KEY nor credentials leak in from the caller's shell.
@@ -52,7 +53,7 @@ async function main() {
 
   const [webhookPort, eventsPort] = [await freePort(), await freePort()];
   const child = spawn(exe, [], {
-    cwd: os.tmpdir(), // not the executable's folder: files must still land next to the executable
+    cwd: elsewhere, // not the executable's folder: files must still land next to the executable
     env: { ...baseEnv, RELAY_LOG_FORMAT: 'json', RELAY_WEBHOOK_PORT: String(webhookPort), RELAY_EVENTS_PORT: String(eventsPort) },
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -76,7 +77,7 @@ async function main() {
     const keyText = fs.existsSync(keyFile) ? fs.readFileSync(keyFile, 'utf8') : '';
     const m = /window\.KICK_RELAY_KEY = "([A-Za-z0-9_-]{32,128})";/.exec(keyText);
     check('the access key file is created next to the executable', !!m);
-    check('nothing is written to the working directory', !fs.existsSync(path.join(os.tmpdir(), 'AYARLAR.relay.js')));
+    check('nothing is written to the working directory', fs.readdirSync(elsewhere).length === 0);
 
     if (m) {
       const r = await fetch(`${base}/health?key=${m[1]}`);
@@ -103,6 +104,7 @@ async function main() {
     for (let i = 0; i < 20; i++) {
       try { fs.rmSync(dir, { recursive: true, force: true }); break; } catch (e) { await sleep(250); }
     }
+    fs.rmSync(elsewhere, { recursive: true, force: true });
   }
 
   const failed = results.filter((ok) => !ok).length;

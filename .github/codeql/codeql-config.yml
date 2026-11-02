@@ -1,0 +1,7 @@
+name: CodeQL config
+
+# The test suites read the relay's access key from a temporary folder and send it to a relay on
+# 127.0.0.1, which is what they exist to check. They are not shipped (see .gitattributes), so
+# scanning them only reports that by design. Everything that runs on a streamer's machine is scanned.
+paths-ignore:
+  - tests

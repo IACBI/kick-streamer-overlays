@@ -327,8 +327,7 @@ function statusOf(port, p, headers) {
     const CFG = require(path.join(__dirname, '..', 'relay', 'config.js'));
     check('normalizeSlug follows the kanal rules', CFG.normalizeSlug('  https://kick.com/@Foo_Bar/videos ') === 'foo_bar' && CFG.normalizeSlug('@Name') === 'name' && CFG.normalizeSlug('kick.com/ABC') === 'abc' && CFG.normalizeSlug('x'.repeat(60)).length === 40, CFG.normalizeSlug('  https://kick.com/@Foo_Bar/videos '));
     const fs = require('fs');
-    const tmp = path.join(require('os').tmpdir(), 'ko-relay-cfg-' + process.pid);
-    fs.mkdirSync(tmp, { recursive: true });
+    const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ko-relay-cfg-'));
     fs.writeFileSync(path.join(tmp, 'AYARLAR.js'), 'window.KICK_OVERLAY_AYARLAR = { kanal: "FromFile" };');
     fs.writeFileSync(path.join(tmp, 'AYARLAR.local.js'), 'window.KICK_OVERLAY_YEREL = { kickClientId: "fid", kickClientSecret: "fsecret" };');
     const fromFiles = CFG.loadConfig({ root: tmp, env: {} });
@@ -856,10 +855,13 @@ function statusOf(port, p, headers) {
     const h = await get(ep, withKey('/health', key));
     check('CLI: the started relay serves /health on the configured port', h.status === 200 && JSON.parse(h.body).version === PKG_VERSION, h.body);
     if (process.platform !== 'win32') {
-      const exited = new Promise((r) => run.child.on('exit', (code) => r(code)));
+      // run.out is what was printed up to startup; collect what follows, until 'close' (all stdout read).
+      let tail = '';
+      run.child.stdout.on('data', (c) => { tail += c; });
+      const closed = new Promise((r) => run.child.on('close', (code) => r(code)));
       run.child.kill('SIGTERM');
-      const code = await exited;
-      check('CLI: SIGTERM stops the relay cleanly (exit 0, logged)', code === 0 && /stopping \(SIGTERM\)/.test(run.out + await new Promise((r) => setTimeout(() => r(''), 50))), `code=${code}`);
+      const code = await closed;
+      check('CLI: SIGTERM stops the relay cleanly (exit 0, logged)', code === 0 && /stopping \(SIGTERM\)/.test(tail), `code=${code} ${tail.trim()}`);
     } else {
       // Windows has no catchable SIGTERM for a child; CI checks the clean stop on Linux.
       run.child.kill();
