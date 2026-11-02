@@ -9,12 +9,12 @@
 //   2. events listener (127.0.0.1:EVENTS_PORT): serves the overlay over Server-Sent Events, plus
 //      /health, /channel and /subscribers. It is never exposed publicly.
 //
-// Run:  node relay/server.js            (Node.js 18 or newer, no packages)
+// Run:  node relay/server.js            (Node.js 20 or newer, no packages)
 
 const crypto = require('crypto');
 const http = require('http');
 const { HEADER, verifySignature, isFresh, ReplayGuard, TokenBucket, normalizeEvent } = require('./webhook.js');
-const { loadConfig, fetchTimeout, loadRelayKey } = require('./config.js');
+const { loadConfig, fetchTimeout, loadRelayKey, parsePort } = require('./config.js');
 const { createKickApi, retryAfterSec } = require('./kick-api.js');
 
 const VERSION = '2.3.5';
@@ -474,13 +474,19 @@ function createRelay(opts) {
 if (require.main === module) {
   const env = process.env;
   process.on('unhandledRejection', (e) => console.error('Unhandled error (relay keeps running):', e && e.message ? e.message : e));
-  const relay = createRelay({
-    webhookPort: Number(env.RELAY_WEBHOOK_PORT || 8788),
-    eventsPort: Number(env.RELAY_EVENTS_PORT || 8790),
-    broadcasterUserId: String(env.RELAY_BROADCASTER_ID || ''),
-    allowAnyBroadcaster: env.RELAY_ALLOW_ANY_BROADCASTER === '1',
-    fetchImpl: globalThis.fetch
-  });
+  let relay;
+  try {
+    relay = createRelay({
+      webhookPort: parsePort(env.RELAY_WEBHOOK_PORT, 8788, 'RELAY_WEBHOOK_PORT'),
+      eventsPort: parsePort(env.RELAY_EVENTS_PORT, 8790, 'RELAY_EVENTS_PORT'),
+      broadcasterUserId: String(env.RELAY_BROADCASTER_ID || ''),
+      allowAnyBroadcaster: env.RELAY_ALLOW_ANY_BROADCASTER === '1',
+      fetchImpl: globalThis.fetch
+    });
+  } catch (e) {
+    console.error('Could not start the relay:', e.message);
+    process.exit(1);
+  }
   console.log(`Kick relay ${VERSION} starting...`);
   relay.start().then(({ webhookPort, eventsPort, chat }) => {
     console.log('Kick relay running.');
