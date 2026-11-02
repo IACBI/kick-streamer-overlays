@@ -256,6 +256,10 @@
   .st-swatch[data-stil="paper"] i { background: #b45309; }
   .st-swatch[data-stil="retro"] { background: #0a0a0a; border-color: #2a2a2a; }
   .st-swatch[data-stil="retro"] i { height: 8px; margin-top: -4px; border-radius: 0; background: repeating-linear-gradient(90deg, #ffb000 0 4px, transparent 4px 8px); }
+  /* On the light studio the pale swatches would melt into the card, so they get a visible edge. */
+  @media (prefers-color-scheme: light) {
+    .st-swatch[data-stil="pastel"], .st-swatch[data-stil="paper"] { border-color: #b9c1d3; }
+  }
 
   /* ---- Buttons ---- */
   .st-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
@@ -317,6 +321,8 @@
     background: var(--st-raised); color: var(--st-muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
     transition: border-color var(--st-fast) var(--st-ease), background-color var(--st-fast) var(--st-ease), color var(--st-fast) var(--st-ease);
   }
+  /* Desktop has room for every overlay, so the tabs wrap instead of hiding the last ones behind a scrollbar. */
+  @media (min-width: 1000px) { .st-tabs { flex-wrap: wrap; overflow: visible; } }
   .st-tab:hover { border-color: var(--st-muted); color: var(--st-text); }
   .st-tab[aria-selected="true"] { background: var(--st-sel-bg); border-color: var(--st-focus); color: var(--st-text); box-shadow: inset 0 0 0 1px var(--st-focus); }
 
@@ -382,7 +388,10 @@
     .st-stage { min-height: 96px; padding: 8px; }
   }
   @media (max-width: 1199px) { .st-themes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  @media (max-width: 760px) { .st-how { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 760px) {
+    .st-how { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .st-how li { padding: 7px 12px; font-size: 13.5px; }
+  }
   @media (max-width: 560px) {
     .st-top, .st-how, .st-layout, .st-foot { padding-left: 14px; padding-right: 14px; }
     .st-section { padding: 16px; }
