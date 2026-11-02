@@ -8,6 +8,8 @@
  *   node tools/visual-qa.js --out <dir> --overlays chat,ticker --themes glass,neon --accents "#53fc18"
  *   node tools/visual-qa.js --out <dir> --bgs dark,busy    backgrounds: light,dark,busy
  *   node tools/visual-qa.js --out <dir> --no-measure       screenshots only (skip contrast data)
+ *   node tools/visual-qa.js --out <dir> --only main --gate  exit 1 when any measured text misses its WCAG target or a
+ *                                                          layout issue is found (the CI quality gate)
  *   --concurrency N (default 3)   --max-px N (longest sheet edge, default 1900)   --wait ms (extra settle time)
  *   --step-timeout s (default 30) seconds one DevTools call may take; failed sheets are listed at the end (exit 1)
  *
@@ -40,6 +42,8 @@ const EXTRA_WAIT = Number(argOf('--wait', 0));
 const STEP_MS = Number(argOf('--step-timeout', 30)) * 1000;
 const MEASURE = !flag('--no-measure');
 const ONLY = list(argOf('--only', null));
+const GATE = flag('--gate');
+if (GATE && !MEASURE) { console.error('--gate needs the contrast data; drop --no-measure'); process.exit(2); }
 
 const THEMES_ALL = ['glass', 'vivid', 'soft', 'cinema', 'neon', 'minimal', 'pastel', 'terminal', 'aurora', 'holo', 'ember', 'paper', 'retro'];
 const ACCENTS_ALL = [['#53fc18', 'green'], ['#ffd400', 'yellow'], ['#7c3aed', 'violet'], ['#e11d48', 'red']];
@@ -809,7 +813,7 @@ function report() {
   lines.push('\n== layout issues (type|overlay|theme|variant : count)');
   lines.push(Object.entries(iss).sort((a, b) => b[1] - a[1]).slice(0, 60).map(([k, v]) => `${v}  ${k}`).join('\n') || 'none');
   fs.writeFileSync(path.join(OUT, 'worst-contrast.txt'), lines.join('\n'));
-  return lines.join('\n');
+  return { text: lines.join('\n'), failing, issues };
 }
 
 // ---- main ---------------------------------------------------------------------------------------------------
@@ -856,13 +860,19 @@ async function main() {
         }
       }
     }
-    const text = report();
+    const { text, failing, issues } = report();
     const failed = results.sheets.filter((s) => s.error).length;
     fs.writeFileSync(path.join(OUT, 'summary.txt'), `${results.sheets.length} sheets (${failed} failed)\n` + text);
     console.log(`\n${results.sheets.length} sheets, ${failed} failed. See worst-contrast.txt, contrast.json, fill-track.json, issues.json`);
     if (failed) {
       console.log('failed:\n  ' + results.sheets.filter((s) => s.error).map((s) => `${s.file}: ${s.error}`).join('\n  '));
       code = 1;
+    }
+    if (GATE) {
+      for (const r of failing.slice(0, 20)) console.log(`contrast below target: ${r.overlay} ${r.theme} ${r.accent} ${r.bg} ${r.el} "${r.text}" ${r.shP5} < ${r.need}`);
+      for (const i of issues.slice(0, 20)) console.log(`layout issue: ${JSON.stringify(i)}`);
+      console.log(`gate: ${failing.length} contrast item(s) below target, ${issues.length} layout issue(s)`);
+      if (failing.length || issues.length) code = 1;
     }
   } finally {
     runCleanups();
