@@ -59,7 +59,11 @@ function fetchTimeout(fetchImpl, url, options, ms) {
 // Origin "null" too, so this key is what keeps other local pages out of the events API.
 function loadRelayKey(opts) {
   const o = Object.assign({ root: ROOT, env: process.env }, opts || {});
-  if (typeof o.env.RELAY_KEY === 'string' && o.env.RELAY_KEY) return o.env.RELAY_KEY;
+  if (typeof o.env.RELAY_KEY === 'string' && o.env.RELAY_KEY) {
+    // A short or odd key would silently weaken the only real gate on the events API.
+    if (!RELAY_KEY_FORMAT.test(o.env.RELAY_KEY)) throw new Error('RELAY_KEY must be 32-128 characters of A-Z, a-z, 0-9, "_" or "-"');
+    return o.env.RELAY_KEY;
+  }
   const file = path.join(o.root, RELAY_KEY_FILE);
   let key;
   try { key = readSetting(file, 'KICK_RELAY_KEY'); } catch (e) { key = undefined; }
@@ -69,4 +73,14 @@ function loadRelayKey(opts) {
   return key;
 }
 
-module.exports = { ROOT, FETCH_TIMEOUT_MS, readSetting, normalizeSlug, loadConfig, fetchTimeout, loadRelayKey };
+// Port from an environment variable. Unset uses the default; anything else must be 1-65535,
+// so a typo fails at startup instead of binding a random port (Number('') is 0) or throwing NaN.
+function parsePort(value, fallback, name) {
+  if (value === undefined || value === '') return fallback;
+  const s = String(value).trim();
+  const n = /^\d+$/.test(s) ? Number(s) : NaN;
+  if (!Number.isInteger(n) || n < 1 || n > 65535) throw new Error(`${name} must be a port number between 1 and 65535`);
+  return n;
+}
+
+module.exports = { ROOT, FETCH_TIMEOUT_MS, readSetting, normalizeSlug, loadConfig, fetchTimeout, loadRelayKey, parsePort };

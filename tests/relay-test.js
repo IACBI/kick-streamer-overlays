@@ -367,7 +367,7 @@ function statusOf(port, p, headers) {
     check('PUT is refused (405) with an Allow header', put.status === 405 && /GET/.test(put.headers.allow || ''));
 
     const h = JSON.parse((await eget(ep, '/health')).body);
-    check('/health has the 2.3.5 shape', h.ok === true && h.version === '2.3.5' && h.clients === 0 && h.features && typeof h.features.chat === 'boolean' && h.features.channel === true && typeof h.features.subscribers === 'boolean', JSON.stringify(h));
+    check('/health has the 2.3.6 shape', h.ok === true && h.version === '2.3.6' && h.clients === 0 && h.features && typeof h.features.chat === 'boolean' && h.features.channel === true && typeof h.features.subscribers === 'boolean', JSON.stringify(h));
     check('/health: chat true with a broadcaster id, subscribers false without credentials', h.features.chat === true && h.features.subscribers === false);
     check('/health ignores a query string', (await eget(ep, '/health?x=1')).status === 200);
     check('/events with a CORS origin still streams (SSE)', await new Promise((resolve) => {
@@ -411,6 +411,12 @@ function statusOf(port, p, headers) {
       check('loadRelayKey creates AYARLAR.relay.js in the exact format with a 64-hex key', text === `window.KICK_RELAY_KEY = "${k1}";\n` && /^[0-9a-f]{64}$/.test(k1), text.slice(0, 40));
       check('loadRelayKey returns the same key on the next call', CFG.loadRelayKey({ root: dir, env: {} }) === k1);
       check('loadRelayKey: RELAY_KEY from the environment wins', CFG.loadRelayKey({ root: dir, env: { RELAY_KEY: 'env-key-0123456789abcdef0123456789abcdef' } }) === 'env-key-0123456789abcdef0123456789abcdef');
+      let weak = null;
+      try { CFG.loadRelayKey({ root: dir, env: { RELAY_KEY: 'short' } }); } catch (e) { weak = e; }
+      check('loadRelayKey: a weak RELAY_KEY is refused, not silently used', !!weak && /RELAY_KEY/.test(weak.message));
+      const portErr = (v) => { try { CFG.parsePort(v, 1, 'P'); return false; } catch (e) { return true; } };
+      check('parsePort: unset uses the default, valid numbers pass', CFG.parsePort(undefined, 8788, 'P') === 8788 && CFG.parsePort('', 8788, 'P') === 8788 && CFG.parsePort(' 9000 ', 1, 'P') === 9000);
+      check('parsePort: junk, 0, negatives and out-of-range values are refused', ['abc', '0', '-1', '65536', '80.5', '1e3'].every(portErr));
       fs.writeFileSync(file, 'window.KICK_RELAY_KEY = "short";\n');
       const k2 = CFG.loadRelayKey({ root: dir, env: {} });
       check('loadRelayKey replaces a garbage key', /^[0-9a-f]{64}$/.test(k2) && k2 !== 'short' && CFG.loadRelayKey({ root: dir, env: {} }) === k2);
