@@ -173,6 +173,7 @@ The relay reads these environment variables. Each has a default, and the setting
 | `RELAY_ALLOW_ANY_BROADCASTER` | off | `1` accepts chat and bans from any channel. For testing only. |
 | `RELAY_WEBHOOK_PORT` | `8788` | Webhook port. |
 | `RELAY_EVENTS_PORT` | `8790` | Overlay port. If you change it, set `relayAdresi` to match. |
+| `RELAY_KEY` | generated into `AYARLAR.relay.js` | Overlay access key. Must be 32–128 characters of `A-Z a-z 0-9 _ -`; the relay refuses to start otherwise. |
 
 <a id="configuration-en"></a>
 ### Configuration
@@ -420,6 +421,7 @@ Relay şu ortam değişkenlerini okur. Her birinin bir varsayılanı vardır; de
 | `RELAY_ALLOW_ANY_BROADCASTER` | kapalı | `1` yapılırsa her kanaldan sohbet ve yasak olayları kabul edilir. Yalnızca test için. |
 | `RELAY_WEBHOOK_PORT` | `8788` | Webhook portu. |
 | `RELAY_EVENTS_PORT` | `8790` | Overlay portu. Değiştirirsen `relayAdresi` değerini de aynı yap. |
+| `RELAY_KEY` | `AYARLAR.relay.js` içine üretilir | Overlay erişim anahtarı. `A-Z a-z 0-9 _ -` karakterlerinden 32–128 uzunlukta olmalı; değilse relay başlamaz. |
 
 <a id="yapilandirma-tr"></a>
 ### Yapılandırma
