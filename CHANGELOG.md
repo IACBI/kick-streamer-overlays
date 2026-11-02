@@ -15,6 +15,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Theme shadows are tighter (4px offset, 14px blur), so they end inside the OBS source instead of being cut into a line at its edge on light footage.
 - Studio: the theme cards show five per row where their names fit, so no theme sits alone on the last row at common desktop and tablet widths.
 - Countdown: a long title wraps into two even lines on a narrow source.
+- Studio: where the theme cards still leave one card alone on the last row (three or two per row), that card spans the row, so the grid always ends on a full row.
 
 ### Fixed
 - Studio: the error toast in dark mode and the "Copied" button in light mode had text below 4.5:1 contrast; both now measure at least 5:1.
