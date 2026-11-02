@@ -32,7 +32,9 @@
     --st-primary-hover: #7bff4d;
     --st-on-primary: #07130a;
     --st-ok: #4ade80;
+    --st-on-ok: #07130a;
     --st-err: #f87171;
+    --st-on-err: #1f0707;
     --st-warn: #fbbf24;
     --st-shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 22%);
     --st-accent: #53fc18;
@@ -55,7 +57,9 @@
       --st-primary-hover: #1c6a08;
       --st-on-primary: #ffffff;
       --st-ok: #15803d;
+      --st-on-ok: #ffffff;
       --st-err: #b91c1c;
+      --st-on-err: #ffffff;
       --st-warn: #92400e;
       --st-shadow: 0 1px 2px rgb(20 30 60 / 8%), 0 8px 24px rgb(20 30 60 / 8%);
     }
@@ -260,7 +264,7 @@
   .st-btn--primary:hover:not(:disabled) { background: var(--st-primary-hover); border-color: transparent; }
   .st-btn--ghost { background: transparent; }
   .st-btn--small { min-height: 40px; padding: 0 12px; font-size: 13px; }
-  .st-btn.is-done { background: var(--st-ok); border-color: transparent; color: #07130a; }
+  .st-btn.is-done { background: var(--st-ok); border-color: transparent; color: var(--st-on-ok); }
   .st-btn.is-done:hover:not(:disabled) { background: var(--st-ok); }
   .st-btn[aria-pressed="true"] { background: var(--st-sel-bg); border-color: var(--st-focus); box-shadow: inset 0 0 0 1px var(--st-focus); }
   .st-btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
@@ -350,7 +354,7 @@
     box-shadow: var(--st-shadow); transition: opacity .2s, transform .2s;
   }
   .st-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
-  .st-toast.is-err { background: var(--st-err); color: #fff; }
+  .st-toast.is-err { background: var(--st-err); color: var(--st-on-err); }
 
   .st-foot { max-width: 1280px; margin: 0 auto; padding: 0 20px 40px; color: var(--st-muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
 
