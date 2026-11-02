@@ -6,13 +6,31 @@
   "license": "SEE LICENSE IN LICENSE",
   "author": "A.C.B",
   "homepage": "https://github.com/IACBI/kick-streamer-overlays",
-  "repository": { "type": "git", "url": "git+https://github.com/IACBI/kick-streamer-overlays.git" },
-  "bugs": { "url": "https://github.com/IACBI/kick-streamer-overlays/issues" },
-  "engines": { "node": ">=20" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IACBI/kick-streamer-overlays.git"
+  },
+  "bugs": {
+    "url": "https://github.com/IACBI/kick-streamer-overlays/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "node tests/run.js && node tests/relay-test.js",
     "test:browser": "node tests/e2e-chrome.js",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
     "relay": "node relay/server.js",
     "record": "node tools/record-previews.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "20.19.43",
+    "esbuild": "0.28.2",
+    "eslint": "10.13.0",
+    "globals": "17.13.0",
+    "postject": "1.0.0-alpha.6",
+    "typescript": "7.0.2"
   }
 }

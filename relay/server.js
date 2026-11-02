@@ -118,7 +118,7 @@ const numOrNull = (v) => {
 function parseTime(v) {
   if (typeof v !== 'string' || !v) return null;
   const st = v.replace(' ', 'T');
-  const ms = Date.parse(/Z$|[+\-]\d\d:?\d\d$/.test(st) ? st : st + 'Z');
+  const ms = Date.parse(/Z$|[+-]\d\d:?\d\d$/.test(st) ? st : st + 'Z');
   return Number.isNaN(ms) ? null : ms;
 }
 
@@ -473,7 +473,7 @@ function createRelay(opts) {
 // ---- command line ----
 if (require.main === module) {
   const env = process.env;
-  process.on('unhandledRejection', (e) => console.error('Unhandled error (relay keeps running):', e && e.message ? e.message : e));
+  process.on('unhandledRejection', (/** @type {any} */ e) => console.error('Unhandled error (relay keeps running):', e && e.message ? e.message : e));
   let relay;
   try {
     relay = createRelay({

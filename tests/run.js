@@ -217,23 +217,6 @@ function fakeDocument(bodyClass) {
   };
 }
 
-function fakeWebSocket(sockets) {
-  return class FakeWebSocket {
-    constructor(url) {
-      this.url = url;
-      this.readyState = 0;
-      this.sent = [];
-      sockets.push(this);
-    }
-    send(text) { this.sent.push(JSON.parse(text)); }
-    close() {
-      if (this.readyState === 3) return;
-      this.readyState = 3;
-      if (this.onclose) this.onclose();
-    }
-  };
-}
-
 function stripCss(css) {
   return css.replace(/\/\*[\s\S]*?\*\//g, '');
 }
@@ -2440,6 +2423,7 @@ async function testSyntax() {
     });
   }
 }
+
 
 // ---- Main ------------------------------------------------------------------------
 

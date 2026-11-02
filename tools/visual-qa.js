@@ -59,7 +59,6 @@ const OVERLAYS = {
   'ticker':         { file: 'ticker.html',         w: 760, h: 80,  wait: 3500,  params: {} }
 };
 const OVERLAY_NAMES = list(argOf('--overlays', null)) || Object.keys(OVERLAYS);
-const BAR_OVERLAYS = ['follower-bar', 'subscriber-bar', 'combined-bar'];
 
 const CHROME = process.env.CHROME_PATH || [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -68,7 +67,6 @@ const CHROME = process.env.CHROME_PATH || [
 ].find((p) => fs.existsSync(p));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const slug = (s) => String(s).replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
 
 // ---- browser-side measurement (serialised into every sheet page) -----------------------------------
 
@@ -155,7 +153,7 @@ function qaMeasure() {
         const tag = el.tagName.toLowerCase();
         if (tag === 'script' || tag === 'style' || tag === 'link') continue;
         if (el.closest('svg') && tag !== 'svg') continue;
-        let kind = null, box = null, col = null;
+        let kind, box, col;
         if (tag === 'svg') {
           const shape = el.querySelector('path,circle,line,rect,polyline');
           const stroke = shape ? cs(shape).stroke : cs(el).stroke;
@@ -361,6 +359,7 @@ function qaBusyTile() {
 /* eslint-enable no-undef */
 
 // Injected into every frame before its own scripts run.
+/* eslint-disable no-undef */
 const TIMER_TRACKER = '(' + function () {
   if (window.__qaTimers) return;
   window.__qaTimers = [];
@@ -368,6 +367,7 @@ const TIMER_TRACKER = '(' + function () {
   window.setInterval = function () { const id = si.apply(window, arguments); window.__qaTimers.push(['i', id]); return id; };
   window.setTimeout = function () { const id = st.apply(window, arguments); window.__qaTimers.push(['t', id]); return id; };
 }.toString() + ')()';
+/* eslint-enable no-undef */
 
 const CVD_FILTERS = {
   protan: '0.152286 1.052583 -0.204868 0 0  0.114503 0.786281 0.099216 0 0  -0.003882 -0.048116 1.051998 0 0  0 0 0 1 0',

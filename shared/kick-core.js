@@ -96,7 +96,7 @@
   function cleanChannel(v) {
     if (typeof v !== 'string') return '';
     var t = v.trim().replace(/^(?:https?:\/\/)?(?:www\.)?kick\.com\//i, '').replace(/^@/, '');
-    return t.split(/[\/?#\s]/)[0].replace(/^@/, '').toLowerCase().slice(0, 40);
+    return t.split(/[/?#\s]/)[0].replace(/^@/, '').toLowerCase().slice(0, 40);
   }
   function asUrl(v, d) {
     return typeof v === 'string' && URL_RE.test(v.trim()) ? v.trim().replace(/\/+$/, '') : d;
@@ -320,7 +320,8 @@
   function loadFont(s) {
     var d = global.document;
     if (!d || !d.head || typeof d.createElement !== 'function') return null;
-    var link = typeof d.getElementById === 'function' ? d.getElementById('ko-font') : null;
+    /** @type {HTMLLinkElement} */
+    var link = typeof d.getElementById === 'function' ? /** @type {HTMLLinkElement} */ (d.getElementById('ko-font')) : null;
     if (!link) {
       link = d.createElement('link');
       link.id = 'ko-font';
@@ -603,7 +604,7 @@
   function parseTime(v) {
     if (typeof v !== 'string' || !v) return null;
     var st = v.replace(' ', 'T');
-    var hasZone = /Z$|[+\-]\d\d:?\d\d$/.test(st);
+    var hasZone = /Z$|[+-]\d\d:?\d\d$/.test(st);
     var ms = Date.parse(hasZone ? st : st + 'Z');
     return isNaN(ms) ? null : ms;
   }

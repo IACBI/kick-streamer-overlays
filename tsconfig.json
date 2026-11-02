@@ -1,0 +1,24 @@
+{
+  // Type-checks the plain JavaScript through JSDoc; nothing is compiled or emitted.
+  // TypeScript 7 turns strict on by default. strictNullChecks and noImplicitAny stay off until kick-core.js has
+  // JSDoc types; the strict flags that already pass are listed one by one so they cannot regress.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "noImplicitThis": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "target": "es2022",
+    "module": "commonjs",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "lib": ["es2023", "dom"],
+    "types": ["node"],
+    "skipLibCheck": true
+  },
+  "include": ["relay/**/*.js", "shared/kick-core.js", "tools/sync-version.js"]
+}
