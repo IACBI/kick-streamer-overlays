@@ -19,8 +19,9 @@
   /* A real scrim under every translucent surface, so text survives light footage in every motion mode. */
   --surface-boost: rgb(10 12 18 / 70%);
   --blur: 10px;
-  /* A zero-size shadow instead of none, so shadow lists in the keyframes and in .is-goal stay valid. */
-  --shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+  /* Themes use a zero-size shadow instead of none, so shadow lists in the keyframes and in .is-goal stay valid.
+     Offset + blur stays under the 18-20px a bar has to the OBS source edge, or the edge cuts the shadow into a line. */
+  --shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 52%, #000), color-mix(in srgb, var(--accent) 88%, #000));
   --fill-glow: 0 0 20px rgb(var(--accent-rgb) / 55%);
   /* Darkens the band the text sits on, over fill and track alike; fades to the bar edges so the colour stays alive. */
@@ -86,7 +87,7 @@ body.theme-soft {
   --surface: rgba(255, 255, 255, 0.1);
   --surface-border: rgba(255, 255, 255, 0.08);
   --surface-boost: rgb(12 14 20 / 66%);
-  --shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
+  --shadow: 0 4px 14px rgba(0, 0, 0, 0.24);
   /* Both stops stay dark: the soft look is a calm flat fill, and white text sits on it. */
   --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 52%, #000), color-mix(in srgb, var(--accent) 62%, #000));
   --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 6%), rgb(0 0 0 / 26%) 30%, rgb(0 0 0 / 26%) 70%, rgb(0 0 0 / 6%));
@@ -149,7 +150,7 @@ body.theme-pastel {
   --surface: rgba(255, 255, 255, 0.82);
   --surface-border: rgba(255, 255, 255, 0.9);
   --surface-boost: rgb(255 255 255 / 40%);
-  --shadow: 0 6px 20px rgba(60, 40, 90, 0.18);
+  --shadow: 0 4px 14px rgba(60, 40, 90, 0.18);
   --fill-bg: linear-gradient(90deg, color-mix(in srgb, var(--accent) 36%, #fff), color-mix(in srgb, var(--accent) 60%, #fff));
   --fill-glow: none;
   --bar-scrim: none;
@@ -193,7 +194,7 @@ body.theme-aurora {
   --surface: linear-gradient(180deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 0%) 55%), rgb(8 14 40 / 84%);
   --surface-boost: transparent;
   --surface-border: rgb(94 234 212 / 28%);
-  --shadow: 0 8px 28px rgb(2 6 23 / 45%);
+  --shadow: 0 4px 14px rgb(2 6 23 / 45%);
   /* Fixed deep stops with only a hint of the accent, so a violet or red accent no longer turns the fill muddy. */
   --fill-bg: linear-gradient(90deg,
     color-mix(in srgb, var(--accent) 14%, #0f766e) 0%,
@@ -277,7 +278,7 @@ body.theme-ember {
   --surface: rgb(20 10 6 / 90%);
   --surface-boost: transparent;
   --surface-border: rgb(255 110 40 / 55%);
-  --shadow: 0 8px 24px rgb(0 0 0 / 50%);
+  --shadow: 0 4px 14px rgb(0 0 0 / 50%);
   --fill-bg: linear-gradient(90deg, #7f1d1d 0%, #b91c1c 32%, #c2410c 68%, #d97706 100%);
   --fill-glow: 0 0 18px rgb(234 88 12 / 45%);
   --bar-scrim: linear-gradient(180deg, rgb(0 0 0 / 8%), rgb(0 0 0 / 34%) 30%, rgb(0 0 0 / 34%) 70%, rgb(0 0 0 / 8%));
@@ -419,7 +420,8 @@ html.ko-quiet .cd-fill { transition: none; }
 
 /* ---- goal bar ---- */
 .ko-bar {
-  position: relative; width: 100%; height: var(--bar-h); overflow: hidden;
+  /* border-box: the 1-2px theme border stays inside width: 100%, so a bar in a wrapper does not overhang it. */
+  position: relative; box-sizing: border-box; width: 100%; height: var(--bar-h); overflow: hidden;
   border-radius: var(--r-bar);
   background: linear-gradient(var(--surface-boost), var(--surface-boost)), var(--surface);
   border: 1px solid var(--surface-border);
