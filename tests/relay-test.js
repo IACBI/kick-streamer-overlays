@@ -335,6 +335,11 @@ function statusOf(port, p, headers) {
     const fromEnv = CFG.loadConfig({ root: tmp, env: { KICK_CLIENT_ID: 'eid', KICK_CLIENT_SECRET: 'esecret', KICK_CHANNEL: 'EnvChan' } });
     check('loadConfig reads the settings files', fromFiles.slug === 'fromfile' && fromFiles.credentials && fromFiles.credentials.id === 'fid');
     check('loadConfig prefers the environment', fromEnv.slug === 'envchan' && fromEnv.credentials.id === 'eid');
+    fs.writeFileSync(path.join(tmp, 'AYARLAR.js'), 'window.KICK_OVERLAY_AYARLAR = { channel: "EnglishName" };');
+    check('loadConfig accepts the English "channel" name', CFG.loadConfig({ root: tmp, env: {} }).slug === 'englishname');
+    fs.writeFileSync(path.join(tmp, 'AYARLAR.js'), 'window.KICK_OVERLAY_AYARLAR = { kanal: "Turkish", channel: "English" };');
+    check('loadConfig: kanal wins over channel', CFG.loadConfig({ root: tmp, env: {} }).slug === 'turkish');
+    fs.writeFileSync(path.join(tmp, 'AYARLAR.js'), 'window.KICK_OVERLAY_AYARLAR = { kanal: "FromFile" };');
     fs.writeFileSync(path.join(tmp, 'AYARLAR.local.js'), 'this is not javascript (');
     const broken = CFG.loadConfig({ root: tmp, env: {} });
     check('loadConfig survives a broken settings file', broken.credentials === null && broken.warnings.length === 1 && broken.slug === 'fromfile');

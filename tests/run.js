@@ -36,7 +36,8 @@ const DEFAULTS = {
   aboneHedefi: 100, aboneSayisi: 0, oturumFarkiGoster: true, yuzdeGoster: false,
   yenilemeSn: 30, sohbetMaksMesaj: 8, geriSayimDk: 5, geriSayimBaslik: '', duyuruMetinleri: '', duyuruSn: 6,
   geriSayimSaat: '', sohbetKomutGizle: false, sohbetGizliKullanicilar: '', sohbetSilinmeSn: 0,
-  hataNotu: true, hedefKutlama: true
+  hataNotu: true, hedefKutlama: true,
+  uyariSn: 6, uyariTakip: true, uyariAbone: true, uyariHediye: true, uyariKicks: true
 };
 const RELAY = 'http://127.0.0.1:8790';
 
@@ -369,6 +370,57 @@ async function testReadSettings() {
     eq(s.stil, 'pastel', 'stil from URL wins');
     eq(s.takipciHedefi, 700, 'takipciHedefi from AYARLAR.local.js');
     eq(s.sekil, 'pill', 'sekil default');
+  });
+
+  await check('readSettings: English names work in AYARLAR.js, AYARLAR.local.js and the URL', () => {
+    const { K } = loadCore({
+      ayarlar: { channel: 'FromFile', theme: 'neon', followerGoal: 500, alertSeconds: 99 },
+      yerel: { theme: 'minimal', relayAddress: 'http://127.0.0.1:9100' },
+      search: '?shape=square&alertFollows=false'
+    });
+    const s = K.readSettings();
+    eqFields(s, { kanal: 'fromfile', stil: 'minimal', takipciHedefi: 500, uyariSn: 30, sekil: 'square', uyariTakip: false, relayAdresi: 'http://127.0.0.1:9100' }, '');
+    ok(!('channel' in s) && !('theme' in s), 'aliases are resolved, not copied into the settings');
+  });
+
+  await check('readSettings: within one source the Turkish name wins; a later source wins under either name', () => {
+    const { K } = loadCore({ ayarlar: { stil: 'neon', theme: 'pastel', kanal: 'a' }, search: '?channel=b' });
+    const s = K.readSettings();
+    eq(s.stil, 'neon', 'Turkish key beats its alias in AYARLAR.js');
+    eq(s.kanal, 'b', 'URL alias beats the file');
+  });
+
+  await check('readSettings: the relayAddress alias is local-only, like relayAdresi', () => {
+    const { K } = loadCore({ search: '?relayAddress=https://evil.example.com&relayAdresi=https://evil.example.com' });
+    eq(K.readSettings().relayAdresi, 'http://127.0.0.1:8790', 'relay address from the URL');
+  });
+
+  await check('settings: unknown keys and an own __proto__ from parsed JSON never reach the settings', () => {
+    const { K } = loadCore({ ayarlar: JSON.parse('{"__proto__": {"stil": "neon"}, "evil": 1, "kanal": "ok"}') });
+    const s = K.readSettings();
+    eq(s.stil, 'glass', 'stil from a polluted prototype');
+    eq(s.kanal, 'ok', 'kanal');
+    ok(!('evil' in s), 'unknown key copied');
+    eq(K.normalize(JSON.parse('{"__proto__": {"renk": "#ffffff"}}')).renk, '#53fc18', 'normalize ignores __proto__');
+  });
+
+  await check('aliases: every English name points at a real setting, and none shadows a Turkish key', () => {
+    const { K } = loadCore();
+    const al = K.aliases();
+    const keys = K.schemaKeys().concat(['relayAdresi']);
+    Object.keys(al).forEach((en) => {
+      ok(keys.includes(al[en]), en + ' -> ' + al[en] + ' is not a setting');
+      ok(!keys.includes(en), en + ' is also a Turkish key');
+    });
+    eq(new Set(Object.values(al)).size, Object.keys(al).length, 'one alias per setting');
+    eq(K.schemaKeys().filter((k) => !Object.values(al).includes(k)), [], 'public settings without an English name');
+  });
+
+  await check('alert settings: uyariSn is clamped to 3..30; the four kinds are booleans', () => {
+    const { K } = loadCore();
+    eqFields(K.normalize({ uyariSn: 1 }), { uyariSn: 3 }, '');
+    eqFields(K.normalize({ uyariSn: '12' }), { uyariSn: 12 }, '');
+    eqFields(K.normalize({ uyariSn: 600, uyariKicks: '0', uyariHediye: 'yes' }), { uyariSn: 30, uyariKicks: false, uyariHediye: true }, '');
   });
 
   await check('readSettings: URL values are normalized like file values', () => {
@@ -890,7 +942,7 @@ function fakeEventSource(list) {
 async function testChatFeed() {
   section('Live chat (local relay)');
 
-  await check('connectRelay: opens the relay stream and forwards chat and ban frames in the overlay shape', () => {
+  await check('connectRelay: opens the relay stream and forwards chat, ban and alert frames in the overlay shape', () => {
     const sources = [];
     const statuses = [];
     const messages = [];
@@ -902,7 +954,9 @@ async function testChatFeed() {
       sources[0].onopen();
       sources[0].emit('chat', JSON.stringify({ kind: 'chat', id: 'm-1', username: 'viewer_one', message: 'hello', badges: [] }));
       sources[0].emit('ban', JSON.stringify({ userId: '9', username: 'spammer' }));
-      eq(messages.map((m) => m.kind), ['chat', 'ban'], 'kinds');
+      ['follow', 'sub', 'gift', 'kicks'].forEach((name, i) => sources[0].emit(name, JSON.stringify({ id: 'a-' + i, username: 'u' + i })));
+      sources[0].emit('livestream', JSON.stringify({ id: 'x' }));
+      eq(messages.map((m) => m.kind), ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks'], 'kinds (an unknown event name is not listened to)');
       eq(messages[0].message, 'hello', 'chat text');
       eq(statuses, ['connecting', 'open'], 'statuses');
     } finally {

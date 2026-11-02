@@ -45,7 +45,8 @@ function loadConfig(opts) {
   const secret = o.env.KICK_CLIENT_SECRET || local.kickClientSecret;
   return {
     credentials: id && secret ? { id: String(id), secret: String(secret) } : null,
-    slug: normalizeSlug(o.env.KICK_CHANNEL || pub.kanal),
+    // "channel" is the English name the overlays also accept; "kanal" wins when both are set.
+    slug: normalizeSlug(o.env.KICK_CHANNEL || (pub.kanal !== undefined ? pub.kanal : pub.channel)),
     warnings
   };
 }
