@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [2.3.5] - 2026-11-02
+
 ### Changed
 - Studio: on desktop the preview tabs wrap onto a second row, so all seven overlays are visible without a scrollbar.
 - Studio: every hover and state transition uses one easing curve and two durations; the language switch, preview tabs and background buttons now have hover states.
@@ -16,6 +18,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Studio: the theme cards show five per row where their names fit, so no theme sits alone on the last row at common desktop and tablet widths.
 - Countdown: a long title wraps into two even lines on a narrow source.
 - Studio: where the theme cards still leave one card alone on the last row (three or two per row), that card spans the row, so the grid always ends on a full row.
+- README images are re-recorded from the current pages.
 
 ### Fixed
 - Studio: the error toast in dark mode and the "Copied" button in light mode had text below 4.5:1 contrast; both now measure at least 5:1.
