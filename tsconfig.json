@@ -20,5 +20,5 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["relay/**/*.js", "shared/kick-core.js", "tools/sync-version.js"]
+  "include": ["relay/**/*.js", "shared/kick-core.js", "tools/sync-version.js", "tools/build-relay.js", "tests/relay-binary-test.js"]
 }

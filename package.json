@@ -21,6 +21,8 @@
     "test:browser": "node tests/e2e-chrome.js",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
+    "build:relay": "node tools/build-relay.js",
+    "test:relay-binary": "node tests/relay-binary-test.js",
     "check": "npm run lint && npm run typecheck && node tools/sync-version.js --check && npm test",
     "version": "node tools/sync-version.js && git add shared/kick-core.js",
     "relay": "node relay/server.js",

@@ -14,3 +14,6 @@ AYARLAR.relay.js
 node_modules/
 *.log
 qa-out/
+
+# Built relay executables (npm run build:relay)
+dist/
