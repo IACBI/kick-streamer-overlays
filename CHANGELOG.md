@@ -4,6 +4,15 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [2.3.6] - 2026-11-02
+
+### Security
+- Relay: a `RELAY_KEY` that is not 32–128 characters of `A-Z a-z 0-9 _ -` now stops the relay at startup instead of being accepted as a weak access key.
+
+### Fixed
+- Relay: `RELAY_WEBHOOK_PORT` and `RELAY_EVENTS_PORT` are validated; a typo now fails with a clear message instead of binding a random port or crashing.
+- Relay and CI comments no longer state an outdated Node.js minimum or action tag.
+
 ## [2.3.5] - 2026-11-02
 
 ### Changed
