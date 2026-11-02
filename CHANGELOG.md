@@ -4,6 +4,16 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- Studio: on desktop the preview tabs wrap onto a second row, so all seven overlays are visible without a scrollbar.
+- Studio: every hover and state transition uses one easing curve and two durations; the language switch, preview tabs and background buttons now have hover states.
+- Studio: the three setup steps are more compact on phones, so the settings start higher on the screen.
+- Countdown: when the time runs out, the time pulses three times and then rests instead of pulsing forever.
+
+### Fixed
+- Studio: the error toast in dark mode and the "Copied" button in light mode had text below 4.5:1 contrast; both now measure at least 5:1.
+- Studio: the Pastel and Paper theme swatches keep a visible edge in light mode.
+
 ## [2.3.4] - 2026-10-22
 
 ### Security
