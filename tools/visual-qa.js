@@ -60,7 +60,9 @@ const OVERLAYS = {
   'info-panel':     { file: 'info-panel.html',     w: 300, h: 80,  wait: 3000,  params: {} },
   'chat':           { file: 'chat.html',           w: 460, h: 760, cellH: 330, wait: 12000, params: {} },
   'countdown':      { file: 'countdown.html',      w: 520, h: 190, wait: 3000,  params: {} },
-  'ticker':         { file: 'ticker.html',         w: 760, h: 80,  wait: 3500,  params: {} }
+  'ticker':         { file: 'ticker.html',         w: 760, h: 80,  wait: 3500,  params: {} },
+  // uyariSn=30 keeps the first sample on screen until the timers are frozen; the Kicks sample has every text line.
+  'alerts':         { file: 'alerts.html',         w: 640, h: 200, wait: 2500,  params: { uyariSn: 30, uyariTakip: 0, uyariAbone: 0, uyariHediye: 0 } }
 };
 const OVERLAY_NAMES = list(argOf('--overlays', null)) || Object.keys(OVERLAYS);
 
@@ -152,7 +154,7 @@ function qaMeasure() {
       // The chat feed fades its top 56px out with a mask, so text there is meant to dissolve and is not measured.
       const feedEl = doc.querySelector('.ko-feed');
       const feedTop = feedEl ? feedEl.getBoundingClientRect().top : null;
-      const container = (e) => e.closest('.ko-bar,.ko-panel,.ko-msg,.cd');
+      const container = (e) => e.closest('.ko-bar,.ko-panel,.ko-msg,.ko-alert,.cd');
       for (const el of doc.body.querySelectorAll('*')) {
         const tag = el.tagName.toLowerCase();
         if (tag === 'script' || tag === 'style' || tag === 'link') continue;

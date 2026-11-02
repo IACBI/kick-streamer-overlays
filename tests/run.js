@@ -18,7 +18,7 @@ const CORE_FILE = path.join(ROOT, 'shared', 'kick-core.js');
 const CSS_FILE = path.join(ROOT, 'shared', 'themes.css');
 const SETTINGS_FILE = path.join(ROOT, 'AYARLAR.js');
 const FIXTURE_DIR = path.join(__dirname, 'fixtures');
-const OVERLAY_PAGES = ['follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html', 'countdown.html', 'ticker.html'];
+const OVERLAY_PAGES = ['follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html', 'countdown.html', 'ticker.html', 'alerts.html'];
 // The studio is a configurator: it generates AYARLAR.js, so it does not load the settings scripts.
 const STUDIO_PAGE = 'studio.html';
 
@@ -2420,7 +2420,8 @@ async function testThemesAndPages() {
   await check('themes.css: every overlay component class is defined', () => {
     const components = ['ko-bar', 'ko-fill', 'ko-row', 'ko-cur', 'ko-label', 'ko-sep', 'ko-goal', 'ko-chip', 'is-neg',
       'ko-bump', 'ko-panel', 'is-off', 'ko-dot', 'ko-stat', 'ko-val', 'ko-sep-v', 'ko-feed', 'ko-msg', 'is-leaving',
-      'ko-badges', 'ko-badge', 'ko-user', 'ko-text', 'ko-emote', 'ko-bcast', 'ko-note', 'is-hidden', 'ko-hint'];
+      'ko-badges', 'ko-badge', 'ko-user', 'ko-text', 'ko-emote', 'ko-bcast', 'ko-note', 'is-hidden', 'ko-hint',
+      'ko-alert-stage', 'ko-alert', 'is-out', 'ko-alert-icon', 'ko-alert-body', 'ko-alert-title', 'ko-alert-name', 'ko-alert-detail', 'ko-alert-msg'];
     components.forEach((c) => ok(new RegExp('\\.' + c + '(?![\\w-])').test(css), 'missing .' + c));
   });
 

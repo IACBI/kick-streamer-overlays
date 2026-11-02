@@ -259,6 +259,20 @@ async function offlineChecks() {
   await tk2.shot('ticker.png');
   await tk2.close();
 
+  const al = await openPage('alerts.html', '', [640, 200]);
+  await sleep(1500);
+  const alInfo = await al.eval(`({ hint: !!document.querySelector('.ko-hint'), cards: document.querySelectorAll('.ko-alert').length, title: (document.querySelector('.ko-alert-title') || {}).textContent || '' })`);
+  check('alerts: with no channel, a sample alert plays under the setup hint', alInfo.hint && alInfo.cards === 1 && /New follower/.test(alInfo.title), JSON.stringify(alInfo));
+  check('alerts: no unexpected errors', unexpected(al.logs).length === 0, short(unexpected(al.logs)));
+  await al.shot('alerts.png');
+  await al.close();
+
+  const alOff = await openPage('alerts.html', '?onizleme=1&uyariTakip=0&uyariAbone=0&dil=en', [640, 200]);
+  await sleep(1500);
+  const offInfo = await alOff.eval(`({ cls: (document.querySelector('.ko-alert') || {}).className || '', title: (document.querySelector('.ko-alert-title') || {}).textContent || '', detail: (document.querySelector('.ko-alert-detail') || {}).textContent || '' })`);
+  check('alerts: kinds switched off are skipped (first sample shown is the gift)', /is-gift/.test(offInfo.cls) && offInfo.title === 'Gifted subs' && offInfo.detail === 'gifted 5 subs', JSON.stringify(offInfo));
+  await alOff.close();
+
   const ch = await openPage('chat.html', '', [460, 760]);
   await sleep(5000);
   const chInfo = await ch.eval(`({ msgs: document.querySelectorAll('.ko-msg:not(.is-leaving)').length })`);
@@ -540,6 +554,7 @@ async function relayChecks() {
   // A copy of the overlay that points at this relay and at the test channel.
   const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'kick-relay-'));
   fs.copyFileSync(path.join(ROOT, 'chat.html'), path.join(copy, 'chat.html'));
+  fs.copyFileSync(path.join(ROOT, 'alerts.html'), path.join(copy, 'alerts.html'));
   fs.cpSync(path.join(ROOT, 'shared'), path.join(copy, 'shared'), { recursive: true });
   // chat.html loads only AYARLAR.js (it needs no credentials); relayAdresi is allowed there.
   fs.writeFileSync(path.join(copy, 'AYARLAR.js'),
@@ -585,6 +600,8 @@ async function relayChecks() {
     const stillThere = await chat.eval(`Array.from(document.querySelectorAll('.ko-msg:not(.is-leaving)')).some((m) => m.textContent.includes('Relay canli mesaj'))`);
     check('relay chat: a ban removes that user\'s messages', stillThere === false);
 
+    await alertRelayChecks(copy, webhookPort, privateKey);
+
     relay.stop();
     const noteState = `(() => { const n = document.querySelector('.ko-note'); return n && !n.classList.contains('is-hidden') ? n.textContent : ''; })()`;
     await sleep(2000);
@@ -597,6 +614,52 @@ async function relayChecks() {
     await chat.close();
     try { relay.stop(); } catch (e) { /* already stopped */ }
     fs.rmSync(copy, { recursive: true, force: true });
+  }
+}
+
+// Alerts on the same relay: signed follow, gift and a hostile name, shown one at a time and only as text.
+async function alertRelayChecks(copy, webhookPort, privateKey) {
+  const al = await openPageFrom(copy, 'alerts.html', '?uyariSn=3&dil=en', [640, 200]);
+  const fixture = (name) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', `webhook-${name}.json`), 'utf8'));
+  const forUs = (obj) => JSON.stringify(Object.assign(obj, { broadcaster: Object.assign(obj.broadcaster, { user_id: 113812015 }) }));
+  try {
+    await sleep(2000);
+    const follow = fixture('channel-followed');
+    follow.follower.username = 'alert_fan';
+    check('relay alerts: a signed follow is accepted (200)', (await relayPost(webhookPort, 'e2e-al-1', forUs(follow), privateKey, 'channel.followed')) === 200);
+    const hostile = fixture('channel-followed');
+    hostile.follower.username = '<img src=x onerror="window.__pwned=1">';
+    await relayPost(webhookPort, 'e2e-al-2', forUs(hostile), privateKey, 'channel.followed');
+    await relayPost(webhookPort, 'e2e-al-3', forUs(fixture('subscription-gifts-anonymous')), privateKey, 'channel.subscription.gifts');
+    await sleep(800);
+    const first = await al.eval(`({ live: document.querySelectorAll('.ko-alert:not(.is-out)').length, name: (document.querySelector('.ko-alert:not(.is-out) .ko-alert-name') || {}).textContent || '' })`);
+    check('relay alerts: the follow is on screen, one card at a time while two wait', first.live === 1 && first.name === 'alert_fan', JSON.stringify(first));
+    await sleep(3800);
+    const second = await al.eval(`({ name: (document.querySelector('.ko-alert:not(.is-out) .ko-alert-name') || {}).textContent || '', imgs: document.querySelectorAll('#stage img').length, pwned: window.__pwned === 1 })`);
+    check('relay alerts: a name with markup is shown as text, never run', second.name.startsWith('<img') && second.imgs === 0 && !second.pwned, JSON.stringify(second));
+    await sleep(3800);
+    const third = await al.eval(`({ name: (document.querySelector('.ko-alert:not(.is-out) .ko-alert-name') || {}).textContent || '', detail: (document.querySelector('.ko-alert:not(.is-out) .ko-alert-detail') || {}).textContent || '' })`);
+    check('relay alerts: an anonymous gift follows in order, counting its giftees', third.name === 'Anonymous' && third.detail === 'gifted 2 subs', JSON.stringify(third));
+    check('relay alerts: no unexpected errors', unexpected(al.logs).length === 0, short(unexpected(al.logs)));
+  } finally {
+    await al.close();
+  }
+
+  // A follow raid: one shows, 25 wait, and every later arrival drops the oldest waiting follow.
+  const raid = await openPageFrom(copy, 'alerts.html', '?uyariSn=30&debug=1', [640, 200]);
+  try {
+    await sleep(2000);
+    for (let i = 0; i < 30; i++) {
+      const f = fixture('channel-followed');
+      f.follower.username = 'raider_' + i;
+      await relayPost(webhookPort, 'e2e-raid-' + i, forUs(f), privateKey, 'channel.followed');
+    }
+    await relayPost(webhookPort, 'e2e-raid-gift', forUs(fixture('subscription-gifts')), privateKey, 'channel.subscription.gifts');
+    await sleep(1200);
+    const dbg = await raid.eval(`(document.querySelector('.ko-debug') || {}).textContent || ''`);
+    check('relay alerts: a raid keeps the queue at 25 and counts every dropped arrival', /queued: 25$/m.test(dbg) && /dropped: 5$/m.test(dbg), JSON.stringify(dbg));
+  } finally {
+    await raid.close();
   }
 }
 
