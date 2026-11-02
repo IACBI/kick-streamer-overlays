@@ -214,6 +214,9 @@
   /* ---- Choice cards and segmented options (native radios, visually hidden) ---- */
   .st-themes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
   .st-themes > .st-opt { min-width: 0; }
+  /* A card that would sit alone on the last row spans it instead, so the grid always ends on a full row.
+     Each column count gets its own n, so this stays right if the number of themes changes. */
+  .st-themes > .st-opt:last-child:nth-child(4n+1) { grid-column: 1 / -1; }
   .st-seg-group { display: flex; flex-wrap: wrap; gap: 8px; }
   .st-opt {
     position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px;
@@ -393,7 +396,11 @@
     .st-tabs { padding-bottom: 8px; }
     .st-stage { min-height: 96px; padding: 8px; }
   }
-  @media (max-width: 1199px) { .st-themes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 1199px) {
+    .st-themes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .st-themes > .st-opt:last-child:nth-child(n) { grid-column: auto; }
+    .st-themes > .st-opt:last-child:nth-child(3n+1) { grid-column: 1 / -1; }
+  }
   @media (max-width: 760px) {
     .st-how { grid-template-columns: minmax(0, 1fr); gap: 6px; }
     .st-how li { padding: 7px 12px; font-size: 13.5px; }
@@ -402,12 +409,18 @@
     .st-top, .st-how, .st-layout, .st-foot { padding-left: 14px; padding-right: 14px; }
     .st-section { padding: 16px; }
     .st-themes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .st-themes > .st-opt:last-child:nth-child(n) { grid-column: auto; }
+    .st-themes > .st-opt:last-child:nth-child(2n+1) { grid-column: 1 / -1; }
     .st-actions .st-btn { flex: 1 1 100%; }
     .st-color-row input[type="text"] { max-width: none; }
   }
   /* 13 themes leave one card alone in 2, 3 or 4 columns. Five columns (5, 5, 3) wherever the names still fit. */
   .st-themes-box { container-type: inline-size; }
-  @container (min-width: 540px) { .st-themes { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+  @container (min-width: 540px) {
+    .st-themes { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .st-themes > .st-opt:last-child:nth-child(n) { grid-column: auto; }
+    .st-themes > .st-opt:last-child:nth-child(5n+1) { grid-column: 1 / -1; }
+  }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     * { transition: none !important; }
