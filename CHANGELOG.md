@@ -12,11 +12,17 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Studio: editing a setting updates the preview in place. The overlay no longer fades out and counts up from zero after every change; switching tabs or changing the motion setting still shows the intro.
 - Studio: with no channel set, one notice above the link cards explains the setup hint and jumps to the channel field. The affected cards show a short "Needs channel" chip instead of repeating the sentence.
 - Info panel: the live dot pulses more calmly.
+- Theme shadows are tighter (4px offset, 14px blur), so they end inside the OBS source instead of being cut into a line at its edge on light footage.
+- Studio: the theme cards show five per row where their names fit, so no theme sits alone on the last row at common desktop and tablet widths.
+- Countdown: a long title wraps into two even lines on a narrow source.
 
 ### Fixed
 - Studio: the error toast in dark mode and the "Copied" button in light mode had text below 4.5:1 contrast; both now measure at least 5:1.
 - Studio: the Pastel and Paper theme swatches keep a visible edge in light mode.
 - Info panel: the live dot keeps a thin ring in the text colour, so it stays visible when the accent is close to the panel (violet or red on dark themes, yellow on Pastel).
+- Subscriber bar and combined bar sat 16px low in their OBS source with their shadow cut off; they are centred now. Bars inside a wrapper no longer overhang it by 2px.
+- Countdown: the Aurora fill is visible against its track (3:1 or more, was about 1.1:1).
+- Studio: the setup steps are inside the page header landmark, and the preview panel (not the frame inside it) takes the keyboard stop, with a visible focus ring.
 
 ## [2.3.4] - 2026-10-22
 
