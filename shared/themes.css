@@ -226,6 +226,9 @@ body.theme-aurora .ko-fill::after {
   will-change: transform;
   animation: ko-aurora-sweep 7s ease-in-out infinite;
 }
+/* The countdown track is thin and carries no text, so it can take the light end of the palette (as in the studio
+   swatch); the deep bar stops measured barely 1.1-1.4:1 against the track on navy. */
+body.theme-aurora .cd-fill { background: linear-gradient(90deg, #2dd4bf, #a78bfa); }
 @keyframes ko-aurora-sweep {
   0%   { transform: translate3d(-100%, 0, 0); }
   55%  { transform: translate3d(100%, 0, 0); }
