@@ -3,7 +3,7 @@
 
 Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime panel, a chat overlay, follow, subscription, gift and Kicks alerts, a "starting soon" countdown, a rotating announcement bar, and a studio that gives you a ready link for each overlay. The basic setup needs no server and no account.
 
-[![CI](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml/badge.svg)](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml) ![License](https://img.shields.io/badge/license-free-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Overlays](https://img.shields.io/badge/overlays-8-0ea5e9) ![Tests](https://img.shields.io/badge/tests-399%20checks-2563eb)
+[![CI](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml/badge.svg)](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml) ![License](https://img.shields.io/badge/license-MIT-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Overlays](https://img.shields.io/badge/overlays-8-0ea5e9) ![Tests](https://img.shields.io/badge/tests-399%20checks-2563eb)
 
 <p align="center"><img src="screenshots/hero.png" alt="Goal bars, a countdown, an announcement bar, an info panel and chat in one theme family" width="860"></p>
 
@@ -271,7 +271,7 @@ Without the relay, the subscriber bars request and renew their own access token 
 
 ### License
 
-Free for everyone, including commercial streaming. Attribution is appreciated but not required. See [LICENSE](LICENSE). This project is not affiliated with Kick.
+[MIT](LICENSE). Free for everyone, including commercial streaming; keep the copyright notice when you share the code. "Kick" and the role icons in `badges/` belong to their owners and are not covered by the license. This project is not affiliated with Kick.
 
 © 2026 𝓐.𝓒.𝓑 · [kick.com/iacbi](https://kick.com/iacbi)
 
@@ -539,7 +539,7 @@ Relay yoksa abone çubukları erişim anahtarını `id.kick.com` üzerinden kend
 
 ### Lisans
 
-Ticari yayın dahil herkes için ücretsiz. Kaynak göstermek hoş karşılanır ama zorunlu değildir. Ayrıntılar için [LICENSE](LICENSE). Bu proje Kick ile bağlantılı değildir.
+[MIT](LICENSE). Ticari yayın dahil herkes için ücretsiz; kodu paylaşırken telif notunu koru. "Kick" adı ve `badges/` klasöründeki rol ikonları sahiplerine aittir, lisansa dahil değildir. Bu proje Kick ile bağlantılı değildir.
 
 © 2026 𝓐.𝓒.𝓑 · [kick.com/iacbi](https://kick.com/iacbi)
 
