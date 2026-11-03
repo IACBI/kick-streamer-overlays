@@ -10,6 +10,12 @@
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
@@ -64,7 +70,7 @@
     if (!text) return 0;
     try {
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = S.dil === 'en' ? 'en-US' : 'tr-TR';
+      u.lang = K.speechLang(S);
       const voice = synth.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith(u.lang.slice(0, 2)));
       if (voice) u.voice = voice;
       u.volume = Math.max(0, Math.min(1, S.uyariSesSeviye / 100));
@@ -79,22 +85,22 @@
     const n = K.fmt;
     switch (ev.kind) {
       case 'follow':
-        return { title: K.label(S, 'Yeni takipçi', 'New follower'), name: ev.username, detail: '' };
+        return { title: K.t(S, 'alert.follow'), name: ev.username, detail: '' };
       case 'sub':
-        if (ev.renewal) return { title: K.label(S, 'Abonelik yenilendi', 'Resubscribed'), name: ev.username,
-          detail: K.label(S, n(ev.months) + '. ay', 'Month ' + n(ev.months)) };
-        return { title: K.label(S, 'Yeni abone', 'New subscriber'), name: ev.username,
-          detail: ev.months > 1 ? K.label(S, n(ev.months) + ' aylık', n(ev.months) + ' months') : '' };
+        if (ev.renewal) return { title: K.t(S, 'alert.resub'), name: ev.username,
+          detail: K.t(S, 'alert.month', { n: ev.months }) };
+        return { title: K.t(S, 'alert.sub'), name: ev.username,
+          detail: ev.months > 1 ? K.t(S, 'alert.months', { n: ev.months }) : '' };
       case 'gift':
-        return { title: K.label(S, 'Hediye abonelik', 'Gifted subs'),
-          name: ev.anonymous ? K.label(S, 'Anonim', 'Anonymous') : ev.username,
-          detail: K.label(S, n(ev.count) + ' abonelik hediye etti', ev.count === 1 ? 'gifted a sub' : 'gifted ' + n(ev.count) + ' subs') };
+        return { title: K.t(S, 'alert.gift'),
+          name: ev.anonymous ? K.t(S, 'name.anonymous') : ev.username,
+          detail: K.t(S, 'event.gifted', { n: ev.count }) };
       case 'kicks':
-        return { title: K.label(S, 'Kicks hediyesi', 'Kicks gift'), name: ev.username,
-          detail: n(ev.amount) + ' Kicks' + (ev.giftName ? ' · ' + ev.giftName : ''), message: ev.message || '' };
+        return { title: K.t(S, 'alert.kicks'), name: ev.username,
+          detail: K.t(S, 'event.kicks', { n: ev.amount }) + (ev.giftName ? ' · ' + ev.giftName : ''), message: ev.message || '' };
       case 'reward':
-        return { title: K.label(S, 'Ödül kullanıldı', 'Reward redeemed'), name: ev.username,
-          detail: ev.rewardTitle + (ev.cost ? ' · ' + n(ev.cost) + ' ' + K.label(S, 'puan', 'points') : ''), message: ev.message || '' };
+        return { title: K.t(S, 'alert.reward'), name: ev.username,
+          detail: ev.rewardTitle + (ev.cost ? ' · ' + n(ev.cost) + ' ' + K.t(S, 'alert.points') : ''), message: ev.message || '' };
     }
     return null;
   }
@@ -249,7 +255,7 @@
       if (downTimer !== null) { clearTimeout(downTimer); downTimer = null; }
       K.note(noteEl, S, '');
     } else if (downTimer === null) {
-      downTimer = setTimeout(() => { downTimer = null; K.note(noteEl, S, K.label(S, 'Bildirim köprüsü çalışmıyor', 'Alert relay not running')); }, RELAY_DOWN_MS);
+      downTimer = setTimeout(() => { downTimer = null; K.note(noteEl, S, K.t(S, 'note.alertRelay')); }, RELAY_DOWN_MS);
     }
   }
 

@@ -8,6 +8,12 @@
 <link rel="icon" href="branding/logo.svg" type="image/svg+xml">
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   :root {
@@ -87,27 +93,27 @@
 (function(){
   const K = window.KickOverlay;
   const S = K.readSettings();
-  const L = (tr, en) => K.label(S, tr, en);
+  const L = (key, vars) => K.t(S, key, vars);
   const BASE = S.relayAdresi;
   const HEALTH_MS = 5000;
   const TIMEOUT_MS = 2500;
-  const KINDS = [['follow', 'Takip', 'Follow'], ['sub', 'Abone', 'Sub'], ['gift', 'Hediye', 'Gift'], ['kicks', 'Kicks', 'Kicks'], ['reward', 'Ödül', 'Reward']];
+  const KINDS = ['follow', 'sub', 'gift', 'kicks', 'reward'];
 
   const $ = (id) => document.getElementById(id);
   const dot = $('dot'), statusText = $('status-text'), msg = $('msg');
   const pauseBtn = $('pause'), skipBtn = $('skip'), replayBtn = $('replay');
   let paused = false, reachable = false, healthTimer = null;
 
-  document.documentElement.lang = S.dil === 'tr' ? 'tr' : 'en';
-  $('h-status').textContent = L('Relay', 'Relay');
-  $('h-alerts').textContent = L('Bildirimler', 'Alerts');
-  $('h-test').textContent = L('Test bildirimi', 'Test alert');
-  skipBtn.textContent = L('Geç', 'Skip');
-  replayBtn.textContent = L('Sonuncuyu tekrarla', 'Replay last');
-  for (const [kind, tr, en] of KINDS) {
+  K.useLang(S);
+  $('h-status').textContent = L('dock.relay');
+  $('h-alerts').textContent = L('dock.alerts');
+  $('h-test').textContent = L('dock.test');
+  skipBtn.textContent = L('dock.skip');
+  replayBtn.textContent = L('dock.replay');
+  for (const kind of KINDS) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.textContent = L(tr, en);
+    b.textContent = L('dock.kind.' + kind);
     b.addEventListener('click', () => send('/test-alert?kind=' + kind, b));
     $('tests').appendChild(b);
   }
@@ -115,7 +121,7 @@
   function say(text, isErr){ msg.textContent = text; msg.className = isErr ? 'err' : ''; }
 
   function renderPause(){
-    pauseBtn.textContent = paused ? L('Devam et', 'Resume') : L('Duraklat', 'Pause');
+    pauseBtn.textContent = paused ? L('dock.resume') : L('dock.pause');
     pauseBtn.setAttribute('aria-pressed', paused ? 'true' : 'false');
   }
 
@@ -139,18 +145,18 @@
   async function health(){
     try {
       const r = await call('/health', 'GET');
-      if (r.status === 401) return showDown(L('Erişim anahtarı yok ya da yanlış: relay’i bir kez başlat, sonra paneli yenile.', 'Access key missing or wrong: start the relay once, then refresh the dock.'));
-      if (r.status !== 200 || !r.data || r.data.ok !== true) return showDown(L('Relay beklenmeyen yanıt verdi.', 'The relay gave an unexpected answer.'));
+      if (r.status === 401) return showDown(L('dock.keyBad'));
+      if (r.status !== 200 || !r.data || r.data.ok !== true) return showDown(L('dock.odd'));
       reachable = true;
       paused = r.data.alertsPaused === true;
       const n = Number(r.data.clients) || 0;
       dot.className = n ? 'ok' : 'warn';
-      statusText.textContent = L('Çalışıyor', 'Running') + ' · v' + String(r.data.version || '?').slice(0, 20) + ' · ' +
-        L(n + ' overlay bağlı', n + (n === 1 ? ' overlay' : ' overlays') + ' connected') + (paused ? ' · ' + L('duraklatıldı', 'paused') : '');
+      statusText.textContent = L('dock.running') + ' · v' + String(r.data.version || '?').slice(0, 20) + ' · ' +
+        L('dock.connected', { n }) + (paused ? ' · ' + L('dock.paused') : '');
       setControls(true);
       renderPause();
     } catch (e) {
-      showDown(L('Relay çalışmıyor. “node relay/server.js” ile başlat.', 'Relay not running. Start it with “node relay/server.js”.'));
+      showDown(L('dock.down'));
     }
   }
 
@@ -166,12 +172,12 @@
     btn.disabled = true;
     try {
       const r = await call(path, 'POST');
-      if (r.status === 200) say(r.data && r.data.clients === 0 ? L('Gönderildi, ama relay’e bağlı overlay yok.', 'Sent, but no overlay is connected to the relay.') : L('Tamam.', 'Done.'));
-      else if (r.status === 409) say(L('Henüz tekrarlanacak bildirim yok.', 'No alert to replay yet.'), true);
-      else if (r.status === 429) say(L('Biraz bekle, sonra tekrar dene.', 'Wait a moment, then try again.'), true);
-      else say(L('Relay isteği reddetti (HTTP ' + r.status + ').', 'The relay refused the request (HTTP ' + r.status + ').'), true);
+      if (r.status === 200) say(r.data && r.data.clients === 0 ? L('dock.sentNone') : L('dock.done'));
+      else if (r.status === 409) say(L('dock.noReplay'), true);
+      else if (r.status === 429) say(L('dock.wait'), true);
+      else say(L('dock.refused', { status: r.status }), true);
     } catch (e) {
-      say(L('Relay’e ulaşılamadı.', 'Could not reach the relay.'), true);
+      say(L('dock.unreachable'), true);
     } finally {
       btn.disabled = false;
       health();
@@ -182,26 +188,26 @@
   skipBtn.addEventListener('click', () => send('/control?action=skip', skipBtn));
   replayBtn.addEventListener('click', () => send('/control?action=replay', replayBtn));
 
-  $('h-countdown').textContent = L('Geri sayım', 'Countdown');
-  $('l-cd-min').textContent = L('Dakika', 'Minutes');
-  $('l-cd-title').textContent = L('Başlık (boş: ayarlardaki)', 'Title (empty: from settings)');
-  $('cd-start').textContent = L('Geri sayımı başlat', 'Start countdown');
-  $('h-ticker').textContent = L('Duyuru çubuğu', 'Announcement bar');
-  $('l-tk-lines').textContent = L('Satırlar, | ile ayrılmış', 'Lines, separated by |');
-  $('tk-send').textContent = L('Duyuruları değiştir', 'Replace announcements');
-  $('tk-reset').textContent = L('Ayarlara dön', 'Back to settings');
+  $('h-countdown').textContent = L('dock.countdown');
+  $('l-cd-min').textContent = L('dock.minutes');
+  $('l-cd-title').textContent = L('dock.title');
+  $('cd-start').textContent = L('dock.cdStart');
+  $('h-ticker').textContent = L('dock.ticker');
+  $('l-tk-lines').textContent = L('dock.lines');
+  $('tk-send').textContent = L('dock.tkSend');
+  $('tk-reset').textContent = L('dock.tkReset');
   $('cd-min').value = String(S.geriSayimDk);
   $('cd-title').value = S.geriSayimBaslik;
   $('tk-lines').value = S.duyuruMetinleri;
 
   $('cd-start').addEventListener('click', (e) => {
     const min = Number($('cd-min').value);
-    if (!Number.isInteger(min) || min < 0 || min > 720) { say(L('Dakika 0 ile 720 arasında bir tam sayı olmalı.', 'Minutes must be a whole number from 0 to 720.'), true); return; }
+    if (!Number.isInteger(min) || min < 0 || min > 720) { say(L('dock.badMinutes'), true); return; }
     send('/overlay?' + new URLSearchParams({ target: 'countdown', minutes: String(min), title: $('cd-title').value.trim() }), e.currentTarget);
   });
   $('tk-send').addEventListener('click', (e) => {
     const lines = $('tk-lines').value.trim();
-    if (!lines.replace(/\|/g, '').trim()) { say(L('En az bir satır yaz.', 'Write at least one line.'), true); return; }
+    if (!lines.replace(/\|/g, '').trim()) { say(L('dock.needLine'), true); return; }
     send('/overlay?' + new URLSearchParams({ target: 'ticker', lines }), e.currentTarget);
   });
   $('tk-reset').addEventListener('click', (e) => send('/overlay?target=ticker&reset=1', e.currentTarget));
@@ -210,12 +216,12 @@
   const CONFIRM_MS = 4000;
   const stReset = $('st-reset');
   let armTimer = null;
-  const disarm = () => { if (armTimer !== null) clearTimeout(armTimer); armTimer = null; stReset.textContent = L('İstatistikleri sıfırla', 'Reset stream stats'); };
-  $('h-stats').textContent = L('Yayın istatistikleri', 'Stream stats');
+  const disarm = () => { if (armTimer !== null) clearTimeout(armTimer); armTimer = null; stReset.textContent = L('dock.stReset'); };
+  $('h-stats').textContent = L('dock.stats');
   disarm();
   stReset.addEventListener('click', (e) => {
     if (armTimer === null) {
-      stReset.textContent = L('Emin misin? Tekrar bas', 'Sure? Press again');
+      stReset.textContent = L('dock.sure');
       armTimer = setTimeout(disarm, CONFIRM_MS);
       return;
     }
@@ -225,7 +231,7 @@
 
   renderPause();
   setControls(false);
-  statusText.textContent = L('Kontrol ediliyor…', 'Checking…');
+  statusText.textContent = L('dock.checking');
   health();
   healthTimer = setInterval(health, HEALTH_MS);
   window.addEventListener('pagehide', () => { clearInterval(healthTimer); disarm(); });

@@ -10,6 +10,12 @@
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
@@ -160,7 +166,7 @@
 
   function showPeak(){
     elPeak.hidden = !(live && peak > 0);
-    if (!elPeak.hidden) elPeak.textContent = K.label(S, 'Zirve', 'Peak') + ' ' + K.fmt(peak);
+    if (!elPeak.hidden) elPeak.textContent = K.t(S, 'info.peak') + ' ' + K.fmt(peak);
   }
 
   function showTitle(){

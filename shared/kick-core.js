@@ -12,7 +12,7 @@
     stil: ['glass', 'vivid', 'soft', 'cinema', 'neon', 'minimal', 'pastel', 'terminal', 'aurora', 'holo', 'ember', 'paper', 'retro'],
     sekil: ['pill', 'rounded', 'square'],
     yaziTipi: ['inter', 'poppins', 'nunito', 'mono'],
-    dil: ['tr', 'en', 'both'],
+    dil: ['tr', 'en', 'both', 'es', 'pt', 'de', 'ar'],
     animasyon: ['normal', 'low', 'off'],
     liderTur: ['gift', 'kicks']
   };
@@ -276,14 +276,57 @@
 
   // ---- Labels, numbers, look ---------------------------------------------
 
-  function label(s, tr, en) {
-    if (s.dil === 'tr') return tr;
-    if (s.dil === 'en') return en;
-    return tr + ' / ' + en;
+  // Intl locale per label language. Arabic keeps Latin digits: viewers read stream numbers at a glance,
+  // and the Arabic-Indic forms change the width of goal bars between languages.
+  var LOCALES = { tr: 'tr-TR', en: 'en-US', both: 'en-US', es: 'es-ES', pt: 'pt-BR', de: 'de-DE', ar: 'ar-u-nu-latn' };
+  var RTL = { ar: true };
+
+  // Numbers follow the label language (1.234 in tr, 1,234 in en). useLang() sets it.
+  var numLocale = 'en-US';
+
+  var pluralCache = {};
+  function pluralOf(lang, n) {
+    if (typeof Intl === 'undefined' || !Intl.PluralRules) return n === 1 ? 'one' : 'other';
+    var r = pluralCache[lang] || (pluralCache[lang] = new Intl.PluralRules(LOCALES[lang] || 'en-US'));
+    return r.select(n);
   }
 
-  // Thousands separators follow the label language: 1.234 for tr, 1,234 otherwise. applyLook() sets it.
-  var numLocale = 'en-US';
+  // One message from shared/lang/<lang>.js, falling back to English, then to the key itself.
+  function message(lang, key, vars) {
+    var packs = global.KICK_LANG || {};
+    var v = (packs[lang] || {})[key];
+    if (v == null) { lang = 'en'; v = (packs.en || {})[key]; }
+    if (v == null) return key;
+    if (typeof v === 'object') {
+      var c = pluralOf(lang, Number(vars && vars.n) || 0);
+      v = v[c] != null ? v[c] : v.other;
+    }
+    return String(v).replace(/\{(\w+)\}/g, function (m, k) {
+      if (!vars || vars[k] == null) return m;
+      return k === 'n' ? fmt(vars[k]) : String(vars[k]);
+    });
+  }
+
+  /** A label in the settings language; "both" shows Turkish / English. vars fill {name} slots, {n} also picks the plural. */
+  function t(s, key, vars) {
+    if (s.dil === 'both') return message('tr', key, vars) + ' / ' + message('en', key, vars);
+    return message(LOCALES[s.dil] ? s.dil : 'en', key, vars);
+  }
+
+  /** Sets the page language, writing direction and number locale from the settings. */
+  function useLang(s) {
+    var root = global.document && global.document.documentElement;
+    numLocale = LOCALES[s.dil] || 'en-US';
+    if (!root) return;
+    // Lets the browser apply the right language rules (hyphenation, screen readers). "both" stays English.
+    root.lang = s.dil === 'both' || !LOCALES[s.dil] ? 'en' : s.dil;
+    root.dir = RTL[s.dil] ? 'rtl' : 'ltr';
+  }
+
+  /** The BCP 47 tag for speech and dates; "both" speaks Turkish, the first half of its labels. */
+  function speechLang(s) {
+    return s.dil === 'both' ? 'tr-TR' : s.dil === 'ar' ? 'ar-SA' : (LOCALES[s.dil] || 'en-US');
+  }
 
   var fmtCache = {};
   function fmt(n) {
@@ -354,9 +397,7 @@
       'motion-' + s.animasyon
     ).join(' ');
     var root = global.document.documentElement;
-    // Lets the browser apply the right language rules (hyphenation, screen readers). "both" stays English.
-    root.lang = s.dil === 'tr' ? 'tr' : 'en';
-    numLocale = s.dil === 'tr' ? 'tr-TR' : 'en-US';
+    useLang(s);
     var rgb = hexToRgb(s.renk);
     root.style.setProperty('--accent', s.renk);
     root.style.setProperty('--accent-rgb', rgb.join(' '));
@@ -449,14 +490,14 @@
   // Short UI strings shared by every overlay, in the viewer-chosen language.
   function text(s) {
     return {
-      hint: label(s, '⚙ AYARLAR.js → kanal ayarla', '⚙ Set kanal in AYARLAR.js'),
-      auth: label(s, 'Kick uygulama bilgisi hatalı', 'Kick app credentials rejected'),
-      rate: label(s, 'Kick istek sınırı, son değer', 'Kick rate limit, showing last value'),
-      error: label(s, 'Kick yanıt vermedi, son değer', 'Kick error, showing last value'),
-      noData: label(s, 'Abone verisi yok', 'No subscriber data'),
-      unreachable: label(s, "Kick'e ulaşılamıyor", 'Kick unreachable'),
-      stale: label(s, 'Veri güncel olmayabilir', 'Data may be out of date'),
-      relayDown: label(s, 'Sohbet köprüsü çalışmıyor', 'Chat relay not running')
+      hint: t(s, 'hint.channel'),
+      auth: t(s, 'note.auth'),
+      rate: t(s, 'note.rate'),
+      error: t(s, 'note.error'),
+      noData: t(s, 'note.noData'),
+      unreachable: t(s, 'note.unreachable'),
+      stale: t(s, 'note.stale'),
+      relayDown: t(s, 'note.chatRelay')
     };
   }
 
@@ -807,7 +848,7 @@
 
   // The overlay note for a page that cannot reach the relay because OBS loads it as a local file.
   function relayBlockedNote(s) {
-    return label(s, 'OBS’te “Yerel dosya” yerine stüdyodaki bağlantıyı kullan', 'In OBS, use the studio link instead of “Local file”');
+    return t(s, 'note.localFile');
   }
 
   // Asks the local relay what it can do. Memoized per page; a failed probe is retried at most every 5 minutes.
@@ -1147,13 +1188,12 @@
 
   // The name and the one-line detail of a recent event, in the label language.
   function eventText(s, e) {
-    var n = fmt;
-    var name = e.anonymous ? label(s, 'Anonim', 'Anonymous') : e.name;
+    var name = e.anonymous ? t(s, 'name.anonymous') : e.name;
     switch (e.kind) {
-      case 'follow': return { name: name, detail: label(s, 'takip etti', 'followed') };
-      case 'sub': return { name: name, detail: e.months > 1 ? label(s, n(e.months) + ' aydır abone', 'subscribed for ' + n(e.months) + ' months') : label(s, 'abone oldu', 'subscribed') };
-      case 'gift': return { name: name, detail: label(s, n(e.count) + ' abonelik hediye etti', e.count === 1 ? 'gifted a sub' : 'gifted ' + n(e.count) + ' subs') };
-      case 'kicks': return { name: name, detail: n(e.amount) + ' Kicks' };
+      case 'follow': return { name: name, detail: t(s, 'event.followed') };
+      case 'sub': return { name: name, detail: e.months > 1 ? t(s, 'event.subMonths', { n: e.months }) : t(s, 'event.subscribed') };
+      case 'gift': return { name: name, detail: t(s, 'event.gifted', { n: e.count }) };
+      case 'kicks': return { name: name, detail: t(s, 'event.kicks', { n: e.amount }) };
     }
     return { name: name, detail: '' };
   }
@@ -1361,7 +1401,9 @@
     isDebug: isDebug,
     sample: SAMPLE,
     splitLines: splitLines,
-    label: label,
+    t: t,
+    useLang: useLang,
+    speechLang: speechLang,
     fmt: fmt,
     pct: pct,
     applyLook: applyLook,

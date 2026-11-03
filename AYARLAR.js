@@ -20,7 +20,7 @@ window.KICK_OVERLAY_AYARLAR = {
   // Font: inter | poppins | nunito | mono
   yaziTipi: "inter",
 
-  // Labels: tr | en | both  (both = "Takipçi / Follower")
+  // Labels: tr | en | both | es | pt | de | ar  (both = "Takipçi / Follower"; ar is right to left)
   dil: "both",
 
   // Motion: normal | low | off

@@ -10,6 +10,12 @@
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   *{ margin:0; padding:0; box-sizing:border-box; }
@@ -57,7 +63,7 @@
   const EMOTE_RE = /\[emote:(\d+):([^\]]+)\]/g;
   const BROADCASTER = new Set(['broadcaster', 'owner', 'host']);
   // The default label follows the label language; a name the streamer typed is shown as written.
-  const BCAST_LABEL = S.yayinciYazisi === 'Streamer' ? K.label(S, 'Yayıncı', 'Streamer') : S.yayinciYazisi;
+  const BCAST_LABEL = S.yayinciYazisi === 'Streamer' ? K.t(S, 'chat.streamer') : S.yayinciYazisi;
   const HIDDEN_USERS = new Set(S.sohbetGizliKullanicilar.split(',')
     .map(n => n.trim().replace(/^@/, '').toLowerCase()).filter(Boolean));
   const SVG_NS = 'http://www.w3.org/2000/svg';

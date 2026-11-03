@@ -165,7 +165,7 @@ async function offlineChecks() {
   })`);
   check('follower-bar: K.loadFont injects exactly one font link, for Inter only', fHead.fonts.length === 1 && /family=Inter:/.test(fHead.fonts[0]) && !/Poppins|Nunito|Roboto/.test(fHead.fonts[0]), short(fHead.fonts));
   check('follower-bar: keeps the two preconnect links', fHead.preconnects === 2, String(fHead.preconnects));
-  check('follower-bar: does not load AYARLAR.local.js (credentials stay out)', !fHead.scripts.includes('AYARLAR.local.js') && fHead.scripts.join() === 'AYARLAR.js,AYARLAR.relay.js,shared/kick-core.js', fHead.scripts.join());
+  check('follower-bar: does not load AYARLAR.local.js (credentials stay out)', !fHead.scripts.includes('AYARLAR.local.js') && fHead.scripts.join() === 'AYARLAR.js,AYARLAR.relay.js,shared/lang/tr.js,shared/lang/en.js,shared/lang/es.js,shared/lang/pt.js,shared/lang/de.js,shared/lang/ar.js,shared/kick-core.js', fHead.scripts.join());
   await f.shot('follower.png');
   await f.close();
 
@@ -214,7 +214,7 @@ async function offlineChecks() {
   check('subscriber-bar: no session delta chip', sInfo.deltaHidden);
   check('subscriber-bar: no unexpected errors', unexpected(s.logs).length === 0, short(unexpected(s.logs)));
   const sScripts = await s.eval(`Array.from(document.scripts).map((e) => e.getAttribute('src')).filter(Boolean).join()`);
-  check('subscriber-bar: loads AYARLAR.js, AYARLAR.local.js, AYARLAR.relay.js, kick-core.js in that order', sScripts === 'AYARLAR.js,AYARLAR.local.js,AYARLAR.relay.js,shared/kick-core.js', sScripts);
+  check('subscriber-bar: loads AYARLAR.js, AYARLAR.local.js, AYARLAR.relay.js, the language files, kick-core.js in that order', sScripts === 'AYARLAR.js,AYARLAR.local.js,AYARLAR.relay.js,shared/lang/tr.js,shared/lang/en.js,shared/lang/es.js,shared/lang/pt.js,shared/lang/de.js,shared/lang/ar.js,shared/kick-core.js', sScripts);
   await s.shot('subscriber.png');
   await s.close();
 

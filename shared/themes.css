@@ -461,6 +461,8 @@ html.ko-quiet .cd-fill { transition: none; }
   background: var(--fill-bg); box-shadow: var(--fill-glow);
   transition: transform var(--ko-dur-fill) var(--ko-ease-out);
 }
+/* Right-to-left: the same reveal, mirrored, so the bar fills from the right and its gradient and shine follow. */
+[dir=rtl] .ko-fill { transform: scaleX(-1) translateX(calc((var(--fill, 0) - 1) * 100%)); }
 /* Opacity is 0 unless the one-shot shine runs, so a static fill shows no stray glint. */
 .ko-fill::after {
   content: ''; position: absolute; inset: 0; opacity: 0;
@@ -517,7 +519,7 @@ html.ko-quiet .cd-fill { transition: none; }
 .ko-label span { font-weight: 700; font-size: var(--size-lbl); color: var(--text); }
 .ko-label .ko-sep { font-weight: 400; color: var(--muted); }
 .ko-chip {
-  display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px;
+  display: inline-block; margin-inline-start: 8px; padding: 2px 8px; border-radius: 999px;
   font-size: 12px; font-weight: 800; color: var(--chip-text); background: var(--chip-fill, var(--chip-bg));
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 30%);
   font-variant-numeric: tabular-nums; vertical-align: middle; text-shadow: none;
@@ -591,7 +593,7 @@ body.theme-paper .ko-stat svg { filter: none; }
   to   { opacity: 0; transform: translateY(calc(var(--ko-rise) * -1)); }
 }
 @keyframes ko-fade { from { opacity: 1; } to { opacity: 0; } }
-.ko-user { font-weight: 700; font-size: 16px; color: var(--name-color, var(--accent)); margin-right: 4px; }
+.ko-user { font-weight: 700; font-size: 16px; color: var(--name-color, var(--accent)); margin-inline-end: 4px; }
 .ko-text { font-size: 18px; color: var(--msg-text); }
 .ko-emote { height: 1.4em; vertical-align: middle; margin: 0 1px; }
 .ko-msg.is-emote-only .ko-emote { height: 2.6em; }
@@ -601,9 +603,13 @@ body.chat-row .ko-feed {
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 56px);
   mask-image: linear-gradient(90deg, transparent 0, #000 56px);
 }
+[dir=rtl] body.chat-row .ko-feed {
+  -webkit-mask-image: linear-gradient(270deg, transparent 0, #000 56px);
+  mask-image: linear-gradient(270deg, transparent 0, #000 56px);
+}
 body.chat-row .ko-msg { flex: 0 0 auto; max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.chat-row .ko-msg.is-emote-only .ko-emote { height: 1.8em; }
-.ko-badges { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; margin-right: 6px; }
+.ko-badges { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; margin-inline-end: 6px; }
 .ko-badge {
   display: inline-flex; align-items: center; justify-content: center; height: 18px; min-width: 18px; padding: 0 3px;
   border-radius: 5px; color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
@@ -698,6 +704,11 @@ body.theme-retro .ko-alert-icon { border-radius: 0; }
 /* The other places sit on the card itself, so their numbers keep the card text contrast. */
 .ko-rank { background: transparent; box-shadow: inset 0 0 0 1.5px var(--track-bg); color: var(--text); text-shadow: var(--text-shadow); }
 .ko-list-title + .ko-item .ko-rank { background: var(--chip-bg); color: var(--chip-text); box-shadow: none; text-shadow: none; }
+/* User-written text (names, messages) takes its direction from its own first letter, so an Arabic message reads
+   right in an English overlay and the other way round. Alignment stays with the page, not the text. */
+.ko-alert-name, .ko-alert-msg, .ko-item-name, .ko-user, .ko-text { unicode-bidi: plaintext; }
+.ko-alert-body { text-align: left; }
+[dir=rtl] .ko-alert-body { text-align: right; }
 .ko-item-name {
   flex: 0 1 auto; min-width: 0; font-size: 16px; font-weight: 800; color: var(--text); text-shadow: var(--text-shadow);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -707,7 +718,7 @@ body.theme-retro .ko-alert-icon { border-radius: 0; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ko-item-value {
-  margin-left: auto; flex: 0 0 auto; font-size: 16px; font-weight: 800; color: var(--text); text-shadow: var(--text-shadow);
+  margin-inline-start: auto; flex: 0 0 auto; font-size: 16px; font-weight: 800; color: var(--text); text-shadow: var(--text-shadow);
   font-variant-numeric: tabular-nums;
 }
 .ko-empty { font-size: 14px; color: var(--muted); text-shadow: var(--text-shadow); }
@@ -721,11 +732,14 @@ body.theme-retro .ko-item-icon, body.theme-retro .ko-rank { border-radius: 0; }
     mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
   }
   body.motion-normal .ko-marquee > span {
-    display: inline-block; padding-left: 100%;
+    display: inline-block; padding-inline-start: 100%;
     animation: ko-marquee var(--mq-ms, 14s) linear infinite;
   }
 }
 @keyframes ko-marquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+/* Right-to-left text enters from the left and runs right, so it is read from its start. */
+[dir=rtl] body.motion-normal .ko-marquee > span { animation-name: ko-marquee-rtl; }
+@keyframes ko-marquee-rtl { from { transform: translateX(0); } to { transform: translateX(100%); } }
 
 /* ---- status / hints ---- */
 .ko-note {
