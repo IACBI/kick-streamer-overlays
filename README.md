@@ -24,12 +24,12 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 
 <p align="center"><img src="screenshots/studio-en.png" alt="The studio: channel, look and theme choices on the left, a live preview with overlay tabs on the right" width="860"></p>
 
-| Feature | Status (checked 2026-10-16) |
+| Feature | Status (checked 2026-11-03) |
 |---|---|
 | Follower goal | Works. The number on screen matches Kick's public count for kick.com/iacbi. |
 | Viewers and uptime | Works from Kick's public data. Not yet checked on a live broadcast. |
-| Subscriber total | Needs a free Kick developer app (see [Configuration](#configuration-en)). Tested against a local copy of Kick's API, not yet with a real app. Without an app, enter the count by hand. |
-| Live chat | Works through the optional relay (see [Live chat](#live-chat-en)). Needs a Kick app and a public tunnel. Tested with signed test events in a real browser; not yet with live Kick delivery. Without the relay, `chat.html` stays empty instead of showing fake messages. |
+| Subscriber total | Needs a free Kick developer app (see [Configuration](#configuration-en)). Checked with a real app on 2026-11-03: the token and channel lookup work, and the count (0) matches the channel. Not yet checked with a channel that has subscribers. Without an app, enter the count by hand. |
+| Live chat | Works through the optional relay (see [Live chat](#live-chat-en)). Needs a Kick app and a public tunnel. Checked with a real message sent in kick.com/iacbi's chat on 2026-11-03: it went from Kick through a Cloudflare tunnel and the relay's signature check onto the overlay. Without the relay, `chat.html` stays empty instead of showing fake messages. |
 | Alerts | Same relay and setup as live chat. Tested with signed test events built from the payloads in Kick's documentation, in a real browser; not yet with live Kick delivery. |
 
 ### Features
@@ -298,12 +298,12 @@ Without the relay, the subscriber bars request and renew their own access token 
 
 <p align="center"><img src="screenshots/studio-tr.png" alt="Stüdyo: solda kanal, görünüm ve tema seçimi, sağda overlay sekmeli canlı önizleme" width="860"></p>
 
-| Özellik | Durum (2026-10-16 kontrolü) |
+| Özellik | Durum (2026-11-03 kontrolü) |
 |---|---|
 | Takipçi hedefi | Çalışıyor. Ekrandaki sayı kick.com/iacbi için Kick'in herkese açık sayısıyla eşleşiyor. |
 | İzleyici ve yayın süresi | Kick'in herkese açık verisinden çalışıyor. Canlı yayında henüz kontrol edilmedi. |
-| Abone toplamı | Ücretsiz bir Kick geliştirici uygulaması gerektirir (bkz. [Yapılandırma](#yapilandirma-tr)). Kick API'sinin yerel bir kopyasıyla test edildi, gerçek uygulamayla henüz değil. Uygulaman yoksa sayıyı elle gir. |
-| Canlı sohbet | Opsiyonel relay ile çalışıyor (bkz. [Canlı sohbet](#canli-sohbet-tr)). Bir Kick uygulaması ve herkese açık bir tünel gerektirir. Gerçek bir Kick teslimatıyla değil, imzalı test olaylarıyla gerçek bir tarayıcıda test edildi. Relay yoksa `chat.html` sahte mesaj yerine boş kalır. |
+| Abone toplamı | Ücretsiz bir Kick geliştirici uygulaması gerektirir (bkz. [Yapılandırma](#yapilandirma-tr)). 2026-11-03'te gerçek bir uygulamayla kontrol edildi: token alma ve kanal sorgusu çalışıyor, sayı (0) kanalla uyuşuyor. Abonesi olan bir kanalda henüz kontrol edilmedi. Uygulaman yoksa sayıyı elle gir. |
+| Canlı sohbet | Opsiyonel relay ile çalışıyor (bkz. [Canlı sohbet](#canli-sohbet-tr)). Bir Kick uygulaması ve herkese açık bir tünel gerektirir. 2026-11-03'te kick.com/iacbi chat'ine yazılan gerçek bir mesajla kontrol edildi: mesaj Kick'ten Cloudflare tüneli ve relay'in imza kontrolü üzerinden overlay'e ulaştı. Relay yoksa `chat.html` sahte mesaj yerine boş kalır. |
 | Bildirimler | Canlı sohbetle aynı relay ve kurulum. Kick'in dokümantasyonundaki örnek verilerden üretilen imzalı test olaylarıyla gerçek bir tarayıcıda test edildi; gerçek Kick teslimatıyla henüz değil. |
 
 ### Özellikler

@@ -8,7 +8,12 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 - The pack is now under the MIT License. Copies must keep the copyright notice; Kick's name and the role icons in `badges/` are not covered.
 - `subscribe` now lists the existing subscriptions first and requests only the missing events, so running it again after an update cannot create duplicates.
+- The README status table reflects the first checks against live Kick: chat delivered end to end, and the subscriber total read with a real app.
 - The README drops the hand-written test count badge; a test keeps the theme and overlay badges in step with the code.
+
+### Fixed
+
+- `subscribe` failed with HTTP 400 against live Kick: it sent `broadcaster_user_id` as a string, and Kick accepts only a number. Found during the first live check; a test now pins the type.
 
 ### Added
 
