@@ -491,6 +491,33 @@ function statusOf(port, p, headers) {
   }
 
   // ======================================================================================
+  console.log('\n== relay: /test-alert');
+  {
+    const clock = mkClock();
+    const r = createRelay(baseOpts({ now: clock.now }));
+    const { eventsPort: ep } = await r.start();
+    const st = openSse(ep);
+    await sleep(100);
+    check('/test-alert: GET is refused (405, POST only)', (await eget(ep, '/test-alert?kind=follow')).status === 405);
+    check('/test-alert: POST without the key gets 401', (await get(ep, '/test-alert?kind=follow', 'POST', { Origin: 'null' })).status === 401);
+    check('/test-alert: a foreign origin is refused (403)', (await eget(ep, '/test-alert?kind=follow', 'POST', { Origin: 'http://evil.example' })).status === 403);
+    check('/test-alert: an unknown kind gets 400', (await eget(ep, '/test-alert?kind=chat', 'POST')).status === 400);
+    check('POST to a read-only route is refused (405)', (await eget(ep, '/health', 'POST')).status === 405);
+    const ok = await eget(ep, '/test-alert?kind=gift&username=Evil', 'POST', { Origin: 'null' });
+    check('/test-alert: POST from the studio (Origin null) with the key is accepted', ok.status === 200 && JSON.parse(ok.body).clients === 1 && ok.headers['access-control-allow-origin'] === 'null', ok.body);
+    check('/test-alert: a second request within the gap gets 429', (await eget(ep, '/test-alert?kind=sub', 'POST')).status === 429);
+    clock.advance(2000);
+    check('/test-alert: allowed again after the gap', (await eget(ep, '/test-alert?kind=kicks', 'POST')).status === 200);
+    await sleep(100);
+    const f = st.frames.filter((x) => x.data.test === true);
+    check('/test-alert: fixed samples reach the stream; query text is never used', f.length === 2 && f[0].event === 'gift' && f[0].data.username === 'TestGifter' && f[1].event === 'kicks' && /^test-/.test(f[0].data.id) && f[0].data.id !== f[1].data.id, JSON.stringify(f));
+    const pre = await eget(ep, '/test-alert?kind=follow', 'OPTIONS', { Origin: 'http://localhost:5173', 'Access-Control-Request-Method': 'POST' });
+    check('/test-alert: preflight allows POST', pre.status === 204 && /POST/.test(pre.headers['access-control-allow-methods'] || ''));
+    st.close();
+    r.stop();
+  }
+
+  // ======================================================================================
   console.log('\n== relay: events access key');
   {
     const r = createRelay(baseOpts());

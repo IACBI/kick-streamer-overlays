@@ -55,6 +55,10 @@
   let dwellTimer = null, outTimer = null, previewTimer = null, downTimer = null;
   let stopRelay = null;
   let shown = 0, dropped = 0;
+  // Preview and sample mode stay silent, so opening the studio or a test page never makes noise.
+  const SILENT = PREVIEW || !S.kanal;
+  const media = K.createAlertMedia(SILENT ? Object.assign({}, S, { uyariSes: false }) : S,
+    Object.keys(ENABLED).filter(k => ENABLED[k]));
 
   function icon(kind){
     const svg = document.createElementNS(SVG_NS, 'svg');
@@ -90,13 +94,30 @@
     return null;
   }
 
+  // A file in alerts/ (see alerts/OKU-README.txt) takes the icon's place; video plays muted, the sound is separate.
+  function art(kind){
+    const a = media.art(kind);
+    if (!a) return null;
+    const m = document.createElement(a.video ? 'video' : 'img');
+    m.className = 'ko-alert-media';
+    m.setAttribute('aria-hidden', 'true');
+    if (a.video) { m.muted = true; m.loop = true; m.autoplay = true; m.playsInline = true; }
+    else m.alt = '';
+    m.src = a.src;
+    return m;
+  }
+
   function build(ev){
     const c = content(ev);
     const el = document.createElement('div');
     el.className = 'ko-alert is-' + ev.kind;
-    const ic = document.createElement('span');
-    ic.className = 'ko-alert-icon';
-    ic.appendChild(icon(ev.kind));
+    let ic = art(ev.kind);
+    if (ic) el.classList.add('has-media');
+    else {
+      ic = document.createElement('span');
+      ic.className = 'ko-alert-icon';
+      ic.appendChild(icon(ev.kind));
+    }
     const body = document.createElement('div');
     body.className = 'ko-alert-body';
     const title = document.createElement('div');
@@ -172,7 +193,8 @@
     current = build(ev);
     stage.appendChild(current);
     shown += 1;
-    K.debug({ shown: shown, queued: queue.length, last: ev.kind });
+    const sound = SILENT ? 'off' : media.play(ev.kind);
+    K.debug({ shown: shown, queued: queue.length, last: ev.kind, sound: sound });
     const dwell = queue.length >= BACKLOG ? Math.max(MIN_DWELL_MS, DWELL_MS / 2) : DWELL_MS;
     dwellTimer = setTimeout(leave, dwell);
   }

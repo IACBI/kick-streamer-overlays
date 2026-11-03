@@ -628,6 +628,27 @@
               </div>
               <p class="st-hint" data-i18n="h.uyariTurler"></p>
             </fieldset>
+            <div class="st-field">
+              <label class="st-check"><input type="checkbox" name="uyariSes" /> <span data-i18n="f.uyariSes"></span></label>
+              <p class="st-hint" data-i18n="h.uyariSes"></p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="uyariSesSeviye" data-i18n="f.uyariSesSeviye"></label>
+              <input id="uyariSesSeviye" name="uyariSesSeviye" type="number" min="0" max="100" step="5" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.uyariSesSeviye"></p>
+            </div>
+            <div class="st-field st-wide">
+              <span class="st-label" data-i18n="f.uyariTest"></span>
+              <div class="st-actions" style="margin-top:0">
+                <button type="button" class="st-btn st-btn--small" id="sesDene" data-i18n="test.sound"></button>
+                <button type="button" class="st-btn st-btn--small" data-test-alert="follow" data-i18n="f.uyariTakip"></button>
+                <button type="button" class="st-btn st-btn--small" data-test-alert="sub" data-i18n="f.uyariAbone"></button>
+                <button type="button" class="st-btn st-btn--small" data-test-alert="gift" data-i18n="f.uyariHediye"></button>
+                <button type="button" class="st-btn st-btn--small" data-test-alert="kicks" data-i18n="f.uyariKicks"></button>
+              </div>
+              <p id="test-durum" class="st-status" role="status" style="margin-top:0"></p>
+              <p class="st-hint" data-i18n="h.uyariTest"></p>
+            </div>
           </div>
         </details>
 
@@ -864,6 +885,19 @@
       'f.uyariHediye': 'Hediye abonelik',
       'f.uyariKicks': 'Kicks hediyesi',
       'h.uyariTurler': 'Bildirimler yerel relay üzerinden gelir; kurulum sohbetle aynıdır.',
+      'f.uyariSes': 'Bildirim sesi çal',
+      'h.uyariSes': 'Her türün kendi kısa sesi var. alerts klasörüne follow.mp3, sub.mp3, gift.mp3 ya da kicks.mp3 koyarsan o çalar. OBS’te kaynağın “Sesi OBS ile kontrol et” seçeneğini aç.',
+      'f.uyariSesSeviye': 'Ses seviyesi (%)',
+      'h.uyariSesSeviye': '0 ile 100 arası. 0 sesi kapatır.',
+      'f.uyariTest': 'Dene',
+      'h.uyariTest': '“Sesi burada dene” sesi bu sayfada çalar. Tür düğmeleri, relay üzerinden açık olan bildirim overlay’ine örnek bir bildirim gönderir (ses ve görsel dahil).',
+      'test.sound': 'Sesi burada dene',
+      'test.played': '{kind} sesi çalındı.',
+      'test.muted': 'Ses kapalı ya da seviye 0.',
+      'test.blocked': 'Tarayıcı sesi engelledi.',
+      'test.sent': 'Test bildirimi gönderildi ({n} bağlı overlay).',
+      'test.none': 'Gönderildi ama bağlı bildirim overlay’i yok. OBS’te alerts.html açık mı?',
+      'test.rate': 'Biraz bekle, sonra tekrar dene.',
       'g.countdown': 'Geri sayım',
       'g.ticker': 'Duyuru çubuğu',
       'f.takipciHedefi': 'Takipçi hedefi',
@@ -1068,6 +1102,19 @@
       'f.uyariHediye': 'Gifted subscriptions',
       'f.uyariKicks': 'Kicks gifts',
       'h.uyariTurler': 'Alerts arrive through the local relay; the setup is the same as for chat.',
+      'f.uyariSes': 'Play an alert sound',
+      'h.uyariSes': 'Each kind has its own short sound. Put follow.mp3, sub.mp3, gift.mp3 or kicks.mp3 in the alerts folder to play that instead. In OBS, turn on “Control audio via OBS” for the source.',
+      'f.uyariSesSeviye': 'Volume (%)',
+      'h.uyariSesSeviye': '0 to 100. 0 turns the sound off.',
+      'f.uyariTest': 'Try it',
+      'h.uyariTest': '“Play the sound here” plays it on this page. The kind buttons send a sample alert through the relay to the open alerts overlay (sound and art included).',
+      'test.sound': 'Play the sound here',
+      'test.played': 'Played the {kind} sound.',
+      'test.muted': 'Sound is off or the volume is 0.',
+      'test.blocked': 'The browser blocked the sound.',
+      'test.sent': 'Test alert sent ({n} overlays connected).',
+      'test.none': 'Sent, but no alerts overlay is connected. Is alerts.html open in OBS?',
+      'test.rate': 'Wait a moment, then try again.',
       'g.countdown': 'Countdown',
       'g.ticker': 'Announcement bar',
       'f.takipciHedefi': 'Follower goal',
@@ -1273,7 +1320,7 @@
     { id: 'countdown', file: 'countdown.html', w: 520, h: 190, group: 'g-countdown', needsChannel: false, keys: ['geriSayimDk', 'geriSayimSaat', 'geriSayimBaslik', 'hataNotu'] },
     { id: 'ticker', file: 'ticker.html', w: 760, h: 80, group: 'g-ticker', needsChannel: false, keys: ['duyuruMetinleri', 'duyuruSn', 'hataNotu'] },
     { id: 'chat', file: 'chat.html', w: 460, h: 760, group: 'g-chat', needsChannel: true, sampleOnly: true, keys: ['sohbetMaksMesaj', 'yayinciYazisi', 'sohbetKomutGizle', 'sohbetGizliKullanicilar', 'sohbetSilinmeSn', 'hataNotu'] },
-    { id: 'alerts', file: 'alerts.html', w: 640, h: 200, group: 'g-alerts', needsChannel: true, sampleOnly: true, keys: ['uyariSn', 'uyariTakip', 'uyariAbone', 'uyariHediye', 'uyariKicks', 'hataNotu'] }
+    { id: 'alerts', file: 'alerts.html', w: 640, h: 200, group: 'g-alerts', needsChannel: true, sampleOnly: true, keys: ['uyariSn', 'uyariTakip', 'uyariAbone', 'uyariHediye', 'uyariKicks', 'uyariSes', 'uyariSesSeviye', 'hataNotu'] }
   ];
   var BACKGROUNDS = ['checker', 'dark', 'light', 'scene'];
 
@@ -1311,7 +1358,9 @@
     { key: 'uyariTakip', note: 'Which alerts to show: new followers, subscriptions, gifted subscriptions, Kicks' },
     { key: 'uyariAbone' },
     { key: 'uyariHediye' },
-    { key: 'uyariKicks' }
+    { key: 'uyariKicks' },
+    { key: 'uyariSes', note: 'Play a sound with each alert. A file in alerts/ (follow.mp3, sub.mp3, gift.mp3, kicks.mp3) replaces the built-in tone' },
+    { key: 'uyariSesSeviye', note: 'Alert volume, 0–100' }
   ]; }
 
   var $ = function (id) { return document.getElementById(id); };
@@ -2047,6 +2096,49 @@
     }
   }
 
+  // ---- Alert sound and test alerts ----------------------------------------------
+
+  var TEST_KINDS = ['follow', 'sub', 'gift', 'kicks'];
+  var soundTry = { level: -1, media: null, next: 0 };
+
+  async function trySound() {
+    var s = currentSettings();
+    var box = $('test-durum');
+    if (!s.uyariSes || !s.uyariSesSeviye) { say(box, 'err', t('test.muted')); return; }
+    // One probe of the alerts/ folder per volume, not one per click.
+    if (soundTry.level !== s.uyariSesSeviye) {
+      soundTry.level = s.uyariSesSeviye;
+      soundTry.media = K.createAlertMedia(s, TEST_KINDS);
+    }
+    await soundTry.media.ready;
+    var kind = TEST_KINDS[soundTry.next % TEST_KINDS.length];
+    soundTry.next += 1;
+    var r = soundTry.media.play(kind);
+    say(box, r === 'blocked' ? 'err' : 'ok', r === 'blocked' ? t('test.blocked') : t('test.played', { kind: kind }));
+  }
+
+  async function sendTestAlert(kind, btn) {
+    var box = $('test-durum');
+    var base = relayValue();
+    btn.disabled = true;
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 2000);
+    try {
+      var res = await fetch(K.relayUrl(base + '/test-alert?kind=' + encodeURIComponent(kind)), { method: 'POST', signal: ctl.signal, cache: 'no-store' });
+      if (res.status === 401) { say(box, 'err', t('relay.key')); return; }
+      if (res.status === 429) { say(box, 'err', t('test.rate')); return; }
+      var data = res.ok ? await res.json() : null;
+      if (!data || data.ok !== true) { say(box, 'err', t('relay.bad', { status: res.status })); return; }
+      var n = Number(data.clients) || 0;
+      say(box, n ? 'ok' : 'err', n ? t('test.sent', { n: n }) : t('test.none'));
+    } catch (e) {
+      say(box, 'err', t('relay.down', { url: base }));
+    } finally {
+      clearTimeout(timer);
+      btn.disabled = false;
+    }
+  }
+
   // ---- Export and import (public settings only) ---------------------------------
 
   var IMPORT_MAX = 100 * 1024;
@@ -2171,6 +2263,10 @@
     $('pv-canli').addEventListener('click', toggleLive);
     $('hepsiniKopyala').addEventListener('click', copyAllLinks);
     $('relayKontrol').addEventListener('click', checkRelay);
+    $('sesDene').addEventListener('click', trySound);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-test-alert]'), function (b) {
+      b.addEventListener('click', function () { sendTestAlert(b.getAttribute('data-test-alert'), b); });
+    });
     $('disaAktar').addEventListener('click', exportSettings);
     $('iceAktar').addEventListener('click', function () { $('iceAktarDosya').click(); });
     $('iceAktarDosya').addEventListener('change', function (e) {
