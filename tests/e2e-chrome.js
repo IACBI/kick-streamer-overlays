@@ -548,7 +548,8 @@ async function relayChecks() {
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
   });
   const accessKey = crypto.randomBytes(16).toString('hex');
-  const relay = createRelay({ publicKeyPem: publicKey, webhookPort: 0, eventsPort: 0, broadcasterUserId: '113812015', accessKey });
+  // credentials: false keeps the test independent of an AYARLAR.local.js on the machine running it.
+  const relay = createRelay({ publicKeyPem: publicKey, webhookPort: 0, eventsPort: 0, broadcasterUserId: '113812015', accessKey, credentials: false });
   const { webhookPort, eventsPort } = await relay.start();
 
   // A copy of the overlay that points at this relay and at the test channel.
@@ -558,6 +559,7 @@ async function relayChecks() {
   fs.copyFileSync(path.join(ROOT, 'info-panel.html'), path.join(copy, 'info-panel.html'));
   fs.copyFileSync(path.join(ROOT, 'studio.html'), path.join(copy, 'studio.html'));
   fs.cpSync(path.join(ROOT, 'shared'), path.join(copy, 'shared'), { recursive: true });
+  fs.cpSync(path.join(ROOT, 'branding'), path.join(copy, 'branding'), { recursive: true });
   // chat.html loads only AYARLAR.js (it needs no credentials); relayAdresi is allowed there.
   fs.writeFileSync(path.join(copy, 'AYARLAR.js'),
     'window.KICK_OVERLAY_AYARLAR = {\n' +
