@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="logo-title">
+  <title id="logo-title">Kick Streamer Overlay Pack</title>
+  <rect width="1024" height="1024" fill="#f4f1ea"/>
+  <g fill="none" stroke="#111111" stroke-width="40" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M262 382 V302 Q262 262 302 262 H382"/>
+    <path d="M642 262 H722 Q762 262 762 302 V382"/>
+    <path d="M762 642 V722 Q762 762 722 762 H642"/>
+    <path d="M382 762 H302 Q262 762 262 722 V642"/>
+  </g>
+  <circle cx="372" cy="436" r="38" fill="#16a34a"/>
+  <rect x="436" y="414" width="216" height="44" rx="22" fill="#111111"/>
+  <rect x="352" y="540" width="320" height="76" rx="38" fill="#111111" opacity=".1"/>
+  <rect x="352" y="540" width="226" height="76" rx="38" fill="#16a34a"/>
+</svg>
