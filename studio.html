@@ -203,6 +203,7 @@
     width: 48px; height: 42px; padding: 3px; background: var(--st-field); border: 1px solid var(--st-line-strong);
     border-radius: 10px; cursor: pointer; flex: 0 0 auto;
   }
+  #ozelCss { min-height: 110px; white-space: pre-wrap; }
   textarea { min-height: 300px; resize: vertical; font-family: 'Roboto Mono', ui-monospace, Consolas, monospace; font-size: 12.5px; line-height: 1.55; white-space: pre; overflow: auto; }
   .st-color-row { display: flex; gap: 10px; align-items: center; }
   .st-color-row input[type="text"] { max-width: 160px; }
@@ -614,6 +615,10 @@
               <label class="st-check"><input type="checkbox" name="sohbetKomutGizle" /> <span data-i18n="f.sohbetKomutGizle"></span></label>
               <p class="st-hint" data-i18n="h.sohbetKomutGizle"></p>
             </div>
+            <div class="st-field st-wide">
+              <label class="st-check"><input type="checkbox" name="sohbetYatay" /> <span data-i18n="f.sohbetYatay"></span></label>
+              <p class="st-hint" data-i18n="h.sohbetYatay"></p>
+            </div>
           </div>
         </details>
 
@@ -750,6 +755,18 @@
               <label class="st-label" for="duyuruSn" data-i18n="f.duyuruSn"></label>
               <input id="duyuruSn" name="duyuruSn" type="number" min="3" max="60" step="1" inputmode="numeric" />
               <p class="st-hint" data-i18n="h.duyuruSn"></p>
+            </div>
+          </div>
+        </details>
+
+        <details class="st-group" id="g-css">
+          <summary><span data-i18n="g.css"></span></summary>
+          <div class="st-group-body st-grid">
+            <div class="st-field st-wide">
+              <label class="st-label" for="ozelCss" data-i18n="f.ozelCss"></label>
+              <textarea id="ozelCss" name="ozelCss" rows="5" maxlength="2000" spellcheck="false" autocapitalize="none" placeholder=".ko-label { letter-spacing: 2px; }"></textarea>
+              <p class="st-warnline" id="css-uyari" role="status" hidden></p>
+              <p class="st-hint" data-i18n="h.ozelCss"></p>
             </div>
           </div>
         </details>
@@ -1130,6 +1147,12 @@
       'f.geriSayimSaat': 'Hedef saat (SS:DD)',
       'h.geriSayimSaat': '24 saatlik yerel saat, örn. 21:30. Doluysa süreden (dakika) önceliklidir; saat bugün geçtiyse yarına sayar. Boş bırak = süreyi kullan.',
       'g.relay': 'Gelişmiş: relay',
+      'g.css': 'Gelişmiş: özel CSS',
+      'warn.css': 'Bu CSS kullanılmıyor: dışarıdan yükleme yapan bir kural, ters eğik çizgi var ya da 2000 karakteri aşıyor.',
+      'f.ozelCss': 'Özel CSS (tüm overlay’ler)',
+      'h.ozelCss': 'En çok 2000 karakter; temanın üzerine uygulanır. Dışarıdan dosya ya da yazı tipi yükleyen kurallar (url(), @import, @font-face, image-set) ve ters eğik çizgi kabul edilmez; böyle bir değer tümüyle yok sayılır.',
+      'f.sohbetYatay': 'Yatay sohbet (tek satır)',
+      'h.sohbetYatay': 'Mesajlar ekranın kenarındaki bir şerit için yan yana dizilir; en yenisi sağda. Kaynak boyutu örneğin 1280 × 80.',
       'g.relay.for': 'canlı sohbet ve bildirim köprüsü',
       'f.relayAdresi': 'Relay adresi',
       'h.relayAdresi': 'Yalnızca relay’i farklı bir adreste çalıştırıyorsan değiştir. Varsayılan dışındaysa AYARLAR.js dosyasına yazılır. Yalnızca https ya da 127.0.0.1 / localhost üzerinden http kabul edilir.',
@@ -1388,6 +1411,12 @@
       'f.geriSayimSaat': 'Target time (HH:MM)',
       'h.geriSayimSaat': '24-hour local time, e.g. 21:30. When set it wins over the length in minutes; if the time has passed today it counts to tomorrow. Leave empty to use the length.',
       'g.relay': 'Advanced: relay',
+      'g.css': 'Advanced: custom CSS',
+      'warn.css': 'This CSS is not used: it has a rule that loads from elsewhere, a backslash, or more than 2000 characters.',
+      'f.ozelCss': 'Custom CSS (all overlays)',
+      'h.ozelCss': 'Up to 2000 characters, applied over the theme. Rules that load files or fonts from elsewhere (url(), @import, @font-face, image-set) and backslashes are not accepted; such a value is ignored as a whole.',
+      'f.sohbetYatay': 'Horizontal chat (one row)',
+      'h.sohbetYatay': 'Messages line up side by side for a strip along the screen edge, newest on the right. Source size e.g. 1280 × 80.',
       'g.relay.for': 'live chat and alert bridge',
       'f.relayAdresi': 'Relay address',
       'h.relayAdresi': 'Change it only if you run the relay at a different address. If it differs from the default it is written to AYARLAR.js. Only https, or http on 127.0.0.1 / localhost, is accepted.',
@@ -1470,7 +1499,7 @@
   // The overlays: file, OBS size, the settings each one reads (besides the common look keys),
   // the settings group that opens when it is previewed, whether it needs a channel name, and whether
   // it can show real Kick data (data) at all: countdown and ticker have none, chat only through the relay.
-  var COMMON = ['kanal', 'stil', 'sekil', 'yaziTipi', 'dil', 'animasyon', 'renk'];
+  var COMMON = ['kanal', 'stil', 'sekil', 'yaziTipi', 'dil', 'animasyon', 'renk', 'ozelCss'];
   var OVERLAYS = [
     { id: 'follower', file: 'follower-bar.html', w: 520, h: 90, group: 'g-goals', needsChannel: true, data: true, keys: ['takipciHedefi', 'takipciYedek', 'yuzdeGoster', 'yenilemeSn', 'hedefKutlama', 'hedefArtis', 'hataNotu'] },
     { id: 'subscriber', file: 'subscriber-bar.html', w: 520, h: 90, group: 'g-goals', needsChannel: false, data: true, keys: ['aboneHedefi', 'aboneSayisi', 'oturumFarkiGoster', 'yuzdeGoster', 'yenilemeSn', 'hedefKutlama', 'hedefArtis', 'hataNotu'] },
@@ -1478,7 +1507,7 @@
     { id: 'info', file: 'info-panel.html', w: 300, h: 80, group: 'g-goals', needsChannel: true, data: true, keys: ['yenilemeSn', 'bilgiBaslik', 'hataNotu'] },
     { id: 'countdown', file: 'countdown.html', w: 520, h: 190, group: 'g-countdown', needsChannel: false, keys: ['geriSayimDk', 'geriSayimSaat', 'geriSayimBaslik', 'hataNotu'] },
     { id: 'ticker', file: 'ticker.html', w: 760, h: 80, group: 'g-ticker', needsChannel: false, keys: ['duyuruMetinleri', 'duyuruSn', 'hataNotu'] },
-    { id: 'chat', file: 'chat.html', w: 460, h: 760, group: 'g-chat', needsChannel: true, sampleOnly: true, keys: ['sohbetMaksMesaj', 'yayinciYazisi', 'sohbetKomutGizle', 'sohbetGizliKullanicilar', 'sohbetSilinmeSn', 'hataNotu'] },
+    { id: 'chat', file: 'chat.html', w: 460, h: 760, group: 'g-chat', needsChannel: true, sampleOnly: true, keys: ['sohbetMaksMesaj', 'yayinciYazisi', 'sohbetKomutGizle', 'sohbetGizliKullanicilar', 'sohbetSilinmeSn', 'sohbetYatay', 'hataNotu'] },
     { id: 'alerts', file: 'alerts.html', w: 640, h: 200, group: 'g-alerts', needsChannel: true, sampleOnly: true, keys: ['uyariSn', 'uyariTakip', 'uyariAbone', 'uyariHediye', 'uyariKicks', 'uyariOdul', 'uyariSes', 'uyariSesSeviye', 'uyariOdulGizle', 'uyariTts', 'uyariTtsUzunluk', 'uyariTtsYasak', 'hataNotu'] },
     { id: 'events', file: 'events.html', w: 420, h: 400, group: 'g-stats', needsChannel: true, sampleOnly: true, keys: ['olaySayisi', 'hataNotu'] },
     { id: 'leaderboard', file: 'leaderboard.html', w: 380, h: 400, group: 'g-stats', needsChannel: true, sampleOnly: true, keys: ['liderTur', 'liderSayisi', 'hataNotu'] },
@@ -1513,6 +1542,7 @@
     { key: 'sohbetKomutGizle', note: 'Hide chat messages that start with "!" (commands)' },
     { key: 'sohbetGizliKullanicilar', note: 'Usernames hidden from chat, separated by commas (not case-sensitive). Example: "nightbot, botrix"' },
     { key: 'sohbetSilinmeSn', note: 'Chat messages fade out after this many seconds (0 = never, up to 600)' },
+    { key: 'sohbetYatay', note: 'Chat in one horizontal row for a strip along the screen edge (e.g. a 1280 x 80 source)' },
     { key: 'geriSayimDk', note: 'Countdown (countdown.html): minutes to count down from when the page loads' },
     { key: 'geriSayimSaat', note: 'Countdown target time as 24-hour local HH:MM (e.g. "21:30").\nWhen set it wins over geriSayimDk; a time that has passed today means tomorrow. Empty = use minutes' },
     { key: 'geriSayimBaslik', note: 'Countdown title. Empty = "Starting soon" in your label language' },
@@ -1534,7 +1564,8 @@
     { key: 'liderTur', note: 'Leaderboard (leaderboard.html): gift = top gifters | kicks = top Kicks senders' },
     { key: 'liderSayisi', note: 'People on the leaderboard (3–10)' },
     { key: 'kicksHedefi', note: 'Kicks goal bar (kicks-bar.html): Kicks to reach this stream' },
-    { key: 'trenSn', note: 'Sub train (sub-train.html): seconds a new subscription has to keep the train going (30–600)' }
+    { key: 'trenSn', note: 'Sub train (sub-train.html): seconds a new subscription has to keep the train going (30–600)' },
+    { key: 'ozelCss', note: 'Custom CSS for every overlay, up to 2000 characters. url(), @import, @font-face, image-set and backslashes are not accepted' }
   ]; }
 
   var $ = function (id) { return document.getElementById(id); };
@@ -2256,6 +2287,15 @@
     warn.textContent = bad ? t(light ? 'warn.accentLight' : 'warn.accentDark', { theme: labelOf('stil', s.stil), ratio: ratio.toFixed(1) }) : '';
   }
 
+  // The overlays ignore a custom CSS value they refuse, so the studio says so instead of showing nothing.
+  function checkCss() {
+    var raw = $('ozelCss').value.trim();
+    var refused = raw !== '' && K.normalize({ ozelCss: raw }).ozelCss === '';
+    var warn = $('css-uyari');
+    warn.hidden = !refused;
+    warn.textContent = refused ? t('warn.css') : '';
+  }
+
   // ---- Relay check -----------------------------------------------------------
 
   // A running relay's /health as [level, text] lines, each telling the streamer what to do next.
@@ -2431,6 +2471,7 @@
     out.value = buildAyarlar(s);
     refreshCards(s);
     checkAccent(s);
+    checkCss();
     saveDraft();
     scheduleFrame();
   }

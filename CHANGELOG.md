@@ -13,6 +13,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Studio: a tab and a settings group for both overlays; the OBS scene collection adds them hidden.
 - `kicks-bar.html`: a Kicks goal bar for the stream (`kicksHedefi` / `kicksGoal`).
 - `sub-train.html`: subscriptions and gifted subscriptions in a row, with the time left to keep the train going (`trenSn` / `subTrainSeconds`, 30–600 s). It hides while no train runs. The relay keeps a whole train, however long, instead of only the last 10 minutes.
+- Custom CSS for every overlay: `ozelCss` (`customCss`), up to 2000 characters, with a studio field that says when a value is refused. Anything that could load from elsewhere (`url(`, `@import`, `@font-face`, `image-set`, backslash escapes) rejects the whole value, so a shared link cannot make an overlay fetch remote content.
+- Chat: `sohbetYatay` (`chatHorizontal`) lays messages out in one row, newest on the right, with the same slide as the vertical feed; a message of emotes alone shows them larger.
 - Goal auto-step `hedefArtis` (`goalStep`): a reached follower, subscriber or Kicks goal rises by the step, with the goal pulse when it happens live.
 
 ## [2.6.0] - 2026-11-03

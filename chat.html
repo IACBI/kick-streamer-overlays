@@ -35,6 +35,9 @@
   const T = K.text(S);
 
   const feed = document.getElementById('feed');
+  // sohbetYatay: one row of messages for a strip along the screen edge; the newest is on the right.
+  const ROW = S.sohbetYatay;
+  if (ROW) document.body.classList.add('chat-row');
   const noteEl = document.getElementById('note');
   const MAX = S.sohbetMaksMesaj;
   // Fallbacks for the .ko-msg.is-leaving (.4s) and .is-fading (.6s) animations in themes.css;
@@ -308,14 +311,17 @@
     if(!flipOn()){ gone.forEach(el => el.remove()); return; }
 
     // ---- reads: the layout is clean from here until the first write ----
-    if(rowGap < 0) rowGap = parseFloat(window.getComputedStyle(feed).rowGap) || 0;
-    const feedTop = feed.getBoundingClientRect().top;
-    let up = 0;                      // total height the added rows put under the old ones
-    added.forEach(el => { up += el.offsetHeight + rowGap; });
+    // The same slide in either layout: vertical rows move up, a horizontal row moves left.
+    if(rowGap < 0) rowGap = parseFloat(window.getComputedStyle(feed)[ROW ? 'columnGap' : 'rowGap']) || 0;
+    const size = (el) => ROW ? el.offsetWidth : el.offsetHeight;
+    const feedRect = feed.getBoundingClientRect();
+    const feedStart = ROW ? feedRect.left : feedRect.top;
+    let up = 0;                      // total size the added rows put after the old ones
+    added.forEach(el => { up += size(el) + rowGap; });
     const goneSet = new Set(gone);
     const drop = new Map();          // removed row -> the height it frees
     let down = 0;
-    gone.forEach(el => { const d = el.offsetHeight + rowGap; drop.set(el, d); down += d; });
+    gone.forEach(el => { const d = size(el) + rowGap; drop.set(el, d); down += d; });
     const reach = Math.max(up, down);
     const jobs = [];
     let freed = 0;                   // freed height of removed rows below the current row
@@ -326,7 +332,8 @@
       if(goneSet.has(el)){ freed += drop.get(el); continue; }
       const d = up - freed;
       // Only rows that can be seen while they move are animated; the rest are above the mask.
-      if(el.getBoundingClientRect().bottom + reach < feedTop) break;
+      const r = el.getBoundingClientRect();
+      if((ROW ? r.right : r.bottom) + reach < feedStart) break;
       if(Math.abs(d) >= 0.5) jobs.push([el, d]);
     }
 
@@ -335,8 +342,8 @@
     const ms = S.animasyon === 'low' ? 200 : 300;
     for(const [el, d] of jobs){
       el.animate(HAS_TRANSLATE
-        ? [{ translate: '0 ' + d + 'px' }, { translate: '0 0' }]
-        : [{ transform: 'translateY(' + d + 'px)' }, { transform: 'translateY(0)' }],
+        ? [{ translate: ROW ? d + 'px 0' : '0 ' + d + 'px' }, { translate: '0 0' }]
+        : [{ transform: (ROW ? 'translateX(' : 'translateY(') + d + 'px)' }, { transform: ROW ? 'translateX(0)' : 'translateY(0)' }],
       { duration: ms, easing: FLIP_EASE, composite: 'add' });
     }
   }
@@ -466,6 +473,8 @@
     text.appendChild(document.createTextNode(' '));
     appendBody(text, String(ev.message || ''));
     el.appendChild(text);
+    // Emotes and nothing else: shown larger, as a reaction rather than a line of text.
+    if(text.querySelector('img.ko-emote') && !text.textContent.trim()) el.classList.add('is-emote-only');
 
     makeRoom();
     appendRow(el);
