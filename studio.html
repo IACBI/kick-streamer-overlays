@@ -1053,6 +1053,8 @@
       'relay.d.noEvents': 'Relay açıldığından beri Kick’ten olay gelmedi. Kick uygulamandaki webhook adresinin tünel adresi + /kick/webhook olduğunu kontrol et ve bir kez “node relay/subscribe.js” çalıştır.',
       'relay.d.subsOk': 'Kick uygulama bilgileri var: abone sayısı resmi API’den alınıyor.',
       'relay.d.subsNo': 'Kick uygulama bilgileri yok: abone çubuğu elle girilen sayıyı gösterir (isteğe bağlı).',
+      'relay.d.tunnel': 'Tünel açık. Kick uygulamandaki Webhook URL şu olmalı: {url}',
+      'relay.d.log': 'Relay günlüğü ({ago}): {msg}',
       'relay.down': 'Relay çalışmıyor ya da ulaşılamıyor ({url}). “node relay/server.js” ile başlat.',
       'relay.bad': 'Relay beklenmeyen bir yanıt verdi (HTTP {status}).',
       'relay.key': 'Relay erişim anahtarı eksik ya da yanlış. Relay’i bir kez başlat (“node relay/server.js”): proje klasöründe AYARLAR.relay.js dosyasını oluşturur. Sonra bu sayfayı yenile.',
@@ -1279,6 +1281,8 @@
       'relay.d.noEvents': 'No Kick event has arrived since the relay started. Check that your Kick app’s webhook URL is the tunnel address + /kick/webhook, and run “node relay/subscribe.js” once.',
       'relay.d.subsOk': 'Kick app credentials are set: the subscriber count comes from the official API.',
       'relay.d.subsNo': 'No Kick app credentials: the subscriber bar shows the number you enter (optional).',
+      'relay.d.tunnel': 'Tunnel is up. The Webhook URL in your Kick app must be: {url}',
+      'relay.d.log': 'Relay log ({ago}): {msg}',
       'relay.down': 'Relay is not running or not reachable ({url}). Start it with “node relay/server.js”.',
       'relay.bad': 'The relay gave an unexpected answer (HTTP {status}).',
       'relay.key': 'The relay access key is missing or wrong. Start the relay once (“node relay/server.js”): it creates AYARLAR.relay.js in the project folder. Then reload this page.',
@@ -2126,6 +2130,12 @@
     if (typeof data.lastEventAt === 'number' && isFinite(data.lastEventAt)) out.push(['ok', t('relay.d.events', { ago: ago(now - data.lastEventAt) })]);
     else if (Object.prototype.hasOwnProperty.call(data, 'lastEventAt')) out.push(['warn', t('relay.d.noEvents')]);
     out.push(f.subscribers === true ? ['ok', t('relay.d.subsOk')] : ['warn', t('relay.d.subsNo')]);
+    if (typeof data.tunnel === 'string' && /^https:\/\/[a-z0-9.-]+\.trycloudflare\.com\/kick\/webhook$/.test(data.tunnel)) out.push(['ok', t('relay.d.tunnel', { url: data.tunnel })]);
+    // The three newest warnings or errors the relay logged, newest first.
+    (Array.isArray(data.recentErrors) ? data.recentErrors.slice(-3).reverse() : []).forEach(function (e) {
+      if (!e || typeof e.msg !== 'string' || typeof e.at !== 'number') return;
+      out.push([e.level === 'error' ? 'err' : 'warn', t('relay.d.log', { ago: ago(now - e.at), msg: e.msg.slice(0, 200) })]);
+    });
     return out;
   }
 

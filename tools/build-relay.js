@@ -7,7 +7,8 @@
 // Steps: bundle relay/sea-main.js with esbuild (a SEA can only require() Node builtins), turn the
 // bundle into a SEA blob with the running node, copy the running node binary and inject the blob.
 // The executable is built for the platform and architecture of the node running this script.
-// Windows and Linux only: macOS needs the binary re-signed with codesign, which is not set up here.
+// On macOS the copied node's signature is removed before injecting and replaced with an ad-hoc one after
+// (codesign --sign -), as Node's SEA docs describe; without it macOS refuses to run the file.
 // On Windows postject warns that the copied node.exe signature is now invalid; that is expected, the
 // executable is unsigned.
 
@@ -19,16 +20,17 @@ const ROOT = path.resolve(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
 // Fixed fuse string Node looks for to decide whether a SEA blob is present (see Node's SEA docs).
 const SEA_FUSE = 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2';
-const SUPPORTED = ['win32', 'linux'];
+const SUPPORTED = ['win32', 'linux', 'darwin'];
 
 /** @returns {string} file name of the executable for this platform */
 function outputName(platform = process.platform, arch = process.arch) {
-  return `kick-relay-${platform === 'win32' ? 'win' : platform}-${arch}${platform === 'win32' ? '.exe' : ''}`;
+  const os = platform === 'win32' ? 'win' : platform === 'darwin' ? 'macos' : platform;
+  return `kick-relay-${os}-${arch}${platform === 'win32' ? '.exe' : ''}`;
 }
 
 async function build() {
   if (!SUPPORTED.includes(process.platform)) {
-    throw new Error(`Building the relay executable is supported on ${SUPPORTED.join(' and ')}, not ${process.platform}.`);
+    throw new Error(`Building the relay executable is supported on ${SUPPORTED.join(', ')}, not ${process.platform}.`);
   }
   const esbuild = require('esbuild');
   const { inject } = require('postject');
@@ -61,7 +63,10 @@ async function build() {
   fs.rmSync(exe, { force: true });
   fs.copyFileSync(process.execPath, exe);
   fs.chmodSync(exe, 0o755);
-  await inject(exe, 'NODE_SEA_BLOB', fs.readFileSync(blob), { sentinelFuse: SEA_FUSE });
+  const mac = process.platform === 'darwin';
+  if (mac) execFileSync('codesign', ['--remove-signature', exe], { stdio: 'inherit' });
+  await inject(exe, 'NODE_SEA_BLOB', fs.readFileSync(blob), mac ? { sentinelFuse: SEA_FUSE, machoSegmentName: 'NODE_SEA' } : { sentinelFuse: SEA_FUSE });
+  if (mac) execFileSync('codesign', ['--sign', '-', exe], { stdio: 'inherit' });
 
   for (const f of [bundle, blob, seaConfig]) fs.rmSync(f, { force: true });
   return exe;

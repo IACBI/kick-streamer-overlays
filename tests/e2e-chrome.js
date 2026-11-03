@@ -697,7 +697,7 @@ async function studioRelayChecks(copy, eventsPort) {
     await sleep(1500);
     const d = await st.eval(`({ status: document.getElementById('relay-durum').className, lines: Array.from(document.querySelectorAll('#relay-tani li')).map((li) => li.className + ' ' + li.textContent) })`);
     const line = (re) => d.lines.find((l) => re.test(l)) || '';
-    check('studio relay check: the relay answers and four diagnosis lines are shown', /is-ok/.test(d.status) && d.lines.length === 4, JSON.stringify(d));
+    check('studio relay check: the relay answers with at least the four diagnosis lines', /is-ok/.test(d.status) && d.lines.length >= 4, JSON.stringify(d));
     check('studio relay check: same version, channel id known, a verified event seen', /^is-ok/.test(line(/version|sürüm/i)) && /^is-ok/.test(line(/channel id|Kanal kimliği/i)) && /^is-ok/.test(line(/Kick event|olay/i)), JSON.stringify(d.lines));
     check('studio relay check: missing Kick app credentials are a warning, not an error', /^is-warn/.test(line(/credentials|uygulama bilgileri/i)), line(/credentials|uygulama bilgileri/i));
     check('studio relay check: no unexpected errors', unexpected(st.logs).length === 0, short(unexpected(st.logs)));
@@ -708,11 +708,15 @@ async function studioRelayChecks(copy, eventsPort) {
     const quiet = { log() {}, warn() {}, error() {} };
     const bare = createRelay({ publicKeyPem: 'unused', webhookPort: 0, eventsPort: 0, accessKey: key, credentials: false, channelSlug: '', logger: quiet });
     const p2 = await bare.start();
+    bare.setTunnel('https://quiet-river-1234.trycloudflare.com');
+    bare.logger.error('Tunnel stopped (exit 1); starting it again in 2 s.');
     try {
       await st.eval(`(() => { const i = document.getElementById('relayAdresi'); i.value = 'http://127.0.0.1:${p2.eventsPort}'; i.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('relayKontrol').click(); return true; })()`);
       await sleep(1500);
       const d2 = await st.eval(`Array.from(document.querySelectorAll('#relay-tani li')).map((li) => li.className + ' ' + li.textContent)`);
       check('studio relay check: an unknown channel id is an error that says how to fix it', d2.some((l) => /^is-err/.test(l) && /RELAY_BROADCASTER_ID/.test(l)), JSON.stringify(d2));
+      check('studio relay check: the tunnel line gives the exact Webhook URL for the Kick app', d2.some((l) => /^is-ok/.test(l) && l.includes('https://quiet-river-1234.trycloudflare.com/kick/webhook')), JSON.stringify(d2));
+      check('studio relay check: a recent relay error is shown as an error line', d2.some((l) => /^is-err/.test(l) && /Tunnel stopped/.test(l)), JSON.stringify(d2));
       check('studio relay check: no event yet points at the webhook URL and subscribe.js', d2.some((l) => /^is-warn/.test(l) && /\/kick\/webhook/.test(l) && /subscribe\.js/.test(l)), JSON.stringify(d2));
     } finally {
       bare.stop();

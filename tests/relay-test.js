@@ -540,6 +540,74 @@ function statusOf(port, p, headers) {
   }
 
   // ======================================================================================
+  console.log('\n== relay: --tunnel (cloudflared quick tunnel)');
+  {
+    const { EventEmitter } = require('events');
+    const T = require(path.join(__dirname, '..', 'relay', 'tunnel.js'));
+    check('tunnelUrlOf: finds the quick tunnel address in cloudflared output',
+      T.tunnelUrlOf('2026-11-03T10:00:00Z INF |  https://teach-partition-agents-disc.trycloudflare.com  |') === 'https://teach-partition-agents-disc.trycloudflare.com' &&
+      T.tunnelUrlOf('INF Requesting new quick Tunnel on trycloudflare.com...') === null &&
+      T.tunnelUrlOf('see https://evil.example/x.trycloudflare.com.evil') === null &&
+      T.tunnelUrlOf('http://plain.trycloudflare.com') === null);
+    check('cloudflaredPath: RELAY_CLOUDFLARED wins, then the Windows install folder, then PATH',
+      T.cloudflaredPath({ RELAY_CLOUDFLARED: 'D:/tools/cf.exe' }, { platform: 'win32', exists: () => true }) === 'D:/tools/cf.exe' &&
+      T.cloudflaredPath({ 'ProgramFiles(x86)': 'C:\\Program Files (x86)' }, { platform: 'win32', exists: (p) => p === 'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe' }) === 'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe' &&
+      T.cloudflaredPath({ ProgramFiles: 'C:\\Program Files' }, { platform: 'win32', exists: () => false }) === 'cloudflared' &&
+      T.cloudflaredPath({}, { platform: 'linux', exists: () => true }) === 'cloudflared');
+
+    // A fake cloudflared: each spawn returns a process the test drives by hand.
+    const procs = [], calls = [];
+    const fakeSpawn = (bin, args, options) => {
+      calls.push({ bin, args, options });
+      const p = new EventEmitter();
+      p.stdout = new EventEmitter(); p.stderr = new EventEmitter();
+      p.killed = false; p.kill = () => { p.killed = true; setImmediate(() => p.emit('exit', null)); };
+      procs.push(p);
+      return p;
+    };
+    const urls = [];
+    const lg = quietLogger();
+    const t = T.startTunnel({ port: 8788, bin: 'cloudflared', spawnImpl: fakeSpawn, logger: lg, onUrl: (u) => urls.push(u), restartMs: [20], startTimeoutMs: 200 });
+    check('startTunnel: runs cloudflared with fixed arguments and no shell', calls.length === 1 && calls[0].bin === 'cloudflared' &&
+      calls[0].args.join(' ') === 'tunnel --no-autoupdate --url http://127.0.0.1:8788' && calls[0].options.shell === false, JSON.stringify(calls[0]));
+    procs[0].stderr.emit('data', Buffer.from('INF Requesting new quick Tunnel...\nINF |  https://first-one.trycloudflare'));
+    procs[0].stderr.emit('data', Buffer.from('.com  |\n'));
+    check('startTunnel: reports the address, even when a line arrives in pieces', t.url() === 'https://first-one.trycloudflare.com' && urls.join() === 'https://first-one.trycloudflare.com', JSON.stringify(urls));
+    procs[0].emit('exit', 1);
+    await sleep(60);
+    procs[1].stdout.emit('data', Buffer.from('|  https://second-one.trycloudflare.com  |\n'));
+    check('startTunnel: restarts after an exit and announces the new address', procs.length === 2 && urls.join() === 'https://first-one.trycloudflare.com,,https://second-one.trycloudflare.com', JSON.stringify(urls));
+    t.stop();
+    await sleep(60);
+    check('startTunnel: stop kills cloudflared and does not restart it', procs[1].killed === true && procs.length === 2);
+
+    const quiet = T.startTunnel({ port: 1, spawnImpl: fakeSpawn, logger: lg, restartMs: [10000], startTimeoutMs: 50 });
+    await sleep(120);
+    check('startTunnel: cloudflared that never reports an address is stopped after the timeout', procs[2].killed === true);
+    quiet.stop();
+
+    const errs = [];
+    const missing = T.startTunnel({ port: 1, spawnImpl: () => { const p = fakeSpawn(); setImmediate(() => p.emit('error', Object.assign(new Error('spawn cloudflared ENOENT'), { code: 'ENOENT' }))); return p; },
+      logger: { log() {}, warn() {}, error: (...a) => errs.push(a.join(' ')) }, restartMs: [10] });
+    await sleep(60);
+    check('startTunnel: a missing cloudflared is reported once and not retried', errs.length === 1 && /not found/.test(errs[0]) && procs.length === 4, JSON.stringify(errs));
+    missing.stop();
+
+    const r = createRelay(baseOpts({ logger: { log() {}, warn() {}, error() {} } }));
+    const { eventsPort: ep } = await r.start();
+    let h = JSON.parse((await eget(ep, '/health')).body);
+    check('/health: no tunnel by default, and an empty error list', h.tunnel === null && Array.isArray(h.recentErrors) && h.recentErrors.length === 0, JSON.stringify(h));
+    r.setTunnel('https://abc.trycloudflare.com');
+    r.logger.warn('Tunnel stopped (exit 1); starting it again in 2 s.');
+    for (let i = 0; i < 12; i++) r.logger.error('error', i);
+    h = JSON.parse((await eget(ep, '/health')).body);
+    check('/health: the webhook URL through the tunnel, and the last 10 warnings and errors', h.tunnel === 'https://abc.trycloudflare.com/kick/webhook' && h.recentErrors.length === 10 && h.recentErrors[9].msg === 'error 11' && h.recentErrors[0].level === 'error', JSON.stringify(h.recentErrors.slice(0, 2)));
+    r.setTunnel('javascript:alert(1)');
+    check('/health: only an https tunnel address is kept', JSON.parse((await eget(ep, '/health')).body).tunnel === null);
+    r.stop();
+  }
+
+  // ======================================================================================
   console.log('\n== relay: /control (OBS dock)');
   {
     const clock = mkClock();
