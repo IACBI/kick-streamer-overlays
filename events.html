@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<!-- OBS Browser source (Local file): 420 x 400. Recent follows, subscriptions, gifts and Kicks of this stream. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kick Recent Events</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="shared/themes.css">
+<script src="AYARLAR.js"></script>
+<script src="AYARLAR.relay.js"></script>
+<script src="shared/kick-core.js"></script>
+<style>
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+  body { position: relative; box-sizing: border-box; padding: 12px; font-family: var(--font); -webkit-font-smoothing: antialiased; }
+</style>
+</head>
+<body>
+<div class="ko-list" id="list" role="list" aria-live="polite">
+  <div class="ko-list-title" id="title"></div>
+</div>
+<div class="ko-note is-hidden" id="note" aria-live="polite"></div>
+
+<script>
+(function(){
+  const K = window.KickOverlay;
+  const S = K.readSettings();
+  const PREVIEW = K.isPreview();
+  K.applyLook(S);
+  K.loadFont(S);
+
+  const list = document.getElementById('list');
+  const noteEl = document.getElementById('note');
+  const RELAY_DOWN_MS = 5000;
+  let shownKeys = null;     // keys of the rows on screen; null until the first frame, so nothing animates at load
+  let stopRelay = null, downTimer = null;
+
+  document.getElementById('title').textContent = K.label(S, 'Son olaylar', 'Recent events');
+
+  const keyOf = (e) => e.kind + '|' + e.name + '|' + e.at;
+
+  function row(e, isNew){
+    const t = K.eventText(S, e);
+    const el = document.createElement('div');
+    el.className = 'ko-item is-' + e.kind + (isNew ? ' is-new' : '');
+    el.setAttribute('role', 'listitem');
+    const ic = document.createElement('span');
+    ic.className = 'ko-item-icon';
+    ic.appendChild(K.alertIcon(e.kind));
+    const name = document.createElement('span');
+    name.className = 'ko-item-name';
+    name.textContent = t.name;
+    const detail = document.createElement('span');
+    detail.className = 'ko-item-detail';
+    detail.textContent = t.detail;
+    el.append(ic, name, detail);
+    return el;
+  }
+
+  function render(stats){
+    const items = stats.recent.slice(0, S.olaySayisi);
+    const keys = new Set(items.map(keyOf));
+    list.querySelectorAll('.ko-item, .ko-empty').forEach(el => el.remove());
+    if (!items.length) {
+      const empty = document.createElement('div');
+      empty.className = 'ko-empty';
+      empty.textContent = K.label(S, 'Henüz olay yok', 'No events yet');
+      list.appendChild(empty);
+    }
+    items.forEach(e => list.appendChild(row(e, shownKeys !== null && !shownKeys.has(keyOf(e)))));
+    shownKeys = keys;
+    K.debug({ events: items.length });
+  }
+
+  function onStatus(st){
+    K.debug({ relay: st });
+    if (st === 'blocked') { K.note(noteEl, S, K.relayBlockedNote(S)); return; }
+    if (st === 'open') {
+      if (downTimer !== null) { clearTimeout(downTimer); downTimer = null; }
+      K.note(noteEl, S, '');
+    } else if (downTimer === null) {
+      downTimer = setTimeout(() => { downTimer = null; K.note(noteEl, S, K.label(S, 'Bildirim köprüsü çalışmıyor', 'Alert relay not running')); }, RELAY_DOWN_MS);
+    }
+  }
+
+  window.addEventListener('pagehide', function(){
+    if (downTimer !== null) clearTimeout(downTimer);
+    if (stopRelay) stopRelay();
+  });
+
+  // The list comes from the local relay's stream stats (relay/stats.js); previews and sample mode show sample rows.
+  if (PREVIEW || !S.kanal) {
+    if (!S.kanal && !PREVIEW) {
+      const hint = document.createElement('div');
+      hint.className = 'ko-hint';
+      hint.textContent = K.text(S).hint;
+      document.body.appendChild(hint);
+    }
+    render(K.sampleStats());
+  } else {
+    render(K.parseStats(null));
+    stopRelay = K.connectRelay(S.relayAdresi + '/events', {
+      onMessage: (ev) => { if (ev.kind === 'stats') render(K.parseStats(ev)); },
+      onStatus: onStatus
+    });
+  }
+})();
+</script>
+</body>
+</html>

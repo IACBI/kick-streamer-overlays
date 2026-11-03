@@ -675,6 +675,33 @@
           </div>
         </details>
 
+        <details class="st-group" id="g-stats">
+          <summary><span data-i18n="g.stats"></span></summary>
+          <div class="st-group-body st-grid">
+            <div class="st-field">
+              <label class="st-label" for="olaySayisi" data-i18n="f.olaySayisi"></label>
+              <input id="olaySayisi" name="olaySayisi" type="number" min="3" max="10" step="1" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.olaySayisi"></p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="liderTur" data-i18n="f.liderTur"></label>
+              <select id="liderTur" name="liderTur">
+                <option value="gift" data-i18n="o.liderTur.gift"></option>
+                <option value="kicks" data-i18n="o.liderTur.kicks"></option>
+              </select>
+              <p class="st-hint" data-i18n="h.liderTur"></p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="liderSayisi" data-i18n="f.liderSayisi"></label>
+              <input id="liderSayisi" name="liderSayisi" type="number" min="3" max="10" step="1" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.liderSayisi"></p>
+            </div>
+            <div class="st-field st-wide">
+              <p class="st-hint" data-i18n="h.stats"></p>
+            </div>
+          </div>
+        </details>
+
         <details class="st-group" id="g-countdown">
           <summary><span data-i18n="g.countdown"></span></summary>
           <div class="st-group-body st-grid">
@@ -947,6 +974,16 @@
       'test.none': 'Gönderildi ama bağlı bildirim overlay’i yok. OBS’te alerts.html açık mı?',
       'test.rate': 'Biraz bekle, sonra tekrar dene.',
       'g.countdown': 'Geri sayım',
+      'g.stats': 'Son olaylar ve liderlik',
+      'f.olaySayisi': 'Gösterilen olay sayısı',
+      'h.olaySayisi': '3 ile 10 arası. Son takip, abonelik, hediye ve Kicks olayları.',
+      'f.liderTur': 'Liderlik tablosu',
+      'o.liderTur.gift': 'En çok hediye eden',
+      'o.liderTur.kicks': 'En çok Kicks gönderen',
+      'h.liderTur': 'Hediye abonelik ya da Kicks sıralaması.',
+      'f.liderSayisi': 'Tablodaki kişi sayısı',
+      'h.liderSayisi': '3 ile 10 arası.',
+      'h.stats': 'Sayılar yerel relay’den gelir ve yayın başladığında sıfırlanır; OBS paneli (dock) ile elle de sıfırlanabilir. Relay ayrıca labels/ klasörüne OBS Metin kaynakları için düz metin dosyaları yazar.',
       'g.ticker': 'Duyuru çubuğu',
       'f.takipciHedefi': 'Takipçi hedefi',
       'f.takipciYedek': 'Yedek takipçi sayısı',
@@ -986,6 +1023,8 @@
       'ov.countdown': 'Geri sayım', 'ov.countdown.d': '“Birazdan başlıyoruz” sahnesi için',
       'ov.ticker': 'Duyuru çubuğu', 'ov.ticker.d': 'Sosyal medya, komut ve duyuruları sırayla gösterir',
       'ov.alerts': 'Bildirimler', 'ov.alerts.d': 'Takip, abonelik, hediye ve Kicks bildirimleri. Yerel relay gerektirir',
+      'ov.events': 'Son olaylar', 'ov.events.d': 'Bu yayının son takip, abonelik, hediye ve Kicks olayları. Yerel relay gerektirir',
+      'ov.leaderboard': 'Liderlik tablosu', 'ov.leaderboard.d': 'Bu yayında en çok hediye eden ya da Kicks gönderenler. Yerel relay gerektirir',
       'ov.chat': 'Sohbet', 'ov.chat.d': 'Canlı sohbet. Yerel relay gerektirir (bkz. Sorun giderme)',
       'file.title': 'Ayar dosyası yöntemi',
       'file.sub': 'AYARLAR.js',
@@ -1185,6 +1224,16 @@
       'test.none': 'Sent, but no alerts overlay is connected. Is alerts.html open in OBS?',
       'test.rate': 'Wait a moment, then try again.',
       'g.countdown': 'Countdown',
+      'g.stats': 'Recent events and leaderboard',
+      'f.olaySayisi': 'Events shown',
+      'h.olaySayisi': '3 to 10. The latest follows, subscriptions, gifts and Kicks.',
+      'f.liderTur': 'Leaderboard',
+      'o.liderTur.gift': 'Top gifters',
+      'o.liderTur.kicks': 'Top Kicks senders',
+      'h.liderTur': 'Rank by gifted subscriptions or by Kicks.',
+      'f.liderSayisi': 'People on the board',
+      'h.liderSayisi': '3 to 10.',
+      'h.stats': 'The numbers come from the local relay and start over when the stream goes live; the OBS dock can reset them too. The relay also writes plain text files to labels/ for OBS Text sources.',
       'g.ticker': 'Announcement bar',
       'f.takipciHedefi': 'Follower goal',
       'f.takipciYedek': 'Fallback follower count',
@@ -1224,6 +1273,8 @@
       'ov.countdown': 'Countdown', 'ov.countdown.d': 'For your “starting soon” scene',
       'ov.ticker': 'Announcement bar', 'ov.ticker.d': 'Rotates your socials, commands and news',
       'ov.alerts': 'Alerts', 'ov.alerts.d': 'Follow, subscription, gift and Kicks alerts. Needs the local relay',
+      'ov.events': 'Recent events', 'ov.events.d': 'The latest follows, subscriptions, gifts and Kicks of this stream. Needs the local relay',
+      'ov.leaderboard': 'Leaderboard', 'ov.leaderboard.d': 'Top gifters or Kicks senders of this stream. Needs the local relay',
       'ov.chat': 'Chat', 'ov.chat.d': 'Live chat. Needs the local relay (see Help)',
       'file.title': 'Settings file method',
       'file.sub': 'AYARLAR.js',
@@ -1397,7 +1448,9 @@
     { id: 'countdown', file: 'countdown.html', w: 520, h: 190, group: 'g-countdown', needsChannel: false, keys: ['geriSayimDk', 'geriSayimSaat', 'geriSayimBaslik', 'hataNotu'] },
     { id: 'ticker', file: 'ticker.html', w: 760, h: 80, group: 'g-ticker', needsChannel: false, keys: ['duyuruMetinleri', 'duyuruSn', 'hataNotu'] },
     { id: 'chat', file: 'chat.html', w: 460, h: 760, group: 'g-chat', needsChannel: true, sampleOnly: true, keys: ['sohbetMaksMesaj', 'yayinciYazisi', 'sohbetKomutGizle', 'sohbetGizliKullanicilar', 'sohbetSilinmeSn', 'hataNotu'] },
-    { id: 'alerts', file: 'alerts.html', w: 640, h: 200, group: 'g-alerts', needsChannel: true, sampleOnly: true, keys: ['uyariSn', 'uyariTakip', 'uyariAbone', 'uyariHediye', 'uyariKicks', 'uyariOdul', 'uyariSes', 'uyariSesSeviye', 'uyariOdulGizle', 'uyariTts', 'uyariTtsUzunluk', 'uyariTtsYasak', 'hataNotu'] }
+    { id: 'alerts', file: 'alerts.html', w: 640, h: 200, group: 'g-alerts', needsChannel: true, sampleOnly: true, keys: ['uyariSn', 'uyariTakip', 'uyariAbone', 'uyariHediye', 'uyariKicks', 'uyariOdul', 'uyariSes', 'uyariSesSeviye', 'uyariOdulGizle', 'uyariTts', 'uyariTtsUzunluk', 'uyariTtsYasak', 'hataNotu'] },
+    { id: 'events', file: 'events.html', w: 420, h: 400, group: 'g-stats', needsChannel: true, sampleOnly: true, keys: ['olaySayisi', 'hataNotu'] },
+    { id: 'leaderboard', file: 'leaderboard.html', w: 380, h: 400, group: 'g-stats', needsChannel: true, sampleOnly: true, keys: ['liderTur', 'liderSayisi', 'hataNotu'] }
   ];
   var BACKGROUNDS = ['checker', 'dark', 'light', 'scene'];
 
@@ -1442,7 +1495,10 @@
     { key: 'uyariOdulGizle', note: 'Reward names that never show an alert, separated by | (not case-sensitive)' },
     { key: 'uyariTts', note: 'Read Kicks and reward messages aloud. Plays on the computer\'s default output, not through the OBS source' },
     { key: 'uyariTtsUzunluk', note: 'Longest message read aloud, in characters (20–200)' },
-    { key: 'uyariTtsYasak', note: 'Words that stop a message from being read, separated by commas (not case-sensitive)' }
+    { key: 'uyariTtsYasak', note: 'Words that stop a message from being read, separated by commas (not case-sensitive)' },
+    { key: 'olaySayisi', note: 'Recent events (events.html): how many events to show (3–10)' },
+    { key: 'liderTur', note: 'Leaderboard (leaderboard.html): gift = top gifters | kicks = top Kicks senders' },
+    { key: 'liderSayisi', note: 'People on the leaderboard (3–10)' }
   ]; }
 
   var $ = function (id) { return document.getElementById(id); };
@@ -1915,7 +1971,9 @@
     countdown: { x: 700, y: 445, hidden: true },
     ticker: { x: 580, y: 980 },
     chat: { x: 1420, y: 150 },
-    alerts: { x: 640, y: 60 }
+    alerts: { x: 640, y: 60 },
+    events: { x: 40, y: 640, hidden: true },
+    leaderboard: { x: 40, y: 260, hidden: true }
   };
 
   async function copyDockLink() {

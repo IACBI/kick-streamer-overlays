@@ -4,6 +4,14 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- `events.html`: the latest follows, subscriptions, gifts and Kicks of the stream (`olaySayisi` / `eventsCount`, 3–10).
+- `leaderboard.html`: top gifters or top Kicks senders of the stream (`liderTur` / `leaderboardType`: `gift` or `kicks`; `liderSayisi` / `leaderboardCount`, 3–10).
+- The relay keeps stream stats: `GET /stats`, a throttled `stats` frame on `/events`, and `POST /stats/reset` (the dock's new **Reset stream stats**, with a confirm press). The numbers start over when the stream goes live and are saved to `kick-relay-stats.json`, so a restart keeps them. Test alerts and replays are not counted.
+- Plain text files in `labels/` for OBS Text sources: latest follower, subscriber, gifter and Kicks, top gifter and Kicks sender, and totals. `RELAY_LABELS=0` turns them off.
+- Studio: a tab and a settings group for both overlays; the OBS scene collection adds them hidden.
+
 ## [2.6.0] - 2026-11-03
 
 ### Added

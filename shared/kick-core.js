@@ -13,7 +13,8 @@
     sekil: ['pill', 'rounded', 'square'],
     yaziTipi: ['inter', 'poppins', 'nunito', 'mono'],
     dil: ['tr', 'en', 'both'],
-    animasyon: ['normal', 'low', 'off']
+    animasyon: ['normal', 'low', 'off'],
+    liderTur: ['gift', 'kicks']
   };
 
   // Public settings. Anything here may be overridden by AYARLAR.local.js or a URL parameter.
@@ -56,7 +57,10 @@
     uyariOdulGizle:    { t: 'str', d: '', max: 400 },
     uyariTts:          { t: 'bool', d: false },
     uyariTtsUzunluk:   { t: 'int', d: 120, min: 20, max: 200 },
-    uyariTtsYasak:     { t: 'str', d: '', max: 400 }
+    uyariTtsYasak:     { t: 'str', d: '', max: 400 },
+    olaySayisi:        { t: 'int', d: 5, min: 3, max: 10 },
+    liderTur:          { t: 'enum', key: 'liderTur', d: 'gift' },
+    liderSayisi:       { t: 'int', d: 5, min: 3, max: 10 }
   };
 
   // English names accepted for every setting. The Turkish name stays canonical: it is what the studio writes and
@@ -75,6 +79,7 @@
     alertKicks: 'uyariKicks', alertRewards: 'uyariOdul', alertSound: 'uyariSes', alertVolume: 'uyariSesSeviye',
     alertRewardsHidden: 'uyariOdulGizle', alertTts: 'uyariTts', alertTtsMaxLength: 'uyariTtsUzunluk',
     alertTtsBlockedWords: 'uyariTtsYasak',
+    eventsCount: 'olaySayisi', leaderboardType: 'liderTur', leaderboardCount: 'liderSayisi',
     relayAddress: 'relayAdresi'
   };
 
@@ -1008,6 +1013,106 @@
     });
   }
 
+  // ---- Stream stats from the relay (recent events, leaderboards) ----
+
+  // Stroke icons per alert kind (24 × 24), shared by the alert card and the recent events list.
+  var ALERT_ICONS = {
+    follow: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z'],
+    sub: ['M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6 6.8 19.4l1-5.9L3.5 9.4l5.9-.8L12 3.2z'],
+    gift: ['M4 10h16v10H4z', 'M3 7h18v3H3zM12 7v13', 'M12 7C12 7 11.4 3.5 9 4c-1.9.4-1.4 3 3 3zM12 7c0 0 .6-3.5 3-3 1.9.4 1.4 3-3 3z'],
+    kicks: ['M13 2L4 14h7l-1 8 9-12h-7l1-8z'],
+    reward: ['M12 14.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11z', 'M8.6 13.4L7 21l5-2.8 5 2.8-1.6-7.6']
+  };
+
+  function alertIcon(kind) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = global.document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    (ALERT_ICONS[kind] || []).forEach(function (d) {
+      var p = global.document.createElementNS(NS, 'path');
+      p.setAttribute('d', d);
+      svg.appendChild(p);
+    });
+    return svg;
+  }
+
+  var STAT_KINDS = ['follow', 'sub', 'gift', 'kicks'];
+  function cleanName(v) { return typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, 60) : ''; }
+  function statNum(v, min) { return typeof v === 'number' && isFinite(v) && v >= min ? Math.floor(v) : null; }
+
+  // One recent event as the relay sends it, checked: anything odd is dropped rather than shown.
+  function statEvent(e) {
+    if (!e || typeof e !== 'object' || STAT_KINDS.indexOf(e.kind) === -1) return null;
+    var anonymous = e.kind === 'gift' && e.anonymous === true;
+    var name = anonymous ? '' : cleanName(e.name);
+    if (!name && !anonymous) return null;
+    return {
+      kind: e.kind, name: name, anonymous: anonymous, at: statNum(e.at, 0) || 0,
+      count: statNum(e.count, 1) || 1, amount: statNum(e.amount, 0) || 0, months: statNum(e.months, 1) || 1
+    };
+  }
+
+  // The relay's stats frame (relay/stats.js), checked field by field before a page uses it.
+  function parseStats(raw) {
+    raw = raw && typeof raw === 'object' ? raw : {};
+    var t = raw.totals || {};
+    var board = function (list, field) {
+      return (Array.isArray(list) ? list : []).map(function (x) {
+        var name = cleanName(x && x.name), v = statNum(x && x[field], 1);
+        if (!name || v === null) return null;
+        var out = { name: name };
+        out[field] = v;
+        return out;
+      }).filter(Boolean).slice(0, 10);
+    };
+    return {
+      totals: { follows: statNum(t.follows, 0) || 0, subs: statNum(t.subs, 0) || 0, gifted: statNum(t.gifted, 0) || 0, kicks: statNum(t.kicks, 0) || 0 },
+      recent: (Array.isArray(raw.recent) ? raw.recent : []).map(statEvent).filter(Boolean).slice(0, 20),
+      topGifters: board(raw.topGifters, 'count'),
+      topKicks: board(raw.topKicks, 'amount'),
+      subTimes: (Array.isArray(raw.subTimes) ? raw.subTimes : []).filter(function (x) {
+        return x && statNum(x.at, 0) !== null && statNum(x.n, 1) !== null;
+      }).map(function (x) { return { at: x.at, n: x.n }; }).slice(-200)
+    };
+  }
+
+  // The name and the one-line detail of a recent event, in the label language.
+  function eventText(s, e) {
+    var n = fmt;
+    var name = e.anonymous ? label(s, 'Anonim', 'Anonymous') : e.name;
+    switch (e.kind) {
+      case 'follow': return { name: name, detail: label(s, 'takip etti', 'followed') };
+      case 'sub': return { name: name, detail: e.months > 1 ? label(s, n(e.months) + ' aydır abone', 'subscribed for ' + n(e.months) + ' months') : label(s, 'abone oldu', 'subscribed') };
+      case 'gift': return { name: name, detail: label(s, n(e.count) + ' abonelik hediye etti', e.count === 1 ? 'gifted a sub' : 'gifted ' + n(e.count) + ' subs') };
+      case 'kicks': return { name: name, detail: n(e.amount) + ' Kicks' };
+    }
+    return { name: name, detail: '' };
+  }
+
+  // Sample stats for previews and sample mode: no request, the same every time.
+  function sampleStats(nowMs) {
+    var now = nowMs || Date.now();
+    return parseStats({
+      totals: { follows: 18, subs: 6, gifted: 15, kicks: 2650 },
+      recent: [
+        { kind: 'kicks', name: 'Luna', amount: 500, at: now - 20000 },
+        { kind: 'gift', name: 'Alex', count: 5, at: now - 80000 },
+        { kind: 'sub', name: 'Sora', months: 6, at: now - 140000 },
+        { kind: 'follow', name: 'Mia', at: now - 200000 },
+        { kind: 'sub', name: 'Kenji', months: 1, at: now - 260000 },
+        { kind: 'follow', name: 'Rin', at: now - 320000 },
+        { kind: 'gift', anonymous: true, count: 1, at: now - 380000 },
+        { kind: 'kicks', name: 'Noah', amount: 100, at: now - 440000 },
+        { kind: 'follow', name: 'Ivy', at: now - 500000 },
+        { kind: 'follow', name: 'Theo', at: now - 560000 }
+      ],
+      topGifters: [{ name: 'Alex', count: 10 }, { name: 'Mia', count: 3 }, { name: 'Kenji', count: 1 }, { name: 'Sora', count: 1 }, { name: 'Ivy', count: 1 }],
+      topKicks: [{ name: 'Luna', amount: 1500 }, { name: 'Noah', amount: 600 }, { name: 'Rin', amount: 300 }, { name: 'Theo', amount: 150 }, { name: 'Mia', amount: 100 }],
+      subTimes: [{ at: now - 80000, n: 5 }, { at: now - 140000, n: 1 }]
+    });
+  }
+
   // Rewards the streamer hid from the alerts (uyariOdulGizle: titles separated by |), compared without case.
   function rewardHidden(s, title) {
     var t = String(title || '').trim().toLowerCase();
@@ -1120,7 +1225,7 @@
 
   var ES_CLOSED = 2;
   // Event names the relay streams (relay/server.js). Each page acts on the kinds it shows and ignores the rest.
-  var RELAY_EVENTS = ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks', 'reward', 'live', 'meta', 'control', 'overlay'];
+  var RELAY_EVENTS = ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks', 'reward', 'live', 'meta', 'control', 'overlay', 'stats'];
 
   // Server-Sent Events: the relay sends chat, ban, alert and stream frames (RELAY_EVENTS) already in the overlay's shape.
   // h = { onMessage(event), onStatus(status) }. Status: 'connecting', 'open', 'reconnecting', or 'blocked' (see relayBlocked; nothing is tried).
@@ -1219,6 +1324,10 @@
     alertTones: ALERT_TONES,
     createAlertMedia: createAlertMedia,
     rewardHidden: rewardHidden,
+    alertIcon: alertIcon,
+    parseStats: parseStats,
+    eventText: eventText,
+    sampleStats: sampleStats,
     ttsText: ttsText,
     obsSceneCollection: obsSceneCollection
   };
