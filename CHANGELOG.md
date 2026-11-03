@@ -8,6 +8,10 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 - The pack is now under the MIT License. Copies must keep the copyright notice; Kick's name and the role icons in `badges/` are not covered.
 
+### Added
+
+- `docs/ROADMAP.md`: the planned milestones from v2.5 to v3.0.
+
 ## [2.4.0] - 2026-11-03
 
 ### Added
