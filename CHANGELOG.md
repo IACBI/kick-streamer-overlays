@@ -22,6 +22,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - `bilgiBaslik` (`infoShowTitle`): shows the stream title as a tag on the info panel's bottom edge. It comes from Kick's public data and is updated at once by title changes through the relay. Off by default.
 - `/health` reports `features.live`, so the info panel connects only to a relay that sends stream events.
 - An alerts preview GIF in the README, and the info panel GIF shows the title tag.
+- A logo (`branding/logo.svg`, with a 512 px PNG): a camera viewfinder framing a live dot and a goal bar. It heads the README and is the studio's tab icon.
 
 ## [2.4.0] - 2026-11-03
 

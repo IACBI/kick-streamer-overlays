@@ -1,5 +1,5 @@
 <a id="top"></a>
-# Kick Streamer Overlay Pack
+# <img src="branding/logo.svg" width="44" height="44" alt="" align="top"> Kick Streamer Overlay Pack
 
 Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime panel, a chat overlay, follow, subscription, gift and Kicks alerts, a "starting soon" countdown, a rotating announcement bar, and a studio that gives you a ready link for each overlay. The basic setup needs no server and no account.
 
