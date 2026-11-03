@@ -60,10 +60,9 @@
 
   function makeRow(root, goal, label) {
     const q = (sel) => root.querySelector(sel);
-    q('[data-goal]').textContent = K.fmt(goal);
     q('[data-lbl]').textContent = label;
     const del = q('[data-delta]');
-    return K.createGoalBar({ bar: root, fill: q('[data-fill]'), val: q('[data-val]'), pct: q('[data-pct]'), delta: del }, goal, S);
+    return K.createGoalBar({ bar: root, fill: q('[data-fill]'), val: q('[data-val]'), pct: q('[data-pct]'), delta: del, goal: q('[data-goal]') }, goal, S);
   }
 
   const followRow = makeRow($('followRow'), S.takipciHedefi, K.label(S, 'Takipçi', 'Follower'));

@@ -11,6 +11,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - The relay keeps stream stats: `GET /stats`, a throttled `stats` frame on `/events`, and `POST /stats/reset` (the dock's new **Reset stream stats**, with a confirm press). The numbers start over when the stream goes live and are saved to `kick-relay-stats.json`, so a restart keeps them. Test alerts and replays are not counted.
 - Plain text files in `labels/` for OBS Text sources: latest follower, subscriber, gifter and Kicks, top gifter and Kicks sender, and totals. `RELAY_LABELS=0` turns them off.
 - Studio: a tab and a settings group for both overlays; the OBS scene collection adds them hidden.
+- `kicks-bar.html`: a Kicks goal bar for the stream (`kicksHedefi` / `kicksGoal`).
+- `sub-train.html`: subscriptions and gifted subscriptions in a row, with the time left to keep the train going (`trenSn` / `subTrainSeconds`, 30–600 s). It hides while no train runs. The relay keeps a whole train, however long, instead of only the last 10 minutes.
+- Goal auto-step `hedefArtis` (`goalStep`): a reached follower, subscriber or Kicks goal rises by the step, with the goal pulse when it happens live.
 
 ## [2.6.0] - 2026-11-03
 
