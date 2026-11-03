@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 'use strict';
-// Creates Kick webhook subscriptions on your channel: chat messages and bans for the chat overlay, and follows,
-// subscriptions, gifted subscriptions and Kicks for the alert overlay.
+// Creates Kick webhook subscriptions on your channel: chat messages and bans for the chat overlay, follows,
+// subscriptions, gifted subscriptions and Kicks for the alert overlay, and stream start/end and title changes
+// for the info panel.
 //
 // Needs a Kick developer app. Credentials come from the environment (KICK_CLIENT_ID,
 // KICK_CLIENT_SECRET) or from AYARLAR.local.js next to AYARLAR.js. They are never printed.
 //
-//   node relay/subscribe.js            create the subscriptions for the channel in AYARLAR.js
+//   node relay/subscribe.js            create the missing subscriptions for the channel in AYARLAR.js
 //   node relay/subscribe.js --list     list the subscriptions that exist for the channel
 //   kick-relay-win-x64.exe subscribe [--list]   the same from the single-file relay executable
 //
@@ -39,6 +40,12 @@ function findIds(node, out = []) {
   return out;
 }
 
+// Event names that already have a subscription, from the list response (each item names its event in "event").
+function subscribedEvents(body) {
+  const items = body && Array.isArray(body.data) ? body.data : [];
+  return new Set(items.map((s) => s && (s.event || s.name)).filter((n) => typeof n === 'string'));
+}
+
 /** @param {string[]} argv command line arguments after the script name */
 async function main(argv) {
   const list = argv.includes('--list');
@@ -56,21 +63,31 @@ async function main(argv) {
   const auth = { Authorization: `Bearer ${t.token}`, Accept: 'application/json' };
   console.log(`Channel "${slug}" has broadcaster id ${bid}.`);
 
+  const existing = await call(`https://api.kick.com/public/v1/events/subscriptions?broadcaster_user_id=${encodeURIComponent(bid)}`, { headers: auth });
   if (list) {
-    const body = await call(`https://api.kick.com/public/v1/events/subscriptions?broadcaster_user_id=${encodeURIComponent(bid)}`, { headers: auth });
+    const body = existing;
     const items = (body && Array.isArray(body.data)) ? body.data : [];
     console.log(items.length ? `${items.length} subscription(s):` : 'No subscriptions yet.');
     items.forEach((s) => console.log(`  ${s.event || s.name || '?'}  ${s.id || s.subscription_id || ''}`));
     return;
   }
 
+  // Only the missing events are requested, so running this again after an update cannot create duplicates,
+  // which would make Kick deliver every chat message and alert twice.
+  const have = subscribedEvents(existing);
+  const missing = EVENTS.filter((e) => !have.has(e.name));
+  if (missing.length === 0) {
+    console.log(`Already subscribed to all ${EVENTS.length} events. Nothing to do.`);
+    return;
+  }
   const body = await call('https://api.kick.com/public/v1/events/subscriptions', {
     method: 'POST',
     headers: Object.assign({ 'Content-Type': 'application/json' }, auth),
-    body: JSON.stringify({ events: EVENTS, method: 'webhook', broadcaster_user_id: bid })
+    body: JSON.stringify({ events: missing, method: 'webhook', broadcaster_user_id: bid })
   });
   const ids = findIds(body);
-  console.log(`Subscribed to: ${EVENTS.map((e) => e.name).join(', ')}.`);
+  console.log(`Subscribed to: ${missing.map((e) => e.name).join(', ')}.`);
+  if (have.size) console.log(`Already subscribed before: ${EVENTS.filter((e) => have.has(e.name)).map((e) => e.name).join(', ')}.`);
   console.log(ids.length ? `Subscription ids: ${ids.join(', ')}` : 'Kick accepted the request.');
   console.log('Next: start the relay and make its webhook address public (see README).');
 }
@@ -85,4 +102,4 @@ function cli(argv) {
 
 if (require.main === module) cli(process.argv.slice(2));
 
-module.exports = { cli, EVENTS };
+module.exports = { cli, EVENTS, subscribedEvents };

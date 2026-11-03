@@ -36,7 +36,7 @@ const DEFAULTS = {
   aboneHedefi: 100, aboneSayisi: 0, oturumFarkiGoster: true, yuzdeGoster: false,
   yenilemeSn: 30, sohbetMaksMesaj: 8, geriSayimDk: 5, geriSayimBaslik: '', duyuruMetinleri: '', duyuruSn: 6,
   geriSayimSaat: '', sohbetKomutGizle: false, sohbetGizliKullanicilar: '', sohbetSilinmeSn: 0,
-  hataNotu: true, hedefKutlama: true,
+  hataNotu: true, hedefKutlama: true, bilgiBaslik: false,
   uyariSn: 6, uyariTakip: true, uyariAbone: true, uyariHediye: true, uyariKicks: true
 };
 const RELAY = 'http://127.0.0.1:8790';
@@ -663,6 +663,14 @@ async function testParsers() {
     eq(r.live, true, 'live');
     eq(r.viewers, 12, 'viewers');
     eq(r.startMs, startUtc, 'startMs');
+    eq(r.title, 'Example stream', 'title');
+  });
+
+  await check('live: offline has an empty title; a missing or non-string title is empty', () => {
+    eq(K.parse.live(v2off).title, '', 'offline');
+    eq(K.parse.live({ livestream: { is_live: true, viewer_count: 1 } }).title, '', 'missing');
+    eq(K.parse.live({ livestream: { is_live: true, session_title: 42 } }).title, '', 'number');
+    eq(K.parse.live({ livestream: { is_live: true, session_title: '  ' + 'a'.repeat(300) } }).title.length, 140, 'capped');
   });
 
   await check('time: "YYYY-MM-DD HH:MM:SS" is UTC; offsets are respected; junk gives null', () => {
@@ -942,7 +950,16 @@ function fakeEventSource(list) {
 async function testChatFeed() {
   section('Live chat (local relay)');
 
-  await check('connectRelay: opens the relay stream and forwards chat, ban and alert frames in the overlay shape', () => {
+  await check('README badges: the theme and overlay counts match the code', () => {
+    const { K } = loadCore({});
+    const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+    const badge = (name) => { const m = readme.match(new RegExp('badge/' + name + '-([0-9]+)-')); return m ? Number(m[1]) : null; };
+    const overlays = fs.readdirSync(ROOT).filter((f) => f.endsWith('.html') && f !== 'studio.html').length;
+    eq(badge('themes'), K.enums('stil').length, 'themes badge');
+    eq(badge('overlays'), overlays, 'overlays badge');
+  });
+
+  await check('connectRelay: opens the relay stream and forwards chat, ban, alert and stream frames in the overlay shape', () => {
     const sources = [];
     const statuses = [];
     const messages = [];
@@ -955,8 +972,10 @@ async function testChatFeed() {
       sources[0].emit('chat', JSON.stringify({ kind: 'chat', id: 'm-1', username: 'viewer_one', message: 'hello', badges: [] }));
       sources[0].emit('ban', JSON.stringify({ userId: '9', username: 'spammer' }));
       ['follow', 'sub', 'gift', 'kicks'].forEach((name, i) => sources[0].emit(name, JSON.stringify({ id: 'a-' + i, username: 'u' + i })));
+      sources[0].emit('live', JSON.stringify({ live: true, startedAt: '2026-10-15T20:00:00Z', title: 't' }));
+      sources[0].emit('meta', JSON.stringify({ title: 'new title' }));
       sources[0].emit('livestream', JSON.stringify({ id: 'x' }));
-      eq(messages.map((m) => m.kind), ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks'], 'kinds (an unknown event name is not listened to)');
+      eq(messages.map((m) => m.kind), ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks', 'live', 'meta'], 'kinds (an unknown event name is not listened to)');
       eq(messages[0].message, 'hello', 'chat text');
       eq(statuses, ['connecting', 'open'], 'statuses');
     } finally {

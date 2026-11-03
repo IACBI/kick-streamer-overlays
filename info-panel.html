@@ -56,6 +56,13 @@
     /* It rises in like the panel when the attribute is lifted, instead of popping. */
     animation: ko-rise-in var(--ko-dur-in, .5s) var(--ko-ease, cubic-bezier(.2, .8, .2, 1)) backwards;
   }
+  /* Stream title (bilgiBaslik): the same kind of tag on the bottom edge, cut with an ellipsis to the panel width. */
+  #title {
+    position: absolute; bottom: -9px; left: 14px; max-width: calc(100% - 28px); margin: 0; padding: 1px 7px; font-size: 11px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+    animation: ko-rise-in var(--ko-dur-in, .5s) var(--ko-ease, cubic-bezier(.2, .8, .2, 1)) backwards;
+  }
   /* No fresh data while live: the numbers are frozen, so the pulse stops and the panel dims. */
   .ko-panel.is-stale:not(.is-off) { opacity: .55; }
   .ko-dot { transition: background-color var(--ko-dur-out, .35s) ease, box-shadow var(--ko-dur-out, .35s) ease; }
@@ -83,6 +90,7 @@
     <span class="ko-val" id="uptime">0:00:00</span>
   </span>
   <span class="ko-chip" id="peak" hidden></span>
+  <span class="ko-chip" id="title" hidden></span>
 </div>
 <div class="ko-note is-hidden" id="note" aria-live="polite"></div>
 <script>
@@ -98,11 +106,15 @@
   const elViewers = document.getElementById('viewers');
   const elUptime = document.getElementById('uptime');
   const elPeak = document.getElementById('peak');
+  const elTitle = document.getElementById('title');
   const elNote = document.getElementById('note');
   const reduceMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   const tweenMs = S.animasyon === 'off' || (reduceMq && reduceMq.matches) ? 0 : 700;
   const STALE_AFTER = 3;          // failed polls in a row before the numbers count as out of date
   const PEAK_KEY = 'ko:peak:' + S.kanal;
+  // Kick's public channel data can lag a start or end by a minute or more, so for a while after a relay event
+  // a poll that disagrees with it is ignored instead of flipping the panel back.
+  const RELAY_HOLD_MS = 3 * 60 * 1000;
 
   let live = false;
   let startMs = null;
@@ -117,6 +129,9 @@
   let failures = 0;       // failed polls in a row
   let poller = null;
   let debugTimer = null;
+  let title = '';         // stream title, shown only with bilgiBaslik
+  let stopRelay = null;   // from K.connectRelay, once the relay reports stream events
+  let relayHold = null;   // { live, at } from the last relay stream event
 
   function setViewers(target){
     if (cancelViewers) cancelViewers();
@@ -148,6 +163,11 @@
     if (!elPeak.hidden) elPeak.textContent = K.label(S, 'Zirve', 'Peak') + ' ' + K.fmt(peak);
   }
 
+  function showTitle(){
+    elTitle.hidden = !(S.bilgiBaslik && live && title);
+    if (!elTitle.hidden) { elTitle.textContent = title; elTitle.title = title; }
+  }
+
   // The session peak survives a reload: it is stored with the stream's start time and dropped for a new stream.
   function recordPeak(v){
     let stored = null;
@@ -159,6 +179,7 @@
   }
 
   function apply(info){
+    if (typeof info.title === 'string') title = info.title;
     if (!info.live) {
       live = false;
       startMs = null;
@@ -169,6 +190,7 @@
       shownViewers = 0;
       elPanel.classList.add('is-off');
       showPeak();
+      showTitle();
       return;
     }
     live = true;
@@ -179,6 +201,7 @@
     setViewers(viewers);
     if (!PREVIEW) recordPeak(viewers);
     showPeak();
+    showTitle();
     tickUptime();
     startTicker();
   }
@@ -196,7 +219,9 @@
       hadData = true;
       setStale(false);
       K.note(elNote, S, '');
-      apply(K.parse.live(r.data));
+      const info = K.parse.live(r.data);
+      const held = relayHold && Date.now() - relayHold.at < RELAY_HOLD_MS && info.live !== relayHold.live;
+      if (!held) apply(info);
     } else {
       failures += 1;
       if (!hadData) K.note(elNote, S, T.unreachable);
@@ -209,9 +234,31 @@
       viewers: live ? viewers : '-',
       peak: peak,
       failures: failures,
+      relay: stopRelay ? 'stream events' : '-',
       'last poll': new Date().toLocaleTimeString()
     });
+    connectStreamEvents();
     return { ok: !!r.ok, retryAfterMs: r.retryAfterMs };
+  }
+
+  // The relay's livestream events switch the panel the moment the stream starts or ends; polling still
+  // supplies the viewer count. Older relays without these events (no features.live) are left alone.
+  function onRelay(ev){
+    if (ev.kind === 'live') {
+      relayHold = { live: !!ev.live, at: Date.now() };
+      if (ev.live) apply({ live: true, viewers: live ? viewers : 0, startMs: K.parse.time(ev.startedAt || ''), title: ev.title });
+      else apply({ live: false, viewers: 0, startMs: null, title: '' });
+    } else if (ev.kind === 'meta' && typeof ev.title === 'string') {
+      title = ev.title;
+      showTitle();
+    }
+  }
+
+  async function connectStreamEvents(){
+    if (stopRelay || !S.relayAdresi) return;
+    const info = await K.relayInfo(S);
+    if (stopRelay || !(info && info.features && info.features.live)) return;
+    stopRelay = K.connectRelay(S.relayAdresi + '/events', { onMessage: onRelay });
   }
 
   function showHint(){
@@ -226,6 +273,8 @@
     apply({ live: true, viewers: K.sample.viewers, startMs: Date.now() - K.sample.startMs });
     peak = Math.round(K.sample.viewers * 1.15);
     showPeak();
+    title = K.sample.title;
+    showTitle();
     K.debug({ mode: 'preview' });
     return;
   }
@@ -233,6 +282,7 @@
   if (!S.kanal) { showHint(); K.debug({ mode: 'no channel' }); return; }
   poller = K.poller(poll, { intervalMs: S.yenilemeSn * 1000 });
   poller.start();
+  connectStreamEvents();
   if (K.isDebug()) {
     debugTimer = setInterval(function(){
       const ms = poller.nextInMs();
@@ -241,6 +291,7 @@
   }
   window.addEventListener('pagehide', function(){
     poller.stop();
+    if (stopRelay) stopRelay();
     stopTicker();
     if (cancelViewers) cancelViewers();
     if (debugTimer !== null) clearInterval(debugTimer);
