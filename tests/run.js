@@ -1250,6 +1250,29 @@ function fakeEventSource(list) {
 async function testChatFeed() {
   section('Live chat (local relay)');
 
+  await check('README and docs/: every relative link points at a file, and every #anchor exists', () => {
+    // GitHub's heading ids: lower case, punctuation dropped, spaces to hyphens.
+    const slug = (h) => h.trim().toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
+    const anchors = (file) => {
+      const src = fs.readFileSync(file, 'utf8');
+      return new Set([...src.matchAll(/<a id="([^"]+)"/g)].map((m) => m[1])
+        .concat([...src.matchAll(/^#{1,6} (.+)$/gm)].map((m) => slug(m[1]))));
+    };
+    const files = ['README.md'].concat(fs.readdirSync(path.join(ROOT, 'docs')).filter((f) => f.endsWith('.md')).map((f) => 'docs/' + f));
+    files.forEach((rel) => {
+      const file = path.join(ROOT, rel);
+      const src = fs.readFileSync(file, 'utf8').replace(/```[\s\S]*?```/g, '');
+      for (const m of src.matchAll(/\]\(([^)\s]+)\)/g)) {
+        const href = m[1];
+        if (/^(https?:|mailto:)/.test(href)) continue;
+        const [p, hash] = href.split('#');
+        const target = p ? path.resolve(path.dirname(file), p) : file;
+        ok(fs.existsSync(target), rel + ': missing file ' + href);
+        if (hash && target.endsWith('.md') && fs.existsSync(target)) ok(anchors(target).has(hash), rel + ': missing anchor ' + href);
+      }
+    });
+  });
+
   await check('README badges: the theme and overlay counts match the code', () => {
     const { K } = loadCore({});
     const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');

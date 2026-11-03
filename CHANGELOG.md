@@ -10,6 +10,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Plural forms per language through `Intl.PluralRules` (Arabic has six), and numbers grouped by the label language (`1.234` in Spanish, Portuguese and German; Latin digits in Arabic).
 - Text-to-speech in alerts speaks in the label language.
 - The studio in all six languages, with a language button each and a right-to-left layout for Arabic. It opens in the first browser language it has.
+- The studio and every overlay on GitHub Pages ([iacbi.github.io/kick-streamer-overlays](https://iacbi.github.io/kick-streamer-overlays/)), published from tracked files only, so you can try them without downloading.
+- Guides in `docs/`: setup, relay, settings, troubleshooting and an FAQ. The README keeps the short path; a test checks every relative link and anchor in the README and the guides.
 - Visual QA group `lang`: every overlay in every label language, with the contrast and layout gate.
 
 ### Changed

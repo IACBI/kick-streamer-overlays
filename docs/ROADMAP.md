@@ -99,6 +99,8 @@ Streamers outside Turkey and English-speaking countries can use the pack in thei
 
 **Done when:** the studio and every overlay work in all listed languages, and the visual QA gate passes for right-to-left.
 
+**Status (2026-11-04):** done. Overlay, dock and studio texts are in `shared/lang/`, in six languages; Arabic lays out right to left, and the visual QA gate runs every label language in CI. Numbers and plural forms follow the language through `Intl`; the countdown and uptime show only digits, which stay Latin in every language. The studio and overlays are on GitHub Pages, and the long guides are in `docs/`.
+
 ---
 
 ## Ongoing
