@@ -128,7 +128,27 @@ function normalizeEvent(type, body) {
       username: cap(String(u.username || '').toLowerCase(), 60)
     };
   }
+  if (type === 'livestream.status.updated' || type === 'livestream.metadata.updated') return normalizeStream(type, body, isObj);
   return normalizeAlert(type, body, isObj);
+}
+
+const MAX_TITLE = 140;
+const titleOf = (v) => (typeof v === 'string' ? cap(v.trim(), MAX_TITLE) : '');
+
+// Stream start/end and title changes (docs.kick.com/events/event-types, version 1), for the info panel.
+// `is_live` is the one field the panel acts on, so a status body without a boolean there is rejected.
+function normalizeStream(type, body, isObj) {
+  if (body.broadcaster !== undefined && !isObj(body.broadcaster)) return null;
+  const broadcasterId = idOf(body.broadcaster && body.broadcaster.user_id);
+  if (type === 'livestream.status.updated') {
+    if (typeof body.is_live !== 'boolean') return null;
+    return {
+      kind: 'live', broadcasterId, live: body.is_live, title: titleOf(body.title),
+      startedAt: cap(String(body.started_at || ''), 40), endedAt: cap(String(body.ended_at || ''), 40)
+    };
+  }
+  if (!isObj(body.metadata) || typeof body.metadata.title !== 'string') return null;
+  return { kind: 'meta', broadcasterId, title: titleOf(body.metadata.title) };
 }
 
 const nameOf = (u) => (u && typeof u.username === 'string' ? cap(u.username.trim(), 60) : '');
@@ -189,7 +209,8 @@ function normalizeAlert(type, body, isObj) {
 const EVENT_TYPES = [
   'chat.message.sent', 'moderation.banned',
   'channel.followed', 'channel.subscription.new', 'channel.subscription.renewal', 'channel.subscription.gifts',
-  'kicks.gifted'
+  'kicks.gifted',
+  'livestream.status.updated', 'livestream.metadata.updated'
 ];
 
 module.exports = { HEADER, MAX_SKEW_MS, EVENT_TYPES, verifySignature, parseTimestamp, isFresh, ReplayGuard, TokenBucket, normalizeEvent };

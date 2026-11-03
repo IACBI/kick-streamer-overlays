@@ -166,7 +166,7 @@ function statusOf(port, p, headers) {
     check('normalizeEvent keeps badges with counts', chat.badges.length === 2 && chat.badges[1].count === 5);
     const ban = W.normalizeEvent('moderation.banned', { broadcaster: { user_id: 1 }, banned_user: { user_id: 9, username: 'SpamBot' }, metadata: {} });
     check('normalizeEvent maps a ban and lowercases the name', ban.kind === 'ban' && ban.username === 'spambot' && ban.userId === '9');
-    check('normalizeEvent ignores event types the overlays do not show', W.normalizeEvent('livestream.status.updated', { broadcaster: { user_id: 1 }, is_live: true }) === null);
+    check('normalizeEvent ignores event types the overlays do not show', W.normalizeEvent('channel.reward.redemption.updated', { broadcaster: { user_id: 1 }, status: 'accepted' }) === null);
     check('normalizeEvent rejects a follow without a follower', W.normalizeEvent('channel.followed', {}) === null);
     check('normalizeEvent caps very long text', W.normalizeEvent('chat.message.sent', { content: 'x'.repeat(5000), sender: {} }).message.length === 500);
   }
@@ -204,7 +204,31 @@ function statusOf(port, p, headers) {
       W.normalizeEvent('channel.followed', { follower: 'bob' }) === null &&
       W.normalizeEvent('channel.followed', Object.assign(fixture('channel-followed'), { broadcaster: 5 })) === null &&
       W.normalizeEvent('channel.followed', { follower: { username: '   ' } }) === null);
-    check('EVENT_TYPES lists chat, bans and the five alert events, each once', W.EVENT_TYPES.length === 7 && new Set(W.EVENT_TYPES).size === 7 && W.EVENT_TYPES.includes('kicks.gifted'));
+    check('EVENT_TYPES lists chat, bans, the five alert events and the two stream events, each once', W.EVENT_TYPES.length === 9 && new Set(W.EVENT_TYPES).size === 9 && W.EVENT_TYPES.includes('kicks.gifted') && W.EVENT_TYPES.includes('livestream.status.updated') && W.EVENT_TYPES.includes('livestream.metadata.updated'));
+
+    const { subscribedEvents, EVENTS } = require(path.join(__dirname, '..', 'relay', 'subscribe.js'));
+    const have = subscribedEvents({ data: [{ event: 'chat.message.sent', version: 1 }, { event: 'kicks.gifted' }, null, { id: 'x' }] });
+    check('subscribe: existing subscriptions are read by event name, junk entries skipped', have.size === 2 && have.has('chat.message.sent') && have.has('kicks.gifted'));
+    check('subscribe: an empty or odd list response means nothing is subscribed', subscribedEvents(null).size === 0 && subscribedEvents({ data: 'x' }).size === 0);
+    check('subscribe: requests every relay event at version 1', EVENTS.length === W.EVENT_TYPES.length && EVENTS.every((e) => e.version === 1));
+
+    const started = W.normalizeEvent('livestream.status.updated', fixture('livestream-status-started'));
+    check('stream: a documented start maps to kind live with its title and start time', eqJson(started, { kind: 'live', broadcasterId: '123456789', live: true, title: 'Stream Title', startedAt: '2025-01-01T11:00:00+11:00', endedAt: '' }), JSON.stringify(started));
+    const ended = W.normalizeEvent('livestream.status.updated', fixture('livestream-status-ended'));
+    check('stream: a documented end maps to live false with its end time', ended.kind === 'live' && ended.live === false && ended.endedAt === '2025-01-01T15:00:00+11:00', JSON.stringify(ended));
+    check('stream: a status without a boolean is_live is rejected',
+      W.normalizeEvent('livestream.status.updated', Object.assign(fixture('livestream-status-started'), { is_live: 'true' })) === null
+      && W.normalizeEvent('livestream.status.updated', { broadcaster: { user_id: 1 } }) === null);
+    const meta = W.normalizeEvent('livestream.metadata.updated', fixture('livestream-metadata'));
+    check('stream: a documented metadata update maps to kind meta with the title', eqJson(meta, { kind: 'meta', broadcasterId: '123456789', title: 'Stream Title' }), JSON.stringify(meta));
+    check('stream: metadata without a string title is rejected',
+      W.normalizeEvent('livestream.metadata.updated', { broadcaster: { user_id: 1 }, metadata: {} }) === null
+      && W.normalizeEvent('livestream.metadata.updated', { broadcaster: { user_id: 1 } }) === null);
+    const longTitle = W.normalizeEvent('livestream.metadata.updated', { broadcaster: { user_id: 1 }, metadata: { title: '  ' + 't'.repeat(500) + '  ' } });
+    check('stream: a long title is trimmed and capped at 140 characters', longTitle.title.length === 140 && longTitle.title[0] === 't');
+    check('stream: a status body under the metadata type, and the reverse, are rejected',
+      W.normalizeEvent('livestream.metadata.updated', fixture('livestream-status-started')) === null
+      && W.normalizeEvent('livestream.status.updated', fixture('livestream-metadata')) === null);
   }
 
   console.log('\n== relay: webhook listener (real sockets)');
@@ -258,7 +282,7 @@ function statusOf(port, p, headers) {
   check('a signed ban reaches the overlay stream', banRes.status === 200 && stream.frames.some((f) => f.event === 'ban' && f.data.username === 'spambot'));
 
   const unknown = JSON.stringify({ foo: 1 });
-  const unk = await post(webhookPort, { id: 'x-1', ts, body: unknown, sig: sign('x-1', ts, unknown, privateKey), type: 'livestream.status.updated' });
+  const unk = await post(webhookPort, { id: 'x-1', ts, body: unknown, sig: sign('x-1', ts, unknown, privateKey), type: 'channel.reward.redemption.updated' });
   await sleep(100);
   check('an event type the overlays do not show is acknowledged and not streamed', unk.status === 200 && !stream.frames.some((f) => f.data.id === 'x-1'));
 
@@ -287,6 +311,20 @@ function statusOf(port, p, headers) {
   await post(webhookPort, { id: 'al-other', ts, body: otherFollow, sig: sign('al-other', ts, otherFollow, privateKey), type: 'channel.followed' });
   await sleep(100);
   check('an alert for another broadcaster is not shown', !stream.frames.some((f) => f.data.id === 'al-other'));
+
+  // Stream events: a signed start and a title change reach the stream as live and meta frames.
+  for (const [file, type, id] of [
+    ['livestream-status-started', 'livestream.status.updated', 'st-live'],
+    ['livestream-metadata', 'livestream.metadata.updated', 'st-meta']
+  ]) {
+    const b = JSON.stringify(Object.assign(fixture(file), { broadcaster: Object.assign(fixture(file).broadcaster, { user_id: 113812015 }) }));
+    await post(webhookPort, { id, ts, body: b, sig: sign(id, ts, b, privateKey), type });
+  }
+  await sleep(150);
+  const liveFrame = stream.frames.find((f) => f.event === 'live');
+  const metaFrame = stream.frames.find((f) => f.event === 'meta');
+  check('a signed stream start reaches the overlay stream as a live frame', !!liveFrame && liveFrame.data.live === true && liveFrame.data.startedAt === '2025-01-01T11:00:00+11:00', JSON.stringify(liveFrame && liveFrame.data));
+  check('a signed title change reaches the overlay stream as a meta frame', !!metaFrame && metaFrame.data.title === 'Stream Title');
   const hAfter = JSON.parse((await eget(eventsPort, '/health')).body);
   check('/health reports when the last verified event arrived, and alerts are ready', typeof hAfter.lastEventAt === 'number' && hAfter.lastEventAt >= before && hAfter.features.alerts === true, JSON.stringify(hAfter));
 

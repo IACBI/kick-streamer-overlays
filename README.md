@@ -3,7 +3,7 @@
 
 Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime panel, a chat overlay, follow, subscription, gift and Kicks alerts, a "starting soon" countdown, a rotating announcement bar, and a studio that gives you a ready link for each overlay. The basic setup needs no server and no account.
 
-[![CI](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml/badge.svg)](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml) ![License](https://img.shields.io/badge/license-MIT-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Overlays](https://img.shields.io/badge/overlays-8-0ea5e9) ![Tests](https://img.shields.io/badge/tests-399%20checks-2563eb)
+[![CI](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml/badge.svg)](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml) ![License](https://img.shields.io/badge/license-MIT-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Overlays](https://img.shields.io/badge/overlays-8-0ea5e9)
 
 <p align="center"><img src="screenshots/hero.png" alt="Goal bars, a countdown, an announcement bar, an info panel and chat in one theme family" width="860"></p>
 
@@ -40,7 +40,7 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 - Goal bars pulse at 25, 50 and 75 %, and show a goal-reached state at 100 % (`hedefKutlama`)
 - A countdown to a length in minutes or to a clock time (`geriSayimSaat`), and an announcement bar that rotates your lines. Both work without any Kick data
 - Chat filters: hide `!` commands and named users such as bots, and fade messages out after a set time
-- An info panel with viewers, uptime and peak viewers
+- An info panel with viewers, uptime, peak viewers and, optionally, the stream title (`bilgiBaslik`). With the relay it switches the moment the stream starts or ends
 - An alerts overlay for new followers, new and renewed subscriptions, gifted subscriptions and Kicks. One card at a time; during a raid the queue keeps at most 25 and drops the oldest follows first. Each alert type can be turned off
 - Preview mode (`?onizleme=1`) with sample numbers and no network calls, and a status box with `?debug=1`
 - Studio in Turkish and English: live preview with a tab per overlay, quick looks, a copy-link button for each overlay or all of them, JSON export and import of the look (credentials are never included), the `AYARLAR.js` file as an alternative, a step-by-step relay check, and a connection test for your Kick app
@@ -90,7 +90,12 @@ These previews use sample data (`?onizleme=1`), so they show the design and make
 
 <p align="center">
   <img src="screenshots/info-panel.gif" width="360" alt="Info panel: the viewer count rises and the uptime counts each second"><br>
-  <sub><b>Info panel.</b> The viewer count eases up and the uptime counts every second while the channel is live.</sub>
+  <sub><b>Info panel.</b> The viewer count eases up and the uptime counts every second while the channel is live. The title tag at the bottom is optional (<code>bilgiBaslik</code>).</sub>
+</p>
+
+<p align="center">
+  <img src="screenshots/alerts.gif" width="560" alt="Alerts: a follow, a subscription, gifted subscriptions, Kicks and a renewal appear one at a time"><br>
+  <sub><b>Alerts.</b> One card at a time: follows, new and renewed subscriptions, gifted subscriptions and Kicks. Each type can be turned off.</sub>
 </p>
 
 <p align="center">
@@ -124,7 +129,7 @@ Troubleshooting. Messages appear in the language set by `dil`: Turkish, English,
 <a id="live-chat-en"></a>
 #### Live chat and alerts (optional)
 
-Kick sends chat messages, bans, follows, subscriptions, gifted subscriptions and Kicks to a web address you register in your Kick app. The relay in `relay/` receives them, checks Kick's signature, and passes them to `chat.html` and `alerts.html`.
+Kick sends chat messages, bans, follows, subscriptions, gifted subscriptions, Kicks and stream start, end and title changes to a web address you register in your Kick app. The relay in `relay/` receives them, checks Kick's signature, and passes them to `chat.html`, `alerts.html` and `info-panel.html`.
 
 1. Create a Kick developer app. Put its client ID and secret in `AYARLAR.local.js` (see [Configuration](#configuration-en)), or in the environment as `KICK_CLIENT_ID` and `KICK_CLIENT_SECRET`.
 2. Let the relay know your channel. It looks up your broadcaster ID from `kanal` in `AYARLAR.js` (or from `KICK_CHANNEL`) when it starts. If you already know the ID, set `RELAY_BROADCASTER_ID` instead and the lookup is skipped.
@@ -143,14 +148,14 @@ Kick sends chat messages, bans, follows, subscriptions, gifted subscriptions and
 
    Use the HTTPS address the tunnel prints, with `/kick/webhook` added at the end.
 5. Go to [kick.com/settings/developer](https://kick.com/settings/developer), click **Edit** on your app, turn on **Enable Webhooks**, and paste the address into the **Webhook URL** box. Kick's [event introduction](https://github.com/KickEngineering/KickDevDocs/blob/main/events/introduction.md) describes these steps.
-6. Subscribe to the events (chat, bans, follows, subscriptions, renewals, gifted subscriptions and Kicks):
+6. Subscribe to the events (chat, bans, follows, subscriptions, renewals, gifted subscriptions, Kicks, and stream status and title). If you subscribed with an older version, run this again to add the stream events:
 
    ```bash
    node relay/subscribe.js
    ```
 
    With the relay executable, run it with `subscribe` instead, for example `kick-relay-win-x64.exe subscribe`. Add `--list` to see the subscriptions that already exist.
-7. Add `chat.html` and `alerts.html` in OBS as usual. Messages and alerts appear as soon as Kick delivers them.
+7. Add `chat.html` and `alerts.html` in OBS as usual. Messages and alerts appear as soon as Kick delivers them. `info-panel.html` keeps reading viewers from Kick's public data, and with the relay running it also switches on and off as soon as the stream starts or ends.
 
 The relay accepts only events with a valid Kick signature, passes each one on only once, and passes events on only for your broadcaster ID. While that ID is unknown, events are dropped and the relay says so in its log; it retries the lookup at most once a minute. Its overlay port listens on `127.0.0.1` only and refuses requests with a foreign `Host` header, so the tunnel exposes just the webhook path. Kick limits subscriptions per app: 10,000 per event type, and 1,000 for chat messages while the app is unverified.
 
@@ -210,6 +215,7 @@ Every setting lives in `AYARLAR.js`, and the studio writes the same settings int
 | `yuzdeGoster` | `showPercent` | Show the percentage of the goal | `false` |
 | `hedefKutlama` | `goalCelebration` | Milestone pulse at 25, 50 and 75 %, and a goal-reached state at 100 % | `true` |
 | `hataNotu` | `statusNote` | Show the small status note on screen, such as "Kick unreachable" | `true` |
+| `bilgiBaslik` | `infoShowTitle` | Show the stream title on the info panel's bottom edge | `false` |
 | `yenilemeSn` | `refreshSeconds` | Refresh interval in seconds (10–600) | `30` |
 | `sohbetMaksMesaj` | `chatMaxMessages` | Most chat messages on screen at once (3–20) | `8` |
 | `sohbetKomutGizle` | `chatHideCommands` | Hide chat messages that start with `!` | `false` |
@@ -308,7 +314,7 @@ Without the relay, the subscriber bars request and renew their own access token 
 - Hedef çubukları yüzde 25, 50 ve 75'te nabız atar, yüzde 100'de "hedefe ulaşıldı" durumuna geçer (`hedefKutlama`)
 - Dakika cinsinden ya da saat olarak (`geriSayimSaat`) geri sayım ve satırlarını döndüren duyuru çubuğu. İkisi de Kick verisi olmadan çalışır
 - Sohbet filtreleri: `!` ile başlayan komutları ve bot gibi adı verilen kullanıcıları gizle, mesajları belli bir süre sonra soluklaştır
-- İzleyici, yayın süresi ve en yüksek izleyici sayısını gösteren bir yayın paneli
+- İzleyici, yayın süresi, en yüksek izleyici sayısı ve istersen yayın başlığını (`bilgiBaslik`) gösteren bir yayın paneli. Relay açıksa yayın başlar başlamaz ya da biter bitmez değişir
 - Yeni takipçi, yeni ve yenilenen abonelik, hediye abonelik ve Kicks için bildirim overlay'i. Kartlar tek tek gelir; raid sırasında sırada en çok 25 bildirim tutulur ve önce en eski takip bildirimleri atılır. Her bildirim türü ayrı ayrı kapatılabilir
 - Önizleme modu (`?onizleme=1`): ağ çağrısı yapmadan örnek sayılar gösterir. `?debug=1` ile küçük bir durum kutusu açılır
 - Türkçe ve İngilizce stüdyo: her overlay için sekmeli canlı önizleme, hazır görünümler, her overlay için ya da hepsi için bağlantı kopyalama, görünümü JSON olarak dışa ve içe aktarma (kimlik bilgileri hiçbir zaman dahil edilmez), alternatif olarak `AYARLAR.js` dosyası, adım adım relay denetimi ve Kick uygulaman için bağlantı testi
@@ -358,7 +364,12 @@ Buradaki tüm animasyonlar örnek veri kullanır (`?onizleme=1`); yani tasarım�
 
 <p align="center">
   <img src="screenshots/info-panel.gif" width="360" alt="Yayın paneli: izleyici sayısı artar, süre her saniye ilerler"><br>
-  <sub><b>Yayın paneli.</b> İzleyici sayısı yumuşakça artar, kanal yayındayken süre her saniye ilerler.</sub>
+  <sub><b>Yayın paneli.</b> İzleyici sayısı yumuşakça artar, kanal yayındayken süre her saniye ilerler. Alttaki başlık etiketi isteğe bağlıdır (<code>bilgiBaslik</code>).</sub>
+</p>
+
+<p align="center">
+  <img src="screenshots/alerts.gif" width="560" alt="Bildirimler: takip, abonelik, hediye abonelik, Kicks ve yenileme sırayla görünür"><br>
+  <sub><b>Bildirimler.</b> Ekranda tek seferde bir kart: takip, yeni ve yenilenen abonelik, hediye abonelik ve Kicks. Her türü ayrı ayrı kapatabilirsin.</sub>
 </p>
 
 <p align="center">
@@ -392,7 +403,7 @@ Sorun giderme. Mesajlar `dil` ayarındaki dilde görünür: Türkçe, İngilizce
 <a id="canli-sohbet-tr"></a>
 #### Canlı sohbet ve bildirimler (opsiyonel)
 
-Kick; sohbet mesajlarını, yasakları, takipleri, abonelikleri, hediye abonelikleri ve Kicks'i Kick uygulamanda kayıtlı bir web adresine gönderir. `relay/` klasöründeki relay bunları alır, Kick'in imzasını doğrular ve `chat.html` ile `alerts.html`'e iletir.
+Kick; sohbet mesajlarını, yasakları, takipleri, abonelikleri, hediye abonelikleri, Kicks'i ve yayının başlama, bitme ve başlık değişikliklerini Kick uygulamanda kayıtlı bir web adresine gönderir. `relay/` klasöründeki relay bunları alır, Kick'in imzasını doğrular ve `chat.html`, `alerts.html` ile `info-panel.html`'e iletir.
 
 1. Bir Kick geliştirici uygulaması oluştur. Client ID ile secret değerlerini `AYARLAR.local.js` dosyasına ekle (bkz. [Yapılandırma](#yapilandirma-tr)) ya da ortam değişkeni olarak `KICK_CLIENT_ID` ve `KICK_CLIENT_SECRET` ayarla.
 2. Relay'in kanalını tanıması gerekir. Başlarken `AYARLAR.js` içindeki `kanal` değerinden (ya da `KICK_CHANNEL`'dan) yayıncı kimliğini bulur. Kimliğini zaten biliyorsan `RELAY_BROADCASTER_ID` değerine yaz; bu durumda arama yapılmaz.
@@ -411,14 +422,14 @@ Kick; sohbet mesajlarını, yasakları, takipleri, abonelikleri, hediye abonelik
 
    Tünelin verdiği HTTPS adresinin sonuna `/kick/webhook` ekle.
 5. [kick.com/settings/developer](https://kick.com/settings/developer) adresine git, uygulamanın yanındaki **Edit**'e tıkla, **Enable Webhooks** anahtarını aç ve adresi **Webhook URL** kutusuna yapıştır. Kick'in [olay tanıtım sayfası](https://github.com/KickEngineering/KickDevDocs/blob/main/events/introduction.md) bu adımları anlatır.
-6. Olaylara abone ol (sohbet, yasak, takip, abonelik, yenileme, hediye abonelik ve Kicks):
+6. Olaylara abone ol (sohbet, yasak, takip, abonelik, yenileme, hediye abonelik, Kicks, yayın durumu ve başlık). Daha eski bir sürümle abone olduysan yayın olaylarını eklemek için bunu yeniden çalıştır:
 
    ```bash
    node relay/subscribe.js
    ```
 
    Relay programını kullanıyorsan bunun yerine `subscribe` ile çalıştır, örneğin `kick-relay-win-x64.exe subscribe`. Var olan abonelikleri görmek için `--list` ekle.
-7. `chat.html` ve `alerts.html` dosyalarını OBS'ye her zamanki gibi ekle. Mesajlar ve bildirimler Kick teslim eder etmez görünür.
+7. `chat.html` ve `alerts.html` dosyalarını OBS'ye her zamanki gibi ekle. Mesajlar ve bildirimler Kick teslim eder etmez görünür. `info-panel.html` izleyici sayısını yine Kick'in herkese açık verisinden okur; relay açıksa yayın başlar ya da biter bitmez görünür veya gizlenir.
 
 Relay yalnızca geçerli Kick imzası taşıyan olayları kabul eder, her olayı bir kez iletir ve olayları yalnızca kendi yayıncı kimliğin için iletir. Kimlik bilinmiyorsa olaylar düşürülür ve relay bunu günlüğüne yazar; aramayı en fazla dakikada bir tekrarlar. Overlay portu yalnızca `127.0.0.1`'de dinler ve yabancı `Host` başlığı taşıyan istekleri reddeder; tünel sadece webhook yolunu dışarı açar. Kick, uygulama başına abonelikleri sınırlar: olay türü başına 10.000, doğrulanmamış uygulamada sohbet mesajları için 1.000.
 
@@ -478,6 +489,7 @@ Tüm ayarlar `AYARLAR.js` içindedir; stüdyo aynı ayarları verdiği bağlant�
 | `yuzdeGoster` | `showPercent` | Hedefin yüzdesini göster | `false` |
 | `hedefKutlama` | `goalCelebration` | Yüzde 25, 50 ve 75'te nabız, yüzde 100'de "hedefe ulaşıldı" durumu | `true` |
 | `hataNotu` | `statusNote` | "Kick'e ulaşılamıyor" gibi küçük durum notunu ekranda göster | `true` |
+| `bilgiBaslik` | `infoShowTitle` | Yayın başlığını bilgi panelinin alt kenarında göster | `false` |
 | `yenilemeSn` | `refreshSeconds` | Yenileme aralığı, saniye (10–600) | `30` |
 | `sohbetMaksMesaj` | `chatMaxMessages` | Ekranda aynı anda en fazla sohbet mesajı (3–20) | `8` |
 | `sohbetKomutGizle` | `chatHideCommands` | `!` ile başlayan sohbet mesajlarını gizle | `false` |

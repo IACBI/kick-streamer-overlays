@@ -555,6 +555,7 @@ async function relayChecks() {
   const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'kick-relay-'));
   fs.copyFileSync(path.join(ROOT, 'chat.html'), path.join(copy, 'chat.html'));
   fs.copyFileSync(path.join(ROOT, 'alerts.html'), path.join(copy, 'alerts.html'));
+  fs.copyFileSync(path.join(ROOT, 'info-panel.html'), path.join(copy, 'info-panel.html'));
   fs.copyFileSync(path.join(ROOT, 'studio.html'), path.join(copy, 'studio.html'));
   fs.cpSync(path.join(ROOT, 'shared'), path.join(copy, 'shared'), { recursive: true });
   // chat.html loads only AYARLAR.js (it needs no credentials); relayAdresi is allowed there.
@@ -602,6 +603,7 @@ async function relayChecks() {
     check('relay chat: a ban removes that user\'s messages', stillThere === false);
 
     await alertRelayChecks(copy, webhookPort, privateKey);
+    await infoRelayChecks(copy, webhookPort, privateKey);
     await studioRelayChecks(copy, eventsPort);
 
     relay.stop();
@@ -616,6 +618,38 @@ async function relayChecks() {
     await chat.close();
     try { relay.stop(); } catch (e) { /* already stopped */ }
     fs.rmSync(copy, { recursive: true, force: true });
+  }
+}
+
+// Stream start, title change and end from the relay switch the info panel at once, without waiting for a poll.
+async function infoRelayChecks(copy, webhookPort, privateKey) {
+  const page = await openPageFrom(copy, 'info-panel.html', '?bilgiBaslik=1', [300, 80]);
+  const broadcaster = { user_id: 113812015, username: CHANNEL, channel_slug: CHANNEL };
+  const state = `({ off: document.getElementById('panel').classList.contains('is-off'), titleHidden: document.getElementById('title').hidden, title: document.getElementById('title').textContent })`;
+  try {
+    await sleep(2500);
+    const started = JSON.stringify({ broadcaster, is_live: true, title: 'E2E stream title', started_at: new Date(Date.now() - 65000).toISOString(), ended_at: null });
+    check('relay info: a signed stream start is accepted (200)', (await relayPost(webhookPort, 'e2e-live-1', started, privateKey, 'livestream.status.updated')) === 200);
+    await sleep(900);
+    const on = await page.eval(state);
+    check('relay info: the panel turns live and shows the title from the start event', on.off === false && on.titleHidden === false && on.title === 'E2E stream title', JSON.stringify(on));
+    const uptime = await page.eval(`document.getElementById('uptime').textContent`);
+    check('relay info: the uptime counts from started_at', /^0:01:0\d$/.test(uptime), uptime);
+
+    const meta = JSON.stringify({ broadcaster, metadata: { title: 'Yeni başlık', language: 'tr', has_mature_content: false, category: { id: 1, name: 'Just Chatting', thumbnail: '' } } });
+    await relayPost(webhookPort, 'e2e-meta-1', meta, privateKey, 'livestream.metadata.updated');
+    await sleep(900);
+    const renamed = await page.eval(state);
+    check('relay info: a title change updates the title tag', renamed.title === 'Yeni başlık', JSON.stringify(renamed));
+
+    const ended = JSON.stringify({ broadcaster, is_live: false, title: 'Yeni başlık', started_at: new Date(Date.now() - 65000).toISOString(), ended_at: new Date().toISOString() });
+    await relayPost(webhookPort, 'e2e-live-2', ended, privateKey, 'livestream.status.updated');
+    await sleep(900);
+    const off = await page.eval(state);
+    check('relay info: the panel hides as soon as the stream ends', off.off === true && off.titleHidden === true, JSON.stringify(off));
+    check('relay info: no unexpected errors', unexpected(page.logs).length === 0, short(unexpected(page.logs)));
+  } finally {
+    await page.close();
   }
 }
 

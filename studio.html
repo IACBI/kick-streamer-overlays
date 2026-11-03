@@ -527,6 +527,7 @@
           <label class="st-check"><input type="checkbox" name="yuzdeGoster" /> <span data-i18n="f.yuzdeGoster"></span></label>
           <label class="st-check"><input type="checkbox" name="oturumFarkiGoster" /> <span data-i18n="f.oturumFarkiGoster"></span></label>
           <label class="st-check"><input type="checkbox" name="hataNotu" /> <span data-i18n="f.hataNotu"></span></label>
+          <label class="st-check"><input type="checkbox" name="bilgiBaslik" /> <span data-i18n="f.bilgiBaslik"></span></label>
         </div>
 
         <div class="st-actions">
@@ -970,6 +971,7 @@
       // v2.3: new settings, preview, links, backup, relay
       'how.aria': 'Nasıl çalışır',
       'f.hataNotu': 'Overlay’lerde küçük durum ve hata notunu göster',
+      'f.bilgiBaslik': 'Bilgi panelinde yayın başlığını göster',
       'f.hedefKutlama': 'Hedef kutlaması (%25, %50, %75 ve hedefe ulaşınca)',
       'h.hedefKutlama': 'Çubuk her çeyrekte kısa bir parlama yapar; hedef dolunca “hedefe ulaşıldı” görünümüne geçer.',
       'f.sohbetSilinmeSn': 'Mesajı şu kadar saniye sonra sil',
@@ -1173,6 +1175,7 @@
       // v2.3: new settings, preview, links, backup, relay
       'how.aria': 'How it works',
       'f.hataNotu': 'Show the small status and error note on overlays',
+      'f.bilgiBaslik': 'Show the stream title on the info panel',
       'f.hedefKutlama': 'Goal celebration (at 25%, 50%, 75% and when the goal is reached)',
       'h.hedefKutlama': 'The bar pulses briefly at each quarter and switches to a “goal reached” look when full.',
       'f.sohbetSilinmeSn': 'Remove a message after (seconds)',
@@ -1264,7 +1267,7 @@
     { id: 'follower', file: 'follower-bar.html', w: 520, h: 90, group: 'g-goals', needsChannel: true, data: true, keys: ['takipciHedefi', 'takipciYedek', 'yuzdeGoster', 'yenilemeSn', 'hedefKutlama', 'hataNotu'] },
     { id: 'subscriber', file: 'subscriber-bar.html', w: 520, h: 90, group: 'g-goals', needsChannel: false, data: true, keys: ['aboneHedefi', 'aboneSayisi', 'oturumFarkiGoster', 'yuzdeGoster', 'yenilemeSn', 'hedefKutlama', 'hataNotu'] },
     { id: 'combined', file: 'combined-bar.html', w: 520, h: 180, group: 'g-goals', needsChannel: true, data: true, keys: ['takipciHedefi', 'takipciYedek', 'aboneHedefi', 'aboneSayisi', 'oturumFarkiGoster', 'yuzdeGoster', 'yenilemeSn', 'hedefKutlama', 'hataNotu'] },
-    { id: 'info', file: 'info-panel.html', w: 300, h: 80, group: 'g-goals', needsChannel: true, data: true, keys: ['yenilemeSn', 'hataNotu'] },
+    { id: 'info', file: 'info-panel.html', w: 300, h: 80, group: 'g-goals', needsChannel: true, data: true, keys: ['yenilemeSn', 'bilgiBaslik', 'hataNotu'] },
     { id: 'countdown', file: 'countdown.html', w: 520, h: 190, group: 'g-countdown', needsChannel: false, keys: ['geriSayimDk', 'geriSayimSaat', 'geriSayimBaslik', 'hataNotu'] },
     { id: 'ticker', file: 'ticker.html', w: 760, h: 80, group: 'g-ticker', needsChannel: false, keys: ['duyuruMetinleri', 'duyuruSn', 'hataNotu'] },
     { id: 'chat', file: 'chat.html', w: 460, h: 760, group: 'g-chat', needsChannel: true, sampleOnly: true, keys: ['sohbetMaksMesaj', 'yayinciYazisi', 'sohbetKomutGizle', 'sohbetGizliKullanicilar', 'sohbetSilinmeSn', 'hataNotu'] },
@@ -1291,6 +1294,7 @@
     { key: 'yuzdeGoster', note: 'Show the percentage of the goal' },
     { key: 'hedefKutlama', note: 'Goal bars: pulse at 25 / 50 / 75 % and a "goal reached" look at 100 %' },
     { key: 'hataNotu', note: 'Show the small status / error note on overlays' },
+    { key: 'bilgiBaslik', note: "Info panel (info-panel.html): show the stream title on the panel's bottom edge" },
     { key: 'yenilemeSn', note: 'Refresh interval in seconds (10–600)' },
     { key: 'sohbetMaksMesaj', note: 'Maximum chat messages on screen (3–20)' },
     { key: 'sohbetKomutGizle', note: 'Hide chat messages that start with "!" (commands)' },

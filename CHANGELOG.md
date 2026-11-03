@@ -7,10 +7,16 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ### Changed
 
 - The pack is now under the MIT License. Copies must keep the copyright notice; Kick's name and the role icons in `badges/` are not covered.
+- `subscribe` now lists the existing subscriptions first and requests only the missing events, so running it again after an update cannot create duplicates.
+- The README drops the hand-written test count badge; a test keeps the theme and overlay badges in step with the code.
 
 ### Added
 
 - `docs/ROADMAP.md`: the planned milestones from v2.5 to v3.0.
+- The relay passes on Kick's `livestream.status.updated` and `livestream.metadata.updated` events. With the relay running, `info-panel.html` shows or hides the moment the stream starts or ends, instead of on the next poll; for three minutes after such an event a poll that still disagrees is ignored, because Kick's public data can lag. Run `subscribe` once more to add these events.
+- `bilgiBaslik` (`infoShowTitle`): shows the stream title as a tag on the info panel's bottom edge. It comes from Kick's public data and is updated at once by title changes through the relay. Off by default.
+- `/health` reports `features.live`, so the info panel connects only to a relay that sends stream events.
+- An alerts preview GIF in the README, and the info panel GIF shows the title tag.
 
 ## [2.4.0] - 2026-11-03
 

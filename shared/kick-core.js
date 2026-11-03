@@ -43,6 +43,7 @@
     sohbetGizliKullanicilar: { t: 'str', d: '', max: 300 },
     sohbetSilinmeSn:   { t: 'int', d: 0, min: 0, max: 600 },
     hataNotu:          { t: 'bool', d: true },
+    bilgiBaslik:       { t: 'bool', d: false },
     hedefKutlama:      { t: 'bool', d: true },
     uyariSn:           { t: 'int', d: 6, min: 3, max: 30 },
     uyariTakip:        { t: 'bool', d: true },
@@ -58,7 +59,7 @@
     accent: 'renk', streamerLabel: 'yayinciYazisi',
     followerGoal: 'takipciHedefi', followerFallback: 'takipciYedek', subscriberGoal: 'aboneHedefi',
     subscriberCount: 'aboneSayisi', showSessionGain: 'oturumFarkiGoster', showPercent: 'yuzdeGoster',
-    goalCelebration: 'hedefKutlama', statusNote: 'hataNotu', refreshSeconds: 'yenilemeSn',
+    goalCelebration: 'hedefKutlama', statusNote: 'hataNotu', infoShowTitle: 'bilgiBaslik', refreshSeconds: 'yenilemeSn',
     chatMaxMessages: 'sohbetMaksMesaj', chatHideCommands: 'sohbetKomutGizle', chatHiddenUsers: 'sohbetGizliKullanicilar',
     chatFadeSeconds: 'sohbetSilinmeSn',
     countdownMinutes: 'geriSayimDk', countdownTime: 'geriSayimSaat', countdownTitle: 'geriSayimBaslik',
@@ -233,7 +234,8 @@
     subs: 42,
     delta: 3,
     viewers: 2048,
-    startMs: 3723000
+    startMs: 3723000,
+    title: 'Ranked games until midnight'
   };
 
   // Splits the announcement setting (lines separated by |) into at most 12 trimmed, non-empty lines.
@@ -663,11 +665,12 @@
 
   function parseLive(d) {
     var ls = d && d.livestream;
-    if (!ls || ls.is_live === false) return { live: false, viewers: 0, startMs: null };
+    if (!ls || ls.is_live === false) return { live: false, viewers: 0, startMs: null, title: '' };
     return {
       live: true,
       viewers: numOrNull(ls.viewer_count) || 0,
-      startMs: parseTime(ls.start_time || ls.created_at || '')
+      startMs: parseTime(ls.start_time || ls.created_at || ''),
+      title: typeof ls.session_title === 'string' ? ls.session_title.trim().slice(0, 140) : ''
     };
   }
 
@@ -897,9 +900,9 @@
 
   var ES_CLOSED = 2;
   // Event names the relay streams (relay/server.js). Each page acts on the kinds it shows and ignores the rest.
-  var RELAY_EVENTS = ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks'];
+  var RELAY_EVENTS = ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks', 'live', 'meta'];
 
-  // Server-Sent Events: the relay sends chat, ban and alert frames (RELAY_EVENTS) already in the overlay's shape.
+  // Server-Sent Events: the relay sends chat, ban, alert and stream frames (RELAY_EVENTS) already in the overlay's shape.
   // h = { onMessage(event), onStatus(status) }. Status: 'connecting', 'open', 'reconnecting'.
   // A browser retries a dropped stream by itself, but gives up for good after some failures
   // (readyState CLOSED); then we reopen it ourselves with backoff: 1 s, 2 s, ... up to 30 s.

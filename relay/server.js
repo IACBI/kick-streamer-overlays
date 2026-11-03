@@ -417,7 +417,7 @@ function createRelay(opts) {
     if (p === '/health') {
       return send(res, 200, {
         ok: true, version: VERSION, clients: clients.size, lastEventAt,
-        features: { chat: chatReady(), alerts: chatReady(), channel: true, subscribers: api.hasCredentials() }
+        features: { chat: chatReady(), alerts: chatReady(), live: chatReady(), channel: true, subscribers: api.hasCredentials() }
       });
     }
     if (p === '/channel' || p === '/subscribers') {

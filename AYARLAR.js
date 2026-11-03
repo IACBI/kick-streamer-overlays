@@ -55,6 +55,9 @@ window.KICK_OVERLAY_AYARLAR = {
   // Show the small error / status note on screen (e.g. "Kick unreachable"). Hide it for a clean stream
   hataNotu: true,
 
+  // Info panel (info-panel.html): show the stream title on the panel's bottom edge
+  bilgiBaslik: false,
+
   // Refresh interval in seconds (10–600)
   yenilemeSn: 30,
 

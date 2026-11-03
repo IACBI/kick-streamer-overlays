@@ -69,7 +69,12 @@ const SCENES = {
   },
   'info-panel': {
     w: 360, h: 120, seconds: 6, colors: 96,
-    html: `<iframe width="300" height="80" style="left:30px;top:20px;transform:scale(1)" src="${fileUrl('info-panel.html', '?onizleme=1')}"></iframe>`
+    html: `<iframe width="300" height="80" style="left:30px;top:20px;transform:scale(1)" src="${fileUrl('info-panel.html', '?onizleme=1&bilgiBaslik=1')}"></iframe>`
+  },
+  // One loop of the sample alerts: follow, subscription, gift, Kicks and a renewal, at 3 s each.
+  alerts: {
+    w: 680, h: 240, seconds: 21, colors: 96,
+    html: `<iframe width="640" height="200" style="left:20px;top:20px" src="${fileUrl('alerts.html', '?onizleme=1&stil=vivid&uyariSn=3')}"></iframe>`
   },
   combined: {
     w: 600, h: 230, seconds: 5, colors: 256,
