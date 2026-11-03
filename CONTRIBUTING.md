@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping make the pack better. This project is by 𝓐.𝓒.𝓑 and free for everyone; contributions are welcome under the same terms (see [LICENSE](LICENSE)).
+Thanks for helping make the pack better. This project is by 𝓐.𝓒.𝓑 and free for everyone; contributions are welcome under the same MIT terms (see [LICENSE](LICENSE)).
 
 ## Ground rules
 
