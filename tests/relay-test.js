@@ -206,7 +206,9 @@ function statusOf(port, p, headers) {
       W.normalizeEvent('channel.followed', { follower: { username: '   ' } }) === null);
     check('EVENT_TYPES lists chat, bans, the five alert events and the two stream events, each once', W.EVENT_TYPES.length === 9 && new Set(W.EVENT_TYPES).size === 9 && W.EVENT_TYPES.includes('kicks.gifted') && W.EVENT_TYPES.includes('livestream.status.updated') && W.EVENT_TYPES.includes('livestream.metadata.updated'));
 
-    const { subscribedEvents, EVENTS } = require(path.join(__dirname, '..', 'relay', 'subscribe.js'));
+    const { subscribedEvents, subscriptionBody, EVENTS } = require(path.join(__dirname, '..', 'relay', 'subscribe.js'));
+    const subBody = subscriptionBody([{ name: 'chat.message.sent', version: 1 }], '113812015');
+    check('subscribe: broadcaster_user_id is sent as a number (Kick answers 400 to a string)', subBody.broadcaster_user_id === 113812015 && subBody.method === 'webhook' && subBody.events.length === 1);
     const have = subscribedEvents({ data: [{ event: 'chat.message.sent', version: 1 }, { event: 'kicks.gifted' }, null, { id: 'x' }] });
     check('subscribe: existing subscriptions are read by event name, junk entries skipped', have.size === 2 && have.has('chat.message.sent') && have.has('kicks.gifted'));
     check('subscribe: an empty or odd list response means nothing is subscribed', subscribedEvents(null).size === 0 && subscribedEvents({ data: 'x' }).size === 0);

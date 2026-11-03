@@ -46,6 +46,12 @@ function subscribedEvents(body) {
   return new Set(items.map((s) => s && (s.event || s.name)).filter((n) => typeof n === 'string'));
 }
 
+// Request body for POST /events/subscriptions. Kick answers 400 when broadcaster_user_id is a string,
+// and the relay keeps ids as strings, so it is converted here.
+function subscriptionBody(events, broadcasterId) {
+  return { events, method: 'webhook', broadcaster_user_id: Number(broadcasterId) };
+}
+
 /** @param {string[]} argv command line arguments after the script name */
 async function main(argv) {
   const list = argv.includes('--list');
@@ -83,7 +89,7 @@ async function main(argv) {
   const body = await call('https://api.kick.com/public/v1/events/subscriptions', {
     method: 'POST',
     headers: Object.assign({ 'Content-Type': 'application/json' }, auth),
-    body: JSON.stringify({ events: missing, method: 'webhook', broadcaster_user_id: bid })
+    body: JSON.stringify(subscriptionBody(missing, bid))
   });
   const ids = findIds(body);
   console.log(`Subscribed to: ${missing.map((e) => e.name).join(', ')}.`);
@@ -102,4 +108,4 @@ function cli(argv) {
 
 if (require.main === module) cli(process.argv.slice(2));
 
-module.exports = { cli, EVENTS, subscribedEvents };
+module.exports = { cli, EVENTS, subscribedEvents, subscriptionBody };
