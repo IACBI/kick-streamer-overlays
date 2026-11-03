@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-04
+
 ### Added
 
 - `events.html`: the latest follows, subscriptions, gifts and Kicks of the stream (`olaySayisi` / `eventsCount`, 3–10).
