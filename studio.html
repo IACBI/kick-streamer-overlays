@@ -641,6 +641,25 @@
               <p class="st-hint" data-i18n="h.uyariSesSeviye"></p>
             </div>
             <div class="st-field st-wide">
+              <label class="st-label" for="uyariOdulGizle" data-i18n="f.uyariOdulGizle"></label>
+              <input id="uyariOdulGizle" name="uyariOdulGizle" type="text" maxlength="400" data-i18n-ph="ph.uyariOdulGizle" />
+              <p class="st-hint" data-i18n="h.uyariOdulGizle"></p>
+            </div>
+            <div class="st-field">
+              <label class="st-check"><input type="checkbox" name="uyariTts" /> <span data-i18n="f.uyariTts"></span></label>
+              <p class="st-hint" data-i18n="h.uyariTts"></p>
+            </div>
+            <div class="st-field">
+              <label class="st-label" for="uyariTtsUzunluk" data-i18n="f.uyariTtsUzunluk"></label>
+              <input id="uyariTtsUzunluk" name="uyariTtsUzunluk" type="number" min="20" max="200" step="10" inputmode="numeric" />
+              <p class="st-hint" data-i18n="h.uyariTtsUzunluk"></p>
+            </div>
+            <div class="st-field st-wide">
+              <label class="st-label" for="uyariTtsYasak" data-i18n="f.uyariTtsYasak"></label>
+              <input id="uyariTtsYasak" name="uyariTtsYasak" type="text" maxlength="400" data-i18n-ph="ph.uyariTtsYasak" />
+              <p class="st-hint" data-i18n="h.uyariTtsYasak"></p>
+            </div>
+            <div class="st-field st-wide">
               <span class="st-label" data-i18n="f.uyariTest"></span>
               <div class="st-actions" style="margin-top:0">
                 <button type="button" class="st-btn st-btn--small" id="sesDene" data-i18n="test.sound"></button>
@@ -908,6 +927,16 @@
       'h.uyariSes': 'Her türün kendi kısa sesi var. alerts klasörüne follow.mp3, sub.mp3, gift.mp3, kicks.mp3 ya da reward.mp3 koyarsan o çalar. OBS’te kaynağın “Sesi OBS ile kontrol et” seçeneğini aç.',
       'f.uyariSesSeviye': 'Ses seviyesi (%)',
       'h.uyariSesSeviye': '0 ile 100 arası. 0 sesi kapatır.',
+      'f.uyariOdulGizle': 'Gösterilmeyecek ödüller',
+      'ph.uyariOdulGizle': 'Su iç | Ekranı salla',
+      'h.uyariOdulGizle': 'Ödül adlarını | işaretiyle ayır. Büyük-küçük harf fark etmez. Diğer ödüller gösterilir.',
+      'f.uyariTts': 'Mesajları sesli oku',
+      'h.uyariTts': 'Kicks ve ödül mesajlarını bilgisayarın sesiyle okur. Ses OBS kaynağından değil, bilgisayarın varsayılan çıkışından gelir; yayında duyulması için OBS’in masaüstü sesini alması gerekir. Önizlemede okumaz.',
+      'f.uyariTtsUzunluk': 'En uzun okuma (karakter)',
+      'h.uyariTtsUzunluk': '20 ile 200 arası. Daha uzun mesaj kelime sınırında kesilir.',
+      'f.uyariTtsYasak': 'Okunmayacak kelimeler',
+      'ph.uyariTtsYasak': 'küfür1, küfür2',
+      'h.uyariTtsYasak': 'Virgülle ayır. İsimde ya da mesajda bunlardan biri geçerse o mesaj hiç okunmaz. Bağlantılar hiçbir zaman okunmaz.',
       'f.uyariTest': 'Dene',
       'h.uyariTest': '“Sesi burada dene” sesi bu sayfada çalar. Tür düğmeleri, relay üzerinden açık olan bildirim overlay’ine örnek bir bildirim gönderir (ses ve görsel dahil).',
       'test.sound': 'Sesi burada dene',
@@ -960,7 +989,7 @@
       'ov.chat': 'Sohbet', 'ov.chat.d': 'Canlı sohbet. Yerel relay gerektirir (bkz. Sorun giderme)',
       'file.title': 'Ayar dosyası yöntemi',
       'file.sub': 'AYARLAR.js',
-      'file.intro': 'Bağlantı yerine OBS’in “Yerel dosya” seçeneğini kullanmak istersen: aşağıdaki dosyayı indirip proje klasöründeki AYARLAR.js’in yerine koy, sonra kaynağa sağ tıklayıp Yenile’yi seç.',
+      'file.intro': 'Bağlantı yerine OBS’in “Yerel dosya” seçeneğini kullanmak istersen: aşağıdaki dosyayı indirip proje klasöründeki AYARLAR.js’in yerine koy, sonra kaynağa sağ tıklayıp Yenile’yi seç. OBS 33’te Yerel dosya relay’e ulaşamaz: sohbet, bildirimler ve canlı durum için bağlantıyı kullan.',
       'file.aria': 'Oluşturulan AYARLAR.js içeriği',
       'file.download': 'AYARLAR.js indir',
       'file.copy': 'Kopyala',
@@ -1136,6 +1165,16 @@
       'h.uyariSes': 'Each kind has its own short sound. Put follow.mp3, sub.mp3, gift.mp3, kicks.mp3 or reward.mp3 in the alerts folder to play that instead. In OBS, turn on “Control audio via OBS” for the source.',
       'f.uyariSesSeviye': 'Volume (%)',
       'h.uyariSesSeviye': '0 to 100. 0 turns the sound off.',
+      'f.uyariOdulGizle': 'Rewards to hide',
+      'ph.uyariOdulGizle': 'Hydrate | Shake the screen',
+      'h.uyariOdulGizle': 'Separate reward names with |. Not case-sensitive. Other rewards still show.',
+      'f.uyariTts': 'Read messages aloud',
+      'h.uyariTts': 'Reads Kicks and reward messages with the computer’s voice. The speech comes from the computer’s default output, not from the OBS source, so it is on stream only when OBS captures desktop audio. Never reads in previews.',
+      'f.uyariTtsUzunluk': 'Longest reading (characters)',
+      'h.uyariTtsUzunluk': '20 to 200. A longer message is cut at a word break.',
+      'f.uyariTtsYasak': 'Words never read',
+      'ph.uyariTtsYasak': 'badword1, badword2',
+      'h.uyariTtsYasak': 'Separate with commas. If the name or the message contains one of them, that message is not read at all. Links are never read.',
       'f.uyariTest': 'Try it',
       'h.uyariTest': '“Play the sound here” plays it on this page. The kind buttons send a sample alert through the relay to the open alerts overlay (sound and art included).',
       'test.sound': 'Play the sound here',
@@ -1188,7 +1227,7 @@
       'ov.chat': 'Chat', 'ov.chat.d': 'Live chat. Needs the local relay (see Help)',
       'file.title': 'Settings file method',
       'file.sub': 'AYARLAR.js',
-      'file.intro': 'Prefer OBS’s “Local file” option over a link? Download the file below, replace AYARLAR.js in the project folder, then right-click the source and choose Refresh.',
+      'file.intro': 'Prefer OBS’s “Local file” option over a link? Download the file below, replace AYARLAR.js in the project folder, then right-click the source and choose Refresh. In OBS 33 a Local file cannot reach the relay: use the link for chat, alerts and live status.',
       'file.aria': 'Generated AYARLAR.js content',
       'file.download': 'Download AYARLAR.js',
       'file.copy': 'Copy',
@@ -1358,7 +1397,7 @@
     { id: 'countdown', file: 'countdown.html', w: 520, h: 190, group: 'g-countdown', needsChannel: false, keys: ['geriSayimDk', 'geriSayimSaat', 'geriSayimBaslik', 'hataNotu'] },
     { id: 'ticker', file: 'ticker.html', w: 760, h: 80, group: 'g-ticker', needsChannel: false, keys: ['duyuruMetinleri', 'duyuruSn', 'hataNotu'] },
     { id: 'chat', file: 'chat.html', w: 460, h: 760, group: 'g-chat', needsChannel: true, sampleOnly: true, keys: ['sohbetMaksMesaj', 'yayinciYazisi', 'sohbetKomutGizle', 'sohbetGizliKullanicilar', 'sohbetSilinmeSn', 'hataNotu'] },
-    { id: 'alerts', file: 'alerts.html', w: 640, h: 200, group: 'g-alerts', needsChannel: true, sampleOnly: true, keys: ['uyariSn', 'uyariTakip', 'uyariAbone', 'uyariHediye', 'uyariKicks', 'uyariOdul', 'uyariSes', 'uyariSesSeviye', 'hataNotu'] }
+    { id: 'alerts', file: 'alerts.html', w: 640, h: 200, group: 'g-alerts', needsChannel: true, sampleOnly: true, keys: ['uyariSn', 'uyariTakip', 'uyariAbone', 'uyariHediye', 'uyariKicks', 'uyariOdul', 'uyariSes', 'uyariSesSeviye', 'uyariOdulGizle', 'uyariTts', 'uyariTtsUzunluk', 'uyariTtsYasak', 'hataNotu'] }
   ];
   var BACKGROUNDS = ['checker', 'dark', 'light', 'scene'];
 
@@ -1399,7 +1438,11 @@
     { key: 'uyariKicks' },
     { key: 'uyariOdul', note: 'Channel point reward redemptions (needs the "Read Channel points rewards" scope in your Kick app)' },
     { key: 'uyariSes', note: 'Play a sound with each alert. A file in alerts/ (follow.mp3, sub.mp3, gift.mp3, kicks.mp3) replaces the built-in tone' },
-    { key: 'uyariSesSeviye', note: 'Alert volume, 0–100' }
+    { key: 'uyariSesSeviye', note: 'Alert volume, 0–100' },
+    { key: 'uyariOdulGizle', note: 'Reward names that never show an alert, separated by | (not case-sensitive)' },
+    { key: 'uyariTts', note: 'Read Kicks and reward messages aloud. Plays on the computer\'s default output, not through the OBS source' },
+    { key: 'uyariTtsUzunluk', note: 'Longest message read aloud, in characters (20–200)' },
+    { key: 'uyariTtsYasak', note: 'Words that stop a message from being read, separated by commas (not case-sensitive)' }
   ]; }
 
   var $ = function (id) { return document.getElementById(id); };

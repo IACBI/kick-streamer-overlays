@@ -504,6 +504,7 @@
   // The core reconnects by itself; the note only appears if the relay stays away for RELAY_DOWN_MS.
   function onStatus(st){
     K.debug({ relay: st });
+    if(st === 'blocked'){ K.note(noteEl, S, K.relayBlockedNote(S)); return; }
     if(st === 'open'){
       if(downTimer !== null){ clearTimeout(downTimer); downTimer = null; }
       K.note(noteEl, S, '');

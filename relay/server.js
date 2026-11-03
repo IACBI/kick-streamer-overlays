@@ -41,7 +41,10 @@ const LOOPBACK_NAME = /^(?:127\.0\.0\.1|localhost|\[::1\])$/i;
 const ALERT_KINDS = new Set(['follow', 'sub', 'gift', 'kicks', 'reward']);
 const CONTROL_GAP_MS = 300;             // dock buttons: fast enough for a double click, not for a flood
 const CONTROL_ACTIONS = new Set(['pause', 'resume', 'skip', 'replay']);
-const TEST_GAP_MS = 1500;               // test alerts are for setup; a stuck button must not flood the stream
+const MAX_COUNTDOWN_MIN = 720;          // same limit as the geriSayimDk setting
+const MAX_LINES = 12;                   // same limits as the duyuruMetinleri setting (kick-core splitLines)
+const MAX_TEXT = 400;
+const TEST_GAP_MS = 1500;              // test alerts are for setup; a stuck button must not flood the stream
 // Fixed samples, so a test request cannot put any text of its own on stream.
 const TEST_ALERTS = {
   follow: { kind: 'follow', username: 'TestFollower' },
@@ -455,6 +458,38 @@ function createRelay(opts) {
     return send(res, 200, { ok: true, action, paused: alertsPaused, clients: clients.size });
   }
 
+  // ---- /overlay: countdown and announcement changes from the dock, kept for pages that connect later ----
+  // Text is the streamer's own (typed into the local dock); it is trimmed and capped like the matching settings,
+  // and the pages set it as text only.
+  const oneLine = (v, max) => String(v || '').replace(/\s+/g, ' ').trim().slice(0, max);
+  let countdownState = null, tickerState = null, lastOverlayAt = -Infinity;
+  const overlayFrame = (state) => `event: overlay\ndata: ${JSON.stringify(state)}\n\n`;
+  function handleOverlay(res, q) {
+    const target = q.get('target');
+    let state;
+    if (target === 'countdown') {
+      const raw = q.get('minutes');
+      const min = /^\d{1,3}$/.test(raw || '') ? Number(raw) : NaN;
+      if (!(min <= MAX_COUNTDOWN_MIN)) return send(res, 400, { ok: false, error: 'bad minutes' });
+      state = { target, deadline: o.now() + min * 60000, total: min * 60000, title: oneLine(q.get('title'), 60) };
+    } else if (target === 'ticker') {
+      const reset = q.get('reset') === '1';
+      const lines = reset ? [] : String(q.get('lines') || '').slice(0, MAX_TEXT).split('|').map((t) => oneLine(t, MAX_TEXT)).filter(Boolean).slice(0, MAX_LINES);
+      if (!reset && !lines.length) return send(res, 400, { ok: false, error: 'no lines' });
+      state = { target, lines };   // no lines: back to the page's own setting
+    } else {
+      return send(res, 400, { ok: false, error: 'bad target' });
+    }
+    const now = o.now();
+    if (now - lastOverlayAt < CONTROL_GAP_MS) return send(res, 429, { ok: false, error: 'rate' }, { 'Retry-After': '1' });
+    lastOverlayAt = now;
+    if (target === 'countdown') countdownState = state;
+    else tickerState = state.lines.length ? state : null;
+    const frame = overlayFrame(state);
+    for (const c of Array.from(clients)) writeClient(c, frame);
+    return send(res, 200, { ok: true, target, clients: clients.size });
+  }
+
   // ---- events listener (local only, for the overlay page) ----
   async function handleEvents(req, res) {
     // Only loopback names are served, so a web page cannot reach this port through DNS rebinding.
@@ -479,12 +514,13 @@ function createRelay(opts) {
     let url;
     try { url = new URL(req.url, 'http://localhost'); } catch (e) { return send(res, 400, { error: 'bad request' }); }
     const p = url.pathname;
-    // POST is only for the one route with a side effect; everything else is read-only GET.
-    const method = p === '/test-alert' || p === '/control' ? 'POST' : 'GET';
+    // POST is only for the routes with a side effect; everything else is read-only GET.
+    const method = p === '/test-alert' || p === '/control' || p === '/overlay' ? 'POST' : 'GET';
     if (req.method !== method) return send(res, 405, { error: 'method not allowed' }, { Allow: method + ', OPTIONS' });
     if (!keyOk(url.searchParams.get('key'))) return send(res, 401, { ok: false, error: 'bad key' });
     if (p === '/test-alert') return handleTestAlert(res, url.searchParams.get('kind') || '');
     if (p === '/control') return handleControl(res, url.searchParams.get('action') || '');
+    if (p === '/overlay') return handleOverlay(res, url.searchParams);
 
     if (p === '/health') {
       return send(res, 200, {
@@ -509,6 +545,9 @@ function createRelay(opts) {
     });
     res.write(': connected\n\n');
     if (alertsPaused) res.write(controlFrame('pause'));
+    // A countdown that ended is not sent again: an old "Going live!" must not replace a fresh page's own countdown.
+    if (countdownState && countdownState.deadline > o.now()) res.write(overlayFrame(countdownState));
+    if (tickerState) res.write(overlayFrame(tickerState));
     clients.add(res);
     const remove = () => clients.delete(res);
     res.on('close', remove);
@@ -607,6 +646,7 @@ function main(env = process.env, argv = process.argv.slice(2)) {
     } else {
       log.warn('  WARNING: broadcaster id unknown, so chat and alert events will be DROPPED.');
       log.warn('  Set RELAY_BROADCASTER_ID, or add Kick app credentials and kanal so it can be looked up.');
+      log.warn('  The guided setup does that: "node relay/setup.js" (or "kick-relay setup").');
     }
     log.log(env.RELAY_KEY
       ? '  Overlay access key: taken from RELAY_KEY (overlays need the same value).'

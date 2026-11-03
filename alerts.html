@@ -61,6 +61,27 @@
   const SILENT = PREVIEW || !S.kanal;
   const media = K.createAlertMedia(SILENT ? Object.assign({}, S, { uyariSes: false }) : S,
     Object.keys(ENABLED).filter(k => ENABLED[k]));
+  // Speech goes to the computer's default output, not through the OBS source (see README), and only when the
+  // browser has a voice. It never runs in previews or sample mode.
+  const synth = !SILENT && S.uyariTts && window.speechSynthesis && window.SpeechSynthesisUtterance ? window.speechSynthesis : null;
+  const TTS_MS_PER_CHAR = 75;
+  const TTS_MAX_MS = 30000;
+
+  // Starts reading the alert's message and returns how long the card should stay for it (0 when nothing is read).
+  function speak(ev){
+    const text = synth ? K.ttsText(S, ev) : '';
+    if (!text) return 0;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = S.dil === 'en' ? 'en-US' : 'tr-TR';
+      const voice = synth.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith(u.lang.slice(0, 2)));
+      if (voice) u.voice = voice;
+      u.volume = Math.max(0, Math.min(1, S.uyariSesSeviye / 100));
+      synth.cancel();
+      synth.speak(u);
+    } catch (e) { return 0; }
+    return Math.min(TTS_MAX_MS, 1500 + text.length * TTS_MS_PER_CHAR);
+  }
 
   function icon(kind){
     const svg = document.createElementNS(SVG_NS, 'svg');
@@ -151,6 +172,7 @@
   // Shape check for what reaches the page, so a malformed frame can never throw inside the queue.
   function valid(ev){
     if (!ev || !Object.hasOwn(ENABLED, ev.kind) || !ENABLED[ev.kind]) return false;
+    if (ev.kind === 'reward' && K.rewardHidden(S, ev.title)) return false;
     if (ev.kind === 'gift') return ev.anonymous === true || (typeof ev.username === 'string' && ev.username !== '');
     return typeof ev.username === 'string' && ev.username !== '';
   }
@@ -202,8 +224,10 @@
     stage.appendChild(current);
     shown += 1;
     const sound = SILENT ? 'off' : media.play(ev.kind);
-    K.debug({ shown: shown, queued: queue.length, last: ev.kind, sound: sound });
-    const dwell = queue.length >= BACKLOG ? Math.max(MIN_DWELL_MS, DWELL_MS / 2) : DWELL_MS;
+    const speechMs = speak(ev);
+    K.debug({ shown: shown, queued: queue.length, last: ev.kind, sound: sound, speech: speechMs ? speechMs + ' ms' : 'off' });
+    // A card being read stays until the reading is likely done, even with a backlog.
+    const dwell = Math.max(speechMs, queue.length >= BACKLOG ? Math.max(MIN_DWELL_MS, DWELL_MS / 2) : DWELL_MS);
     dwellTimer = setTimeout(leave, dwell);
   }
 
@@ -228,6 +252,7 @@
       K.debug({ paused: null });
       if (!current && outTimer === null) showNext();
     } else if (action === 'skip' && current) {
+      if (synth) synth.cancel();
       if (dwellTimer !== null) { clearTimeout(dwellTimer); dwellTimer = null; }
       leave();
     }
@@ -240,6 +265,7 @@
 
   function onStatus(st){
     K.debug({ relay: st });
+    if (st === 'blocked') { K.note(noteEl, S, K.relayBlockedNote(S)); return; }
     if (st === 'open') {
       if (downTimer !== null) { clearTimeout(downTimer); downTimer = null; }
       K.note(noteEl, S, '');
@@ -280,6 +306,7 @@
     [dwellTimer, outTimer, downTimer].forEach(t => { if (t !== null) clearTimeout(t); });
     if (previewTimer !== null) clearInterval(previewTimer);
     if (stopRelay) stopRelay();
+    if (synth) synth.cancel();
   });
 
   // Alerts come only from the local relay, which receives Kick's signed webhooks (see relay/).

@@ -96,7 +96,7 @@ async function launchChrome() {
 }
 
 // Opens a file:// page from `dir` as a fresh target. Listeners attach before navigation.
-async function openPageFrom(dir, fileName, query, size, blocked) {
+async function openPageFrom(dir, fileName, query, size, blocked, preload) {
   const target = await (await fetch(`${BASE}/json/new?about:blank`, { method: 'PUT' })).json();
   const c = await cdp(target.webSocketDebuggerUrl);
   const logs = [];
@@ -120,12 +120,13 @@ async function openPageFrom(dir, fileName, query, size, blocked) {
     await c.send('Network.setBlockedURLs', { urls: blocked });
   }
   if (size) await c.send('Emulation.setDeviceMetricsOverride', { width: size[0], height: size[1], deviceScaleFactor: 1, mobile: false });
+  if (preload) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: preload });
   await c.send('Page.navigate', { url: pathToFileURL(path.join(dir, fileName)).href + (query || '') });
   return {
     c, logs,
     eval: async (expr) => {
       const r = await c.send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
-      if (r.exceptionDetails) throw new Error(r.exceptionDetails.text || 'evaluate failed');
+      if (r.exceptionDetails) throw new Error((r.exceptionDetails.exception && r.exceptionDetails.exception.description) || r.exceptionDetails.text || 'evaluate failed');
       return r.result.value;
     },
     shot: async (name) => {
@@ -589,6 +590,8 @@ async function relayChecks() {
   fs.copyFileSync(path.join(ROOT, 'info-panel.html'), path.join(copy, 'info-panel.html'));
   fs.copyFileSync(path.join(ROOT, 'studio.html'), path.join(copy, 'studio.html'));
   fs.copyFileSync(path.join(ROOT, 'dock.html'), path.join(copy, 'dock.html'));
+  fs.copyFileSync(path.join(ROOT, 'countdown.html'), path.join(copy, 'countdown.html'));
+  fs.copyFileSync(path.join(ROOT, 'ticker.html'), path.join(copy, 'ticker.html'));
   fs.cpSync(path.join(ROOT, 'shared'), path.join(copy, 'shared'), { recursive: true });
   fs.cpSync(path.join(ROOT, 'branding'), path.join(copy, 'branding'), { recursive: true });
   // chat.html loads only AYARLAR.js (it needs no credentials); relayAdresi is allowed there.
@@ -638,6 +641,8 @@ async function relayChecks() {
     await alertRelayChecks(copy, webhookPort, privateKey);
     await testAlertChecks(copy, eventsPort, accessKey);
     await dockChecks(copy);
+    await speechChecks(copy, webhookPort, privateKey);
+    await overlayDockChecks(copy);
     await infoRelayChecks(copy, webhookPort, privateKey);
     await studioRelayChecks(copy, eventsPort);
 
@@ -823,6 +828,88 @@ async function dockChecks(copy) {
   } finally {
     await dock.close();
     await al.close();
+  }
+}
+
+// Text-to-speech and hidden rewards on the alerts page. The browser's speech engine is replaced by a recorder,
+// so the check sees exactly what would be read without playing sound.
+async function speechChecks(copy, webhookPort, privateKey) {
+  const preload = `
+    window.__spoken = []; window.__cancels = 0; window.__names = [];
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: {
+      speak(u) { window.__spoken.push({ text: u.text, lang: u.lang, volume: u.volume }); },
+      cancel() { window.__cancels += 1; }, getVoices() { return []; }
+    } });
+    new MutationObserver((ms) => { for (const m of ms) for (const n of m.addedNodes) {
+      const el = n.querySelector && n.querySelector('.ko-alert-name'); if (el) window.__names.push(el.textContent);
+    } }).observe(document, { childList: true, subtree: true });`;
+  const al = await openPageFrom(copy, 'alerts.html', '?uyariSn=3&dil=en&uyariTts=1&uyariSesSeviye=40&uyariTtsYasak=forbidden&uyariOdulGizle=' + encodeURIComponent('hydrate | Stretch'), [640, 200], null, preload);
+  const fixture = (name) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', `webhook-${name}.json`), 'utf8'));
+  const forUs = (obj) => JSON.stringify(Object.assign(obj, { broadcaster: Object.assign(obj.broadcaster, { user_id: 113812015 }) }));
+  try {
+    await sleep(2000);
+    const k1 = fixture('kicks-gifted');
+    k1.sender.username = 'tts_fan';
+    k1.gift.message = 'Great stream https://evil.example/x';
+    await relayPost(webhookPort, 'e2e-tts-1', forUs(k1), privateKey, 'kicks.gifted');
+    const k2 = fixture('kicks-gifted');
+    k2.sender.username = 'tts_rude';
+    k2.gift.message = 'something FORBIDDEN here';
+    await relayPost(webhookPort, 'e2e-tts-2', forUs(k2), privateKey, 'kicks.gifted');
+    const hidden = fixture('reward-redemption');
+    hidden.id = 'e2e-hidden-1';
+    hidden.reward.title = 'Hydrate';
+    hidden.redeemer.username = 'hidden_redeemer';
+    await relayPost(webhookPort, 'e2e-rw-1', forUs(hidden), privateKey, 'channel.reward.redemption.updated');
+    const shown = fixture('reward-redemption');
+    shown.id = 'e2e-shown-1';
+    shown.redeemer.username = 'shown_redeemer';
+    await relayPost(webhookPort, 'e2e-rw-2', forUs(shown), privateKey, 'channel.reward.redemption.updated');
+    await sleep(12000);
+    const r = await al.eval(`({ spoken: window.__spoken, names: window.__names })`);
+    check('speech: a Kicks message is read once, without its link, in the label language, at the alert volume',
+      r.spoken.length >= 1 && r.spoken[0].text === 'tts_fan: Great stream' && r.spoken[0].lang === 'en-US' && Math.abs(r.spoken[0].volume - 0.4) < 0.01, JSON.stringify(r.spoken));
+    check('speech: a message with a blocked word is shown but not read', r.names.includes('tts_rude') && !r.spoken.some((x) => /tts_rude/.test(x.text)), JSON.stringify(r));
+    check('speech: the reward viewer text is read too', r.spoken.some((x) => x.text === 'shown_redeemer: Play Valorant next'), JSON.stringify(r.spoken));
+    check('hidden rewards: a listed reward never shows, any case; other rewards do', !r.names.includes('hidden_redeemer') && r.names.includes('shown_redeemer'), JSON.stringify(r.names));
+    check('speech: no unexpected errors', unexpected(al.logs).length === 0, short(unexpected(al.logs)));
+  } finally {
+    await al.close();
+  }
+}
+
+// Countdown and announcement bar changed from the dock while they run, then set back.
+async function overlayDockChecks(copy) {
+  const cd = await openPageFrom(copy, 'countdown.html', '?dil=en&geriSayimDk=30', [520, 190]);
+  const tk = await openPageFrom(copy, 'ticker.html', '?dil=en&animasyon=off&duyuruMetinleri=' + encodeURIComponent('Original line'), [760, 80]);
+  const dock = await openPageFrom(copy, 'dock.html', '?dil=en', [320, 760]);
+  try {
+    await sleep(2500);
+    const before = await cd.eval(`document.getElementById('time').textContent`);
+    await dock.eval(`document.getElementById('cd-min').value = '2'; document.getElementById('cd-title').value = 'Back in a bit'; document.getElementById('cd-start').click()`);
+    await sleep(1500);
+    const after = await cd.eval(`({ time: document.getElementById('time').textContent, title: document.getElementById('title').textContent })`);
+    check('dock countdown: a running countdown restarts with the dock\'s minutes and title', /^30:00|^29:5/.test(before) && /^0[12]:[0-5]\d$/.test(after.time) && after.title === 'Back in a bit', JSON.stringify({ before, after }));
+    await dock.eval(`document.getElementById('tk-lines').value = 'Dock line one | Dock line two'; document.getElementById('tk-send').click()`);
+    await sleep(1500);
+    check('dock ticker: the announcement bar switches to the dock\'s lines', (await tk.eval(`document.getElementById('line').textContent`)) === 'Dock line one');
+    const late = await openPageFrom(copy, 'ticker.html', '?dil=en&animasyon=off&duyuruMetinleri=' + encodeURIComponent('Original line'), [760, 80]);
+    await sleep(2500);
+    check('dock ticker: a ticker opened later gets the dock\'s lines from the relay', (await late.eval(`document.getElementById('line').textContent`)) === 'Dock line one');
+    await late.close();
+    await dock.shot('dock-overlays.png');
+    await cd.shot('countdown-from-dock.png');
+    await tk.shot('ticker-from-dock.png');
+    await dock.eval(`document.getElementById('tk-reset').click()`);
+    await sleep(1500);
+    check('dock ticker: back to settings shows the page\'s own line again', (await tk.eval(`document.getElementById('line').textContent`)) === 'Original line');
+    const msg = await dock.eval(`document.getElementById('msg').textContent`);
+    check('dock: the countdown and ticker requests are confirmed', msg === 'Done.', msg);
+    check('dock overlays: no unexpected errors', [cd, tk, dock].every((p) => unexpected(p.logs).length === 0), short([cd, tk, dock].flatMap((p) => unexpected(p.logs))));
+  } finally {
+    await dock.close();
+    await tk.close();
+    await cd.close();
   }
 }
 

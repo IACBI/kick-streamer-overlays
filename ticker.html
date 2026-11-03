@@ -196,23 +196,51 @@
     if (rotating()) timer = setTimeout(next, Math.max(0, dwell - swapMs()));
   }
 
+  let hint = null;
   function showHint(){
-    const h = document.createElement('div');
-    h.className = 'ko-hint';
-    h.textContent = K.label(S, '⚙ AYARLAR.js → duyuruMetinleri ayarla', '⚙ Set duyuruMetinleri in AYARLAR.js');
-    elBar.appendChild(h);
+    hint = document.createElement('div');
+    hint.className = 'ko-hint';
+    hint.textContent = K.label(S, '⚙ AYARLAR.js → duyuruMetinleri ayarla', '⚙ Set duyuruMetinleri in AYARLAR.js');
+    elBar.appendChild(hint);
   }
 
+  // New lines from the OBS dock (dock.html) through the relay; an empty list goes back to duyuruMetinleri.
+  function replaceLines(next){
+    if (timer !== null) { clearTimeout(timer); timer = null; }
+    if (swapTimer !== null) { clearTimeout(swapTimer); swapTimer = null; }
+    lines = next.length ? next : K.splitLines(S.duyuruMetinleri);
+    idx = 0; pageIdx = 0;
+    if (hint) { hint.remove(); hint = null; }
+    if (lines.length === 0) {
+      elMsg.classList.remove('is-in', 'is-out');
+      elProgress.classList.remove('is-run', 'is-hide');
+      showHint();
+      return;
+    }
+    cycle();
+  }
+
+  let stopRelay = null;
   if (PREVIEW) lines = SAMPLES;
-  if (lines.length === 0) { showHint(); return; }
-  cycle();
+  if (lines.length === 0) showHint();
+  else cycle();
+  // Only once the relay has run here (it writes the key), so a pack without the relay makes no requests.
+  if (!PREVIEW && window.KICK_RELAY_KEY && S.relayAdresi) {
+    stopRelay = K.connectRelay(S.relayAdresi + '/events', {
+      onMessage: function(ev){
+        if (ev.kind !== 'overlay' || ev.target !== 'ticker' || !Array.isArray(ev.lines)) return;
+        replaceLines(ev.lines.filter(t => typeof t === 'string').map(t => t.trim().slice(0, 400)).filter(Boolean).slice(0, 12));
+      }
+    });
+  }
   window.addEventListener('pagehide', function(){
     if (timer !== null) clearTimeout(timer);
     if (swapTimer !== null) clearTimeout(swapTimer);
+    if (stopRelay) stopRelay();
   });
   // The font may arrive after the first measure; re-measure the line on screen without touching the timers.
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){
-    if (swapTimer !== null) return;
+    if (swapTimer !== null || lines.length === 0) return;
     if (wrapMode()) {
       const before = pages.length;
       pages = measureLine(lines[idx]);

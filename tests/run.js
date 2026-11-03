@@ -38,7 +38,7 @@ const DEFAULTS = {
   geriSayimSaat: '', sohbetKomutGizle: false, sohbetGizliKullanicilar: '', sohbetSilinmeSn: 0,
   hataNotu: true, hedefKutlama: true, bilgiBaslik: false,
   uyariSn: 6, uyariTakip: true, uyariAbone: true, uyariHediye: true, uyariKicks: true, uyariOdul: true,
-  uyariSes: true, uyariSesSeviye: 60
+  uyariSes: true, uyariSesSeviye: 60, uyariOdulGizle: '', uyariTts: false, uyariTtsUzunluk: 120, uyariTtsYasak: ''
 };
 const RELAY = 'http://127.0.0.1:8790';
 
@@ -116,7 +116,7 @@ function loadCore(opts = {}) {
     document: opts.document,
     crypto: opts.crypto,
     localStorage: opts.localStorage,
-    location: { search: opts.search || '' },
+    location: opts.location || { search: opts.search || '' },
     performance: { now: () => env.now },
     requestAnimationFrame: (cb) => { env.frames.push(cb); return env.frames.length; },
     cancelAnimationFrame: () => {}
@@ -447,6 +447,34 @@ async function testReadSettings() {
     // The test sandbox has no Web Audio, so the tone path reports it could not play.
     eq(on.play('follow'), 'blocked', 'no Web Audio');
     eq(Object.keys(K.alertTones).sort(), ['follow', 'gift', 'kicks', 'reward', 'sub'], 'one tone per alert kind');
+  });
+
+  await check('rewardHidden: listed reward titles are hidden, any case; others and empty titles are not', () => {
+    const { K } = loadCore();
+    const s = K.normalize({ alertRewardsHidden: ' Hydrate | Shake  the screen ' });
+    eq(s.uyariOdulGizle, 'Hydrate | Shake  the screen', 'alias alertRewardsHidden');
+    eq(K.rewardHidden(s, 'hydrate'), true, 'case');
+    eq(K.rewardHidden(s, 'Shake  the screen'), true, 'second title');
+    eq(K.rewardHidden(s, 'Hydrate now'), false, 'whole title only');
+    eq(K.rewardHidden(s, ''), false, 'empty title');
+    eq(K.rewardHidden(K.normalize({}), 'Hydrate'), false, 'nothing hidden by default');
+  });
+
+  await check('ttsText: off by default; reads Kicks and reward messages; drops links; blocks words; cuts at a word', () => {
+    const { K } = loadCore();
+    const ev = { kind: 'kicks', username: 'Luna', message: 'GG well played' };
+    eq(K.ttsText(K.normalize({}), ev), '', 'off by default');
+    const on = K.normalize({ alertTts: true, alertTtsMaxLength: 20, alertTtsBlockedWords: ' BadWord , ,spam' });
+    eq(on.uyariTts === true && on.uyariTtsUzunluk === 20 && on.uyariTtsYasak === 'BadWord , ,spam', true, 'aliases');
+    eq(K.ttsText(on, ev), 'Luna: GG well played', 'kicks message');
+    eq(K.ttsText(on, { kind: 'reward', username: 'Rin', message: 'see https://evil.example/x and www.x.io now' }), 'Rin: see and now', 'links dropped');
+    eq(K.ttsText(on, { kind: 'follow', username: 'Mia', message: 'hi' }), '', 'only kicks and reward');
+    eq(K.ttsText(on, { kind: 'kicks', username: 'Luna', message: '   ' }), '', 'empty message');
+    eq(K.ttsText(on, { kind: 'kicks', username: 'Luna', message: 'you are a BADWORDer' }), '', 'blocked inside a word, any case');
+    eq(K.ttsText(on, { kind: 'kicks', username: 'spammer', message: 'hello' }), '', 'blocked in the name');
+    eq(K.ttsText(on, { kind: 'kicks', username: 'Luna', message: 'one two three four five six' }), 'Luna: one two three four', 'cut at a word break (20 characters)');
+    eq(K.ttsText(on, { kind: 'kicks', username: 'Luna', message: 'x'.repeat(50) }), 'Luna: ' + 'x'.repeat(20), 'one long word is cut hard');
+    eq(K.normalize({ uyariTtsUzunluk: 5 }).uyariTtsUzunluk, 20, 'length clamped');
   });
 
   await check('obsSceneCollection: an importable OBS collection with one Browser source per overlay', () => {
@@ -2409,6 +2437,24 @@ async function testConnectRelayReconnect() {
     eq(sources[0].closed, false, 'not closed');
     eq(statuses, ['connecting', 'reconnecting'], 'statuses');
     stop();
+  });
+
+  await check('OBS "Local file" pages (http://absolute) skip the relay: no stream, no probe, a blocked status', async () => {
+    const sources = [];
+    let fetched = 0;
+    const { K } = loadCore({ EventSource: fakeEventSource(sources), location: { protocol: 'http:', hostname: 'absolute', search: '' },
+      fetch: async () => { fetched += 1; throw new TypeError('should not fetch'); } });
+    const statuses = [];
+    const stop = K.connectRelay('http://127.0.0.1:8790/events', { onStatus: (st) => statuses.push(st) });
+    eq(statuses, ['blocked'], 'status');
+    eq(sources.length, 0, 'no EventSource');
+    stop();
+    eq(await K.relayInfo(K.normalize({})), null, 'relayInfo');
+    eq(fetched, 0, 'no request');
+    eq(K.relayBlocked(), true, 'relayBlocked');
+    eq(/studio link/.test(K.relayBlockedNote(K.normalize({ dil: 'en' }))), true, 'note');
+    const file = loadCore({ location: { protocol: 'file:', hostname: '', search: '' } }).K;
+    eq(file.relayBlocked(), false, 'a file:// link is not blocked');
   });
 
   await check('stop() cancels a pending reconnect and closes the stream', async () => {

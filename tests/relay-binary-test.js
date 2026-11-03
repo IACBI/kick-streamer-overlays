@@ -51,6 +51,11 @@ async function main() {
       sub.status === 1 && /Subscription failed: Kick app credentials are missing/.test(sub.stderr) && !/Kick relay/.test(sub.stdout), `status ${sub.status}`);
   }
 
+  // With no answers on stdin the guided setup must stop at the first question, not wait or loop.
+  const setup = spawnSync(exe, ['setup'], { cwd: dir, env: baseEnv, input: '', encoding: 'utf8', timeout: 30000 });
+  check('"setup" runs the guided setup, which stops when there is no input',
+    setup.status === 1 && /Kick relay setup/.test(setup.stdout) && /Setup stopped: input ended/.test(setup.stderr) && !fs.existsSync(path.join(dir, 'AYARLAR.local.js')), `status ${setup.status}`);
+
   const [webhookPort, eventsPort] = [await freePort(), await freePort()];
   const child = spawn(exe, [], {
     cwd: elsewhere, // not the executable's folder: files must still land next to the executable

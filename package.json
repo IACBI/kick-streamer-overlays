@@ -26,6 +26,7 @@
     "check": "npm run lint && npm run typecheck && node tools/sync-version.js --check && npm test",
     "version": "node tools/sync-version.js && git add shared/kick-core.js",
     "relay": "node relay/server.js",
+    "relay:setup": "node relay/setup.js",
     "record": "node tools/record-previews.js"
   },
   "devDependencies": {

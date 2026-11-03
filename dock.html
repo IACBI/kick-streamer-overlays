@@ -31,6 +31,13 @@
   #status { display: flex; align-items: center; gap: 8px; }
   #dot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
   #dot.ok { background: var(--ok); } #dot.warn { background: var(--warn); } #dot.err { background: var(--err); }
+  .field { display: grid; gap: 4px; flex: 1 1 90px; min-width: 0; color: var(--muted); font-size: 12px; }
+  .field.grow { flex: 3 1 160px; }
+  input {
+    width: 100%; min-height: 32px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font: inherit;
+  }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   #msg { min-height: 1.4em; color: var(--muted); }
   #msg.err { color: var(--err); }
 </style>
@@ -52,6 +59,22 @@
   <section aria-labelledby="h-test">
     <h2 id="h-test"></h2>
     <div class="row" id="tests"></div>
+  </section>
+  <section aria-labelledby="h-countdown">
+    <h2 id="h-countdown"></h2>
+    <div class="row">
+      <label class="field"><span id="l-cd-min"></span><input id="cd-min" type="number" min="0" max="720" step="1" inputmode="numeric" /></label>
+      <label class="field grow"><span id="l-cd-title"></span><input id="cd-title" type="text" maxlength="60" /></label>
+    </div>
+    <div class="row"><button type="button" id="cd-start"></button></div>
+  </section>
+  <section aria-labelledby="h-ticker">
+    <h2 id="h-ticker"></h2>
+    <label class="field"><span id="l-tk-lines"></span><input id="tk-lines" type="text" maxlength="400" /></label>
+    <div class="row">
+      <button type="button" id="tk-send"></button>
+      <button type="button" id="tk-reset"></button>
+    </div>
   </section>
   <p id="msg" role="status" aria-live="polite"></p>
 </main>
@@ -139,7 +162,7 @@
     btn.disabled = true;
     try {
       const r = await call(path, 'POST');
-      if (r.status === 200) say(r.data && r.data.clients === 0 ? L('Gönderildi, ama bağlı bildirim overlay’i yok.', 'Sent, but no alerts overlay is connected.') : L('Tamam.', 'Done.'));
+      if (r.status === 200) say(r.data && r.data.clients === 0 ? L('Gönderildi, ama relay’e bağlı overlay yok.', 'Sent, but no overlay is connected to the relay.') : L('Tamam.', 'Done.'));
       else if (r.status === 409) say(L('Henüz tekrarlanacak bildirim yok.', 'No alert to replay yet.'), true);
       else if (r.status === 429) say(L('Biraz bekle, sonra tekrar dene.', 'Wait a moment, then try again.'), true);
       else say(L('Relay isteği reddetti (HTTP ' + r.status + ').', 'The relay refused the request (HTTP ' + r.status + ').'), true);
@@ -154,6 +177,30 @@
   pauseBtn.addEventListener('click', () => send('/control?action=' + (paused ? 'resume' : 'pause'), pauseBtn));
   skipBtn.addEventListener('click', () => send('/control?action=skip', skipBtn));
   replayBtn.addEventListener('click', () => send('/control?action=replay', replayBtn));
+
+  $('h-countdown').textContent = L('Geri sayım', 'Countdown');
+  $('l-cd-min').textContent = L('Dakika', 'Minutes');
+  $('l-cd-title').textContent = L('Başlık (boş: ayarlardaki)', 'Title (empty: from settings)');
+  $('cd-start').textContent = L('Geri sayımı başlat', 'Start countdown');
+  $('h-ticker').textContent = L('Duyuru çubuğu', 'Announcement bar');
+  $('l-tk-lines').textContent = L('Satırlar, | ile ayrılmış', 'Lines, separated by |');
+  $('tk-send').textContent = L('Duyuruları değiştir', 'Replace announcements');
+  $('tk-reset').textContent = L('Ayarlara dön', 'Back to settings');
+  $('cd-min').value = String(S.geriSayimDk);
+  $('cd-title').value = S.geriSayimBaslik;
+  $('tk-lines').value = S.duyuruMetinleri;
+
+  $('cd-start').addEventListener('click', (e) => {
+    const min = Number($('cd-min').value);
+    if (!Number.isInteger(min) || min < 0 || min > 720) { say(L('Dakika 0 ile 720 arasında bir tam sayı olmalı.', 'Minutes must be a whole number from 0 to 720.'), true); return; }
+    send('/overlay?' + new URLSearchParams({ target: 'countdown', minutes: String(min), title: $('cd-title').value.trim() }), e.currentTarget);
+  });
+  $('tk-send').addEventListener('click', (e) => {
+    const lines = $('tk-lines').value.trim();
+    if (!lines.replace(/\|/g, '').trim()) { say(L('En az bir satır yaz.', 'Write at least one line.'), true); return; }
+    send('/overlay?' + new URLSearchParams({ target: 'ticker', lines }), e.currentTarget);
+  });
+  $('tk-reset').addEventListener('click', (e) => send('/overlay?target=ticker&reset=1', e.currentTarget));
 
   renderPause();
   setControls(false);

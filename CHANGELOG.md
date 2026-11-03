@@ -4,6 +4,18 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- Text-to-speech for Kicks and reward messages, off by default: `uyariTts` (`alertTts`), a length limit `uyariTtsUzunluk` (`alertTtsMaxLength`, 20–200, default 120) and blocked words `uyariTtsYasak` (`alertTtsBlockedWords`): a message with one of them is not read at all, and links are never read. The card stays until the reading is likely done; **Skip** in the dock stops it. Checked in OBS 33 on Windows: its browser has the system voices (Turkish and English) and speaks. The speech plays on the computer's default output, not through the OBS source.
+- `uyariOdulGizle` (`alertRewardsHidden`): reward names that never show an alert, separated by `|`.
+- Dock: restart the countdown with new minutes and a title, and replace the announcement bar's lines during the stream, through the relay's new `POST /overlay`. Pages that open later get the running countdown and the current lines. `countdown.html` and `ticker.html` connect to the relay only once it has run (its key file exists).
+- Guided relay setup: `node relay/setup.js` or `kick-relay setup` asks for the channel and the Kick app credentials (the secret is not echoed), checks them with Kick, and saves them to `AYARLAR.local.js` and `kanal` in `AYARLAR.js`.
+
+### Fixed
+
+- In OBS 33 a **Local file** source loads from `http://absolute/`, and its browser does not let that page reach the relay on `127.0.0.1`. Such pages now skip the relay and say to use the studio link, instead of retrying forever, which also wrote the relay access key into OBS's log with every attempt. Links pasted into the URL box (the studio's method) connect normally; both were checked in OBS 33.
+- The text-to-speech length cut could leave one character over the limit when the message had no space (caught by a new test before release).
+
 ## [2.5.0] - 2026-11-03
 
 ### Changed
