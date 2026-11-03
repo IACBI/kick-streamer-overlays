@@ -21,6 +21,12 @@
 <script src="shared/lang/de.js"></script>
 <script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
+<script src="shared/lang/studio/tr.js"></script>
+<script src="shared/lang/studio/en.js"></script>
+<script src="shared/lang/studio/es.js"></script>
+<script src="shared/lang/studio/pt.js"></script>
+<script src="shared/lang/studio/de.js"></script>
+<script src="shared/lang/studio/ar.js"></script>
 <style>
   /* ---- Studio tokens (UI only; overlay styling lives in shared/themes.css) ---- */
   :root {
@@ -120,9 +126,9 @@
   h1 { font-size: 21px; font-weight: 800; letter-spacing: -0.015em; }
   .st-lead { color: var(--st-muted); font-size: 14px; }
 
-  .st-langs { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--st-line-strong); border-radius: 999px; background: var(--st-panel); }
+  .st-langs { display: inline-flex; flex-wrap: wrap; padding: 3px; gap: 2px; border: 1px solid var(--st-line-strong); border-radius: 999px; background: var(--st-panel); }
   .st-langs button {
-    min-width: 44px; min-height: 40px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent;
+    min-width: 40px; min-height: 40px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent;
     color: var(--st-muted); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
     transition: background-color var(--st-fast) var(--st-ease), color var(--st-fast) var(--st-ease);
   }
@@ -167,7 +173,7 @@
     font-size: 12px; font-weight: 800; background: var(--st-line); color: var(--st-text);
   }
   .st-intro { color: var(--st-muted); font-size: 14px; margin: -4px 0 14px; }
-  .st-tag { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--st-muted); border: 1px solid var(--st-line); border-radius: 999px; padding: 1px 9px; }
+  .st-tag { margin-inline-start: auto; font-size: 12px; font-weight: 600; color: var(--st-muted); border: 1px solid var(--st-line); border-radius: 999px; padding: 1px 9px; }
 
   /* Collapsible groups (native details) */
   details.st-group { border: 1px solid var(--st-line); border-radius: 12px; background: var(--st-raised); }
@@ -178,7 +184,7 @@
   }
   details.st-group > summary::-webkit-details-marker { display: none; }
   details.st-group > summary::after {
-    content: ''; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--st-muted); border-bottom: 2px solid var(--st-muted);
+    content: ''; margin-inline-start: auto; width: 8px; height: 8px; border-right: 2px solid var(--st-muted); border-bottom: 2px solid var(--st-muted);
     transform: rotate(45deg); transition: transform var(--st-slow) var(--st-ease), border-color var(--st-fast) var(--st-ease); flex: 0 0 auto;
   }
   details.st-group > summary:hover::after { border-color: var(--st-text); }
@@ -238,7 +244,7 @@
   .st-opt:focus-within { outline: 2px solid var(--st-focus); outline-offset: 2px; }
   .st-opt.is-checked { border-color: var(--st-focus); background: var(--st-sel-bg); box-shadow: inset 0 0 0 1px var(--st-focus); font-weight: 700; }
   .st-theme { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 8px; padding: 10px; }
-  .st-theme .st-opt-text { text-align: left; }
+  .st-theme .st-opt-text { text-align: start; }
 
   .st-swatch {
     position: relative; display: block; height: 40px; border-radius: 8px; overflow: hidden;
@@ -307,7 +313,7 @@
   .st-card { border: 1px solid var(--st-line); border-radius: 12px; background: var(--st-raised); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
   .st-card-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .st-card-name { font-weight: 700; font-size: 14.5px; }
-  .st-card-size { margin-left: auto; font-size: 12px; font-weight: 700; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--st-line); color: var(--st-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .st-card-size { margin-inline-start: auto; font-size: 12px; font-weight: 700; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--st-line); color: var(--st-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .st-card-desc { font-size: 13px; color: var(--st-muted); }
   .st-card-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .st-card-row input { flex: 1 1 100%; min-height: 36px; font-size: 12.5px; font-family: 'Roboto Mono', ui-monospace, Consolas, monospace; text-overflow: ellipsis; }
@@ -328,7 +334,7 @@
   .st-pv-meta[hidden], .st-chip[hidden], .st-btn[hidden] { display: none; }
   .st-btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
 
-  .st-steps { margin: 0 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  .st-steps { margin: 0 0 14px; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
   .st-note { font-size: 13px; color: var(--st-muted); margin-top: 12px; }
 
   /* ---- Live preview ---- */
@@ -377,9 +383,9 @@
   .st-bgs button[aria-pressed="true"] { background: var(--st-sel-bg); color: var(--st-text); border-color: var(--st-focus); }
 
   /* ---- Help ---- */
-  .st-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+  .st-list { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
   /* Relay check: one line per condition; the mark carries the colour and the text says what to do. */
-  .st-diag { list-style: none; padding-left: 0; margin-top: 8px; }
+  .st-diag { list-style: none; padding-inline-start: 0; margin-top: 8px; }
   .st-diag li { display: grid; grid-template-columns: 1.4em 1fr; gap: 4px; }
   .st-diag .st-mark { font-weight: 800; }
   .st-diag .is-ok .st-mark { color: var(--st-ok); }
@@ -457,8 +463,12 @@
     </div>
   </div>
   <div class="st-langs" role="group" data-i18n-aria="lang.aria">
-    <button type="button" data-lang="tr" aria-pressed="false">TR</button>
-    <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    <button type="button" data-lang="tr" lang="tr" aria-label="Türkçe" aria-pressed="false">TR</button>
+    <button type="button" data-lang="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
+    <button type="button" data-lang="es" lang="es" aria-label="Español" aria-pressed="false">ES</button>
+    <button type="button" data-lang="pt" lang="pt-BR" aria-label="Português (Brasil)" aria-pressed="false">PT</button>
+    <button type="button" data-lang="de" lang="de" aria-label="Deutsch" aria-pressed="false">DE</button>
+    <button type="button" data-lang="ar" lang="ar" aria-label="العربية" aria-pressed="false">AR</button>
   </div>
 </div>
 
@@ -944,554 +954,11 @@
 
   // ---- Text: every visible string, Turkish and English ------------------------
 
-  var I18N = {
-    tr: {
-      'skip': 'İçeriğe geç',
-      'brand.title': 'Kick Overlay Stüdyo',
-      'update.text': 'Yeni sürüm var: {latest} (sende {current}).',
-      'update.link': 'Sürüm notları ve indirme',
-      'brand.lead': 'Görünümü seç, önizle, bağlantıyı kopyala ve OBS’e yapıştır.',
-      'lang.aria': 'Dil',
-      'how.1': 'Kanalını ve görünümü seç',
-      'how.2': 'Overlay’in bağlantısını kopyala',
-      'how.3': 'OBS’te Tarayıcı kaynağına yapıştır',
-      'tag.optional': 'isteğe bağlı',
-      's1.title': 'Kanal',
-      'f.kanal': 'Kick kanal adı',
-      'h.kanal': 'Kanal adresindeki kick.com/ sonrasındaki ad. Boşsa önizlemede örnek veri görürsün; OBS’te ise kurulum ipucu çıkar.',
-      's2.title': 'Görünüm',
-      'presets.label': 'Hazır görünümler',
-      'presets.hint': 'Tema, şekil, yazı tipi, hareket ve vurgu rengini birlikte değiştirir.',
-      'preset.minimal': 'Minimal', 'preset.neon': 'Neon', 'preset.pastel': 'Pastel', 'preset.gece': 'Gece', 'preset.kagit': 'Kâğıt',
-      'f.stil': 'Tema',
-      'f.sekil': 'Köşe şekli',
-      'f.dil': 'Etiket dili',
-      'f.animasyon': 'Hareket',
-      'f.yaziTipi': 'Yazı tipi',
-      'f.renk': 'Vurgu rengi',
-      'f.renkHex': 'Vurgu rengi, hex kodu',
-      'f.yuzdeGoster': 'Hedefin yüzdesini göster',
-      'f.oturumFarkiGoster': 'Abone artışını göster (bu yayında +N)',
-      'reset': 'Tüm ayarları sıfırla (kanal kalır)',
-      's3.title': 'Sayılar ve içerik',
-      's3.intro': 'Hedeflerini, sohbeti, geri sayımı ve duyuruları buradan ayarla. Önizlemede seçtiğin overlay’in bölümü kendiliğinden açılır.',
-      'g.goals': 'Hedefler ve sayılar',
-      'g.goals.for': 'takipçi, abone, birleşik çubuk, yayın paneli',
-      'g.chat': 'Sohbet',
-      'g.alerts': 'Bildirimler',
-      'f.uyariSn': 'Bir bildirim ekranda kaç saniye kalsın',
-      'h.uyariSn': '3 ile 30 arası. Sırada çok bildirim varsa her biri yarı süre kalır.',
-      'f.uyariTurler': 'Gösterilecek bildirimler',
-      'f.uyariTakip': 'Yeni takipçi',
-      'f.uyariAbone': 'Yeni ve yenilenen abonelik',
-      'f.uyariHediye': 'Hediye abonelik',
-      'f.uyariKicks': 'Kicks hediyesi',
-      'f.uyariOdul': 'Kanal puanı ödülü',
-      'h.uyariTurler': 'Bildirimler yerel relay üzerinden gelir; kurulum sohbetle aynıdır.',
-      'f.uyariSes': 'Bildirim sesi çal',
-      'h.uyariSes': 'Her türün kendi kısa sesi var. alerts klasörüne follow.mp3, sub.mp3, gift.mp3, kicks.mp3 ya da reward.mp3 koyarsan o çalar. OBS’te kaynağın “Sesi OBS ile kontrol et” seçeneğini aç.',
-      'f.uyariSesSeviye': 'Ses seviyesi (%)',
-      'h.uyariSesSeviye': '0 ile 100 arası. 0 sesi kapatır.',
-      'f.uyariOdulGizle': 'Gösterilmeyecek ödüller',
-      'ph.uyariOdulGizle': 'Su iç | Ekranı salla',
-      'h.uyariOdulGizle': 'Ödül adlarını | işaretiyle ayır. Büyük-küçük harf fark etmez. Diğer ödüller gösterilir.',
-      'f.uyariTts': 'Mesajları sesli oku',
-      'h.uyariTts': 'Kicks ve ödül mesajlarını bilgisayarın sesiyle okur. Ses OBS kaynağından değil, bilgisayarın varsayılan çıkışından gelir; yayında duyulması için OBS’in masaüstü sesini alması gerekir. Önizlemede okumaz.',
-      'f.uyariTtsUzunluk': 'En uzun okuma (karakter)',
-      'h.uyariTtsUzunluk': '20 ile 200 arası. Daha uzun mesaj kelime sınırında kesilir.',
-      'f.uyariTtsYasak': 'Okunmayacak kelimeler',
-      'ph.uyariTtsYasak': 'küfür1, küfür2',
-      'h.uyariTtsYasak': 'Virgülle ayır. İsimde ya da mesajda bunlardan biri geçerse o mesaj hiç okunmaz. Bağlantılar hiçbir zaman okunmaz.',
-      'f.uyariTest': 'Dene',
-      'h.uyariTest': '“Sesi burada dene” sesi bu sayfada çalar. Tür düğmeleri, relay üzerinden açık olan bildirim overlay’ine örnek bir bildirim gönderir (ses ve görsel dahil).',
-      'test.sound': 'Sesi burada dene',
-      'test.played': '{kind} sesi çalındı.',
-      'test.muted': 'Ses kapalı ya da seviye 0.',
-      'test.blocked': 'Tarayıcı sesi engelledi.',
-      'test.sent': 'Test bildirimi gönderildi ({n} bağlı overlay).',
-      'test.none': 'Gönderildi ama bağlı bildirim overlay’i yok. OBS’te alerts.html açık mı?',
-      'test.rate': 'Biraz bekle, sonra tekrar dene.',
-      'g.countdown': 'Geri sayım',
-      'g.stats': 'Yayın istatistikleri',
-      'f.kicksHedefi': 'Kicks hedefi',
-      'h.kicksHedefi': 'Kicks hedef çubuğu için, bu yayında gelen Kicks toplamı.',
-      'f.trenSn': 'Abone treni süresi (sn)',
-      'h.trenSn': '30 ile 600 arası. Bu süre içinde yeni bir abonelik gelirse tren devam eder.',
-      'f.hedefArtis': 'Hedef otomatik artışı',
-      'h.hedefArtis': 'Hedefe ulaşılınca hedef bu kadar artar. 0 = kapalı. Takipçi, abone ve Kicks çubuklarında geçerli.',
-      'f.olaySayisi': 'Gösterilen olay sayısı',
-      'h.olaySayisi': '3 ile 10 arası. Son takip, abonelik, hediye ve Kicks olayları.',
-      'f.liderTur': 'Liderlik tablosu',
-      'o.liderTur.gift': 'En çok hediye eden',
-      'o.liderTur.kicks': 'En çok Kicks gönderen',
-      'h.liderTur': 'Hediye abonelik ya da Kicks sıralaması.',
-      'f.liderSayisi': 'Tablodaki kişi sayısı',
-      'h.liderSayisi': '3 ile 10 arası.',
-      'h.stats': 'Sayılar yerel relay’den gelir ve yayın başladığında sıfırlanır; OBS paneli (dock) ile elle de sıfırlanabilir. Relay ayrıca labels/ klasörüne OBS Metin kaynakları için düz metin dosyaları yazar.',
-      'g.ticker': 'Duyuru çubuğu',
-      'f.takipciHedefi': 'Takipçi hedefi',
-      'f.takipciYedek': 'Yedek takipçi sayısı',
-      'h.takipciYedek': 'Kick’e ulaşılamazsa gösterilir.',
-      'f.aboneHedefi': 'Abone hedefi',
-      'f.aboneSayisi': 'Elle abone sayısı',
-      'h.aboneSayisi': 'Kick uygulaması yoksa bu sayı gösterilir; varsa canlı toplam kullanılır.',
-      'f.yenilemeSn': 'Yenileme aralığı (saniye)',
-      'h.yenilemeSn': '10 ile 600 arası.',
-      'f.sohbetMaksMesaj': 'Ekranda en çok mesaj',
-      'h.sohbetMaksMesaj': '3 ile 20 arası.',
-      'f.yayinciYazisi': 'Yayıncı etiketi',
-      'h.yayinciYazisi': 'Sohbette senin adının yanında görünür.',
-      'f.geriSayimDk': 'Süre (dakika)',
-      'h.geriSayimDk': 'Kaynak yüklenince başlar. 1 ile 720 arası.',
-      'f.geriSayimBaslik': 'Başlık',
-      'h.geriSayimBaslik': 'Boşsa “Birazdan başlıyoruz” yazar.',
-      'f.duyuruMetinleri': 'Duyuru metinleri',
-      'ph.duyuruMetinleri': 'Takip et | !discord | Her cuma yeni video',
-      'h.duyuruMetinleri': 'Satırları | işaretiyle ayır (en çok 12).',
-      'f.duyuruSn': 'Her duyurunun süresi (saniye)',
-      'h.duyuruSn': '3 ile 60 arası.',
-      's4.title': 'OBS’e ekle',
-      's4.step1': 'OBS’te Kaynaklar → + → Tarayıcı ile yeni bir kaynak ekle.',
-      's4.step2': '“Yerel dosya” kutusunu kapat ve aşağıdaki bağlantıyı URL kutusuna yapıştır.',
-      's4.step3': 'Genişlik ve yüksekliği kartta yazan boyuta ayarla.',
-      's4.again': 'Bir ayarı değiştirirsen bağlantıyı yeniden kopyala. Bağlantı, bu stüdyonun açık olduğu klasördeki dosyayı gösterir; klasörü taşırsan bağlantıları yenile.',
-      'card.copy': 'Bağlantıyı kopyala',
-      'card.preview': 'Önizle',
-      'card.needChannel': 'Kanal gerekli',
-      'links.needChannel': 'Kanal adı boş: “Kanal gerekli” işaretli overlay’ler OBS’te kurulum ipucu gösterir.',
-      'links.goChannel': 'Kanal adını gir',
-      'ov.follower': 'Takipçi çubuğu', 'ov.follower.d': 'Takipçi hedefi ve sayısı',
-      'ov.subscriber': 'Abone çubuğu', 'ov.subscriber.d': 'Abone hedefi ve sayısı',
-      'ov.combined': 'Birleşik çubuk', 'ov.combined.d': 'Takipçi ve abone tek panelde',
-      'ov.info': 'Yayın paneli', 'ov.info.d': 'İzleyici sayısı ve yayın süresi, yalnızca yayındayken',
-      'ov.countdown': 'Geri sayım', 'ov.countdown.d': '“Birazdan başlıyoruz” sahnesi için',
-      'ov.ticker': 'Duyuru çubuğu', 'ov.ticker.d': 'Sosyal medya, komut ve duyuruları sırayla gösterir',
-      'ov.alerts': 'Bildirimler', 'ov.alerts.d': 'Takip, abonelik, hediye ve Kicks bildirimleri. Yerel relay gerektirir',
-      'ov.events': 'Son olaylar', 'ov.events.d': 'Bu yayının son takip, abonelik, hediye ve Kicks olayları. Yerel relay gerektirir',
-      'ov.kicks': 'Kicks hedefi', 'ov.kicks.d': 'Bu yayında gelen Kicks için hedef çubuğu. Yerel relay gerektirir',
-      'ov.train': 'Abone treni', 'ov.train.d': 'Art arda gelen abonelikleri ve treni sürdürmek için kalan süreyi gösterir. Yerel relay gerektirir',
-      'ov.leaderboard': 'Liderlik tablosu', 'ov.leaderboard.d': 'Bu yayında en çok hediye eden ya da Kicks gönderenler. Yerel relay gerektirir',
-      'ov.chat': 'Sohbet', 'ov.chat.d': 'Canlı sohbet. Yerel relay gerektirir (bkz. Sorun giderme)',
-      'file.title': 'Ayar dosyası yöntemi',
-      'file.sub': 'AYARLAR.js',
-      'file.intro': 'Bağlantı yerine OBS’in “Yerel dosya” seçeneğini kullanmak istersen: aşağıdaki dosyayı indirip proje klasöründeki AYARLAR.js’in yerine koy, sonra kaynağa sağ tıklayıp Yenile’yi seç. OBS 33’te Yerel dosya relay’e ulaşamaz: sohbet, bildirimler ve canlı durum için bağlantıyı kullan.',
-      'file.aria': 'Oluşturulan AYARLAR.js içeriği',
-      'file.download': 'AYARLAR.js indir',
-      'file.copy': 'Kopyala',
-      's5.title': 'Kick uygulaması',
-      's5.intro': 'Aktif abone sayısını Kick’ten canlı çekmek için kendi Kick uygulamanın bilgileri gerekir. Bilgiler yalnızca bu sayfanın belleğinde tutulur: kaydedilmez, bağlantılara ya da AYARLAR.js çıktısına yazılmaz.',
-      's5.show': 'Bilgileri göster',
-      's5.test': 'Bağlantıyı test et',
-      's5.download': 'AYARLAR.local.js indir',
-      's5.hint': 'AYARLAR.local.js dosyasını AYARLAR.js ile aynı klasöre koy. Bu dosyayı kimseyle paylaşma ve commit etme.',
-      's6.title': 'Sorun giderme',
-      'help.check.title': 'Kontrol listesi',
-      'help.notes.title': 'Overlay’de gördüğün notlar',
-      'pv.title': 'Canlı önizleme',
-      'pv.tabs': 'Overlay seç',
-      'pv.open': 'Yeni sekmede aç',
-      'pv.bg': 'Arka plan',
-      'pv.sample': 'Örnek veri',
-      'pv.live': 'Canlı veri',
-      'bg.checker': 'Dama', 'bg.dark': 'Koyu', 'bg.light': 'Açık', 'bg.scene': 'Sahne',
-      'foot.notAffiliated': 'Bu proje Kick ile bağlantılı değildir.',
-      'foot.license': 'Lisans',
-      'toast.linkCopied': 'Bağlantı kopyalandı.',
-      'toast.linkFail': 'Kopyalanamadı. Bağlantıyı seçip elle kopyala.',
-      'out.copied': 'Panoya kopyalandı.',
-      'out.copyFail': 'Panoya kopyalanamadı. Metin seçildi; Ctrl+C ile kopyala.',
-      'out.downloaded': 'AYARLAR.js indirildi.',
-      'out.dlFail': 'İndirme başlatılamadı.',
-      'core.fail': 'shared/kick-core.js yüklenemedi. Dosya yolunu kontrol et.',
-      'e.noCreds': 'Önce Client ID ve Client Secret alanlarını doldur.',
-      'e.noChannel': 'Önce kanal adını yaz (1. adım).',
-      'e.checking': 'Kick ile bağlantı kontrol ediliyor…',
-      'e.tokenBad': 'Client ID veya Client Secret hatalı (HTTP {status}).',
-      'e.tokenHttp': 'Kick kimlik sunucusu hata döndürdü (HTTP {status}).',
-      'e.tokenTimeout': 'Zaman aşımı: Kick kimlik sunucusuna ulaşılamadı.',
-      'e.tokenNet': 'Ağ hatası: Kick kimlik sunucusuna ulaşılamadı. İnternet bağlantını kontrol et.',
-      'e.tokenOther': 'Kick beklenmeyen bir yanıt döndürdü; erişim anahtarı alınamadı.',
-      'e.chanAuth': 'Kick uygulaması bu kanal verisine erişemiyor (HTTP {status}). Uygulama yetkilerini kontrol et.',
-      'e.rate': 'Çok fazla istek gönderildi. Birkaç dakika sonra tekrar dene.',
-      'e.empty': 'Kick bu kanal için veri döndürmedi. Kanal adını kontrol et.',
-      'e.chanTimeout': 'Zaman aşımı: Kick API yanıt vermedi.',
-      'e.chanNet': 'Ağ hatası: Kick API’ye ulaşılamadı.',
-      'e.chanOther': 'Kanal bilgisi alınamadı.',
-      'e.noSubs': 'Kanal bulundu ancak Kick abone verisi döndürmedi.',
-      'e.ok': 'Bağlantı başarılı. Aktif abone: {n}{live}.',
-      'e.live': ' · Yayında',
-      'e.offline': ' · Yayında değil',
-      'e.unexpected': 'Beklenmeyen bir hata oluştu.',
-      'e.localNeed': 'AYARLAR.local.js için Client ID ve Client Secret alanlarını doldur.',
-      'e.localDone': 'AYARLAR.local.js indirildi.',
-      'localFile': 'Kick uygulama bilgileri. Bu dosya gizlidir: paylaşma ve commit etme.\n   AYARLAR.js ile aynı klasöre koy.',
-      'help.c1': 'Kanal alanına yalnızca kanal adını yazdın mı? (kick.com/ sonrası)',
-      'help.c2': 'Bir ayarı değiştirdikten sonra bağlantıyı yeniden kopyalayıp OBS’teki URL kutusuna yapıştırdın mı? (Dosya yöntemini kullanıyorsan kaynağa sağ tıklayıp Yenile’yi seç.)',
-      'help.c3': 'OBS kaynağının genişlik ve yüksekliği, kartta yazan boyutla aynı mı?',
-      'help.c4': 'Canlı abone sayısı istiyorsan Kick uygulama bilgilerini girip “Bağlantıyı test et” ile doğruladın mı?',
-      'help.n1.t': '⚙ AYARLAR.js → kanal', 'help.n1.d': 'Kanal adı boş. Overlay ağ isteği yapmaz; kanal adını yaz.',
-      'help.n2.t': 'Kick uygulama bilgisi hatalı — AYARLAR.local.js', 'help.n2.d': 'Client ID veya Secret yanlış ya da yetkisiz. Bilgileri kontrol edip kaynağı yenile.',
-      'help.n3.t': 'Kick’e ulaşılamadı, son değer gösteriliyor', 'help.n3.d': 'Geçici bağlantı sorunu ya da istek sınırı. Overlay son başarılı değeri tutar; genellikle kendiliğinden düzelir.',
-      'help.n4.t': 'Kick bu kanal için abone verisi döndürmedi', 'help.n4.d': 'Kick bu kanal için abone bilgisi vermiyor. Sayı 0 görünebilir; elle girilen abone sayısı bu durumda kullanılmaz.',
-      'help.n5.t': 'Canlı sohbet köprüsüne bağlanılamadı', 'help.n5.d': 'Sohbet, yerel relay üzerinden gelir. “node relay/server.js” çalışıyor mu? Çalışmıyorsa sohbet kutusu boş kalır ve sahte mesaj gösterilmez. Kurulum için README’deki Canlı sohbet bölümüne bak.',
-      'help.n6.t': '⚙ AYARLAR.js → duyuruMetinleri', 'help.n6.d': 'Duyuru metni boş. Sayılar ve içerik bölümünde Duyuru çubuğu alanını doldur.',
-      'help.n7.t': 'Geri sayım baştan başladı', 'help.n7.d': 'Sayım kaynak yüklenince başlar. Kaynağı yenilemek ya da OBS’te “Shutdown source when not visible” açıkken sahne değiştirmek onu baştan başlatır.',
-
-      // v2.3: new settings, preview, links, backup, relay
-      'how.aria': 'Nasıl çalışır',
-      'f.hataNotu': 'Overlay’lerde küçük durum ve hata notunu göster',
-      'f.bilgiBaslik': 'Bilgi panelinde yayın başlığını göster',
-      'f.hedefKutlama': 'Hedef kutlaması (%25, %50, %75 ve hedefe ulaşınca)',
-      'h.hedefKutlama': 'Çubuk her çeyrekte kısa bir parlama yapar; hedef dolunca “hedefe ulaşıldı” görünümüne geçer.',
-      'f.sohbetSilinmeSn': 'Mesajı şu kadar saniye sonra sil',
-      'h.sohbetSilinmeSn': '0 = hiç silinmez. En çok 600.',
-      'f.sohbetGizliKullanicilar': 'Gizlenecek kullanıcılar',
-      'ph.sohbetGizliKullanicilar': 'nightbot, botrix',
-      'h.sohbetGizliKullanicilar': 'Virgülle ayır; büyük/küçük harf fark etmez. Botları gizlemek için.',
-      'f.sohbetKomutGizle': '“!” ile başlayan komut mesajlarını gizle',
-      'h.sohbetKomutGizle': 'Örneğin !discord yazan mesajlar sohbette görünmez.',
-      'f.geriSayimSaat': 'Hedef saat (SS:DD)',
-      'h.geriSayimSaat': '24 saatlik yerel saat, örn. 21:30. Doluysa süreden (dakika) önceliklidir; saat bugün geçtiyse yarına sayar. Boş bırak = süreyi kullan.',
-      'g.relay': 'Gelişmiş: relay',
-      'g.css': 'Gelişmiş: özel CSS',
-      'warn.css': 'Bu CSS kullanılmıyor: dışarıdan yükleme yapan bir kural, ters eğik çizgi var ya da 2000 karakteri aşıyor.',
-      'f.ozelCss': 'Özel CSS (tüm overlay’ler)',
-      'h.ozelCss': 'En çok 2000 karakter; temanın üzerine uygulanır. Dışarıdan dosya ya da yazı tipi yükleyen kurallar (url(), @import, @font-face, image-set) ve ters eğik çizgi kabul edilmez; böyle bir değer tümüyle yok sayılır.',
-      'f.sohbetYatay': 'Yatay sohbet (tek satır)',
-      'h.sohbetYatay': 'Mesajlar ekranın kenarındaki bir şerit için yan yana dizilir; en yenisi sağda. Kaynak boyutu örneğin 1280 × 80.',
-      'g.relay.for': 'canlı sohbet ve bildirim köprüsü',
-      'f.relayAdresi': 'Relay adresi',
-      'h.relayAdresi': 'Yalnızca relay’i farklı bir adreste çalıştırıyorsan değiştir. Varsayılan dışındaysa AYARLAR.js dosyasına yazılır. Yalnızca https ya da 127.0.0.1 / localhost üzerinden http kabul edilir.',
-      'relay.check': 'Relay’i kontrol et',
-      'relay.checking': 'Relay kontrol ediliyor…',
-      'relay.ok': 'Relay çalışıyor (v{v}, {n} bağlı overlay).',
-      'relay.d.version': 'Relay sürümü {relay}, overlay paketi {pack}. İkisini aynı sürümden çalıştır.',
-      'relay.d.versionOk': 'Relay ve overlay paketi aynı sürümde.',
-      'relay.d.chatOk': 'Kanal kimliği biliniyor: sohbet ve bildirimler bu kanal için kabul ediliyor.',
-      'relay.d.chatNo': 'Kanal kimliği bilinmiyor, olaylar düşürülüyor. AYARLAR.js’te kanal ile AYARLAR.local.js’te Kick uygulama bilgilerini gir ya da RELAY_BROADCASTER_ID ayarla, sonra relay’i yeniden başlat.',
-      'relay.d.events': 'Kick’ten son doğrulanmış olay {ago} geldi: tünel ve webhook çalışıyor.',
-      'relay.d.noEvents': 'Relay açıldığından beri Kick’ten olay gelmedi. Kick uygulamandaki webhook adresinin tünel adresi + /kick/webhook olduğunu kontrol et ve bir kez “node relay/subscribe.js” çalıştır.',
-      'relay.d.subsOk': 'Kick uygulama bilgileri var: abone sayısı resmi API’den alınıyor.',
-      'relay.d.subsNo': 'Kick uygulama bilgileri yok: abone çubuğu elle girilen sayıyı gösterir (isteğe bağlı).',
-      'relay.d.tunnel': 'Tünel açık. Kick uygulamandaki Webhook URL şu olmalı: {url}',
-      'relay.d.log': 'Relay günlüğü ({ago}): {msg}',
-      'relay.down': 'Relay çalışmıyor ya da ulaşılamıyor ({url}). “node relay/server.js” ile başlat.',
-      'relay.bad': 'Relay beklenmeyen bir yanıt verdi (HTTP {status}).',
-      'relay.key': 'Relay erişim anahtarı eksik ya da yanlış. Relay’i bir kez başlat (“node relay/server.js”): proje klasöründe AYARLAR.relay.js dosyasını oluşturur. Sonra bu sayfayı yenile.',
-      'links.copyAll': 'Tüm linkleri kopyala',
-      'obs.download': 'OBS sahne koleksiyonunu indir',
-      'obs.how': 'Tek seferde kurulum: indirdiğin dosyayı OBS’te Sahne Koleksiyonu → İçe Aktar ile ekle, sonra aynı menüden seç. Tüm overlay’ler 1920 × 1080 tuval için yerleştirilmiş tek bir sahnede gelir; birleşik çubuk ve geri sayım gizli eklenir. Ayar değiştirirsen dosyayı yeniden indir.',
-      'obs.saved': 'Sahne koleksiyonu indirildi.',
-      'obs.scene': 'Kick Overlay’ler',
-      'dock.copy': 'OBS kontrol paneli linkini kopyala',
-      'dock.how': 'Kontrol paneli: OBS’te Paneller → Özel Tarayıcı Panelleri’ni aç, bir ad yaz ve bu linki URL olarak yapıştır. Bildirimleri duraklatır, geçer, sonuncuyu tekrarlar ve test bildirimi gönderir. Relay’in çalışması gerekir.',
-      'links.copyAllDone': 'Tüm bağlantılar kopyalandı.',
-      'copy.done': 'Kopyalandı ✓',
-      'card.linkAria': '{name} bağlantısı',
-      'reset.confirm': 'Kanal dışındaki tüm ayarlar sıfırlanacak. Emin misin?',
-      'reset.yes': 'Evet, sıfırla',
-      'reset.no': 'Vazgeç',
-      'reset.done': 'Ayarlar sıfırlandı.',
-      'pv.liveOn': 'Önizleme gerçek Kick verisini kullanıyor.',
-      'pv.liveOff': 'Önizleme örnek veriye döndü.',
-      'pv.liveNeed': 'Canlı veri için önce kanal adını yaz.',
-      'backup.title': 'Yedekle ve içe aktar',
-      'backup.sub': 'JSON',
-      'backup.intro': 'Ayarlarını JSON dosyası olarak kaydet ya da daha önce kaydettiğin dosyayı yükle. Dosyada yalnızca herkese açık ayarlar bulunur; Client ID ve Secret asla yazılmaz.',
-      'backup.export': 'JSON olarak dışa aktar',
-      'backup.import': 'JSON içe aktar',
-      'backup.exported': 'Ayarlar kick-overlay-ayarlar.json olarak indirildi.',
-      'backup.imported': '{n} ayar içe aktarıldı.',
-      'backup.ignored': ' {n} bilinmeyen ya da gizli alan yok sayıldı.',
-      'backup.badFile': 'Dosya okunamadı: geçerli bir JSON nesnesi değil.',
-      'backup.empty': 'Dosyada tanınan bir ayar bulunamadı.',
-      'backup.tooBig': 'Dosya çok büyük (en çok 100 KB).',
-      'warn.accentDark': 'Bu vurgu rengi {theme} temasında çok koyu kalıyor (karşıtlık {ratio}:1). Daha açık bir renk dene.',
-      'warn.accentLight': 'Bu vurgu rengi {theme} temasında çok açık kalıyor (karşıtlık {ratio}:1). Daha koyu bir renk dene.'
-    },
-    en: {
-      'skip': 'Skip to content',
-      'brand.title': 'Kick Overlay Studio',
-      'update.text': 'A new version is out: {latest} (you have {current}).',
-      'update.link': 'Release notes and download',
-      'brand.lead': 'Pick a look, preview it, copy the link and paste it into OBS.',
-      'lang.aria': 'Language',
-      'how.1': 'Choose your channel and look',
-      'how.2': 'Copy the overlay link',
-      'how.3': 'Paste it into an OBS Browser source',
-      'tag.optional': 'optional',
-      's1.title': 'Channel',
-      'f.kanal': 'Kick channel name',
-      'h.kanal': 'The name after kick.com/ in your channel address. Left empty, the preview shows sample data and OBS shows a setup hint.',
-      's2.title': 'Look',
-      'presets.label': 'Quick looks',
-      'presets.hint': 'Sets theme, shape, font, motion and accent color together.',
-      'preset.minimal': 'Minimal', 'preset.neon': 'Neon', 'preset.pastel': 'Pastel', 'preset.gece': 'Night', 'preset.kagit': 'Paper',
-      'f.stil': 'Theme',
-      'f.sekil': 'Corner shape',
-      'f.dil': 'Label language',
-      'f.animasyon': 'Motion',
-      'f.yaziTipi': 'Font',
-      'f.renk': 'Accent color',
-      'f.renkHex': 'Accent color, hex code',
-      'f.yuzdeGoster': 'Show the percentage of the goal',
-      'f.oturumFarkiGoster': 'Show the subscriber gain (+N this stream)',
-      'reset': 'Reset all settings (channel stays)',
-      's3.title': 'Numbers and content',
-      's3.intro': 'Set your goals, chat, countdown and announcements here. The group of the overlay you are previewing opens by itself.',
-      'g.goals': 'Goals and numbers',
-      'g.goals.for': 'follower, subscriber, combined bar, info panel',
-      'g.chat': 'Chat',
-      'g.alerts': 'Alerts',
-      'f.uyariSn': 'Seconds each alert stays on screen',
-      'h.uyariSn': '3 to 30. When many alerts wait, each stays half as long.',
-      'f.uyariTurler': 'Alerts to show',
-      'f.uyariTakip': 'New follower',
-      'f.uyariAbone': 'New and renewed subscriptions',
-      'f.uyariHediye': 'Gifted subscriptions',
-      'f.uyariKicks': 'Kicks gifts',
-      'f.uyariOdul': 'Channel point rewards',
-      'h.uyariTurler': 'Alerts arrive through the local relay; the setup is the same as for chat.',
-      'f.uyariSes': 'Play an alert sound',
-      'h.uyariSes': 'Each kind has its own short sound. Put follow.mp3, sub.mp3, gift.mp3, kicks.mp3 or reward.mp3 in the alerts folder to play that instead. In OBS, turn on “Control audio via OBS” for the source.',
-      'f.uyariSesSeviye': 'Volume (%)',
-      'h.uyariSesSeviye': '0 to 100. 0 turns the sound off.',
-      'f.uyariOdulGizle': 'Rewards to hide',
-      'ph.uyariOdulGizle': 'Hydrate | Shake the screen',
-      'h.uyariOdulGizle': 'Separate reward names with |. Not case-sensitive. Other rewards still show.',
-      'f.uyariTts': 'Read messages aloud',
-      'h.uyariTts': 'Reads Kicks and reward messages with the computer’s voice. The speech comes from the computer’s default output, not from the OBS source, so it is on stream only when OBS captures desktop audio. Never reads in previews.',
-      'f.uyariTtsUzunluk': 'Longest reading (characters)',
-      'h.uyariTtsUzunluk': '20 to 200. A longer message is cut at a word break.',
-      'f.uyariTtsYasak': 'Words never read',
-      'ph.uyariTtsYasak': 'badword1, badword2',
-      'h.uyariTtsYasak': 'Separate with commas. If the name or the message contains one of them, that message is not read at all. Links are never read.',
-      'f.uyariTest': 'Try it',
-      'h.uyariTest': '“Play the sound here” plays it on this page. The kind buttons send a sample alert through the relay to the open alerts overlay (sound and art included).',
-      'test.sound': 'Play the sound here',
-      'test.played': 'Played the {kind} sound.',
-      'test.muted': 'Sound is off or the volume is 0.',
-      'test.blocked': 'The browser blocked the sound.',
-      'test.sent': 'Test alert sent ({n} overlays connected).',
-      'test.none': 'Sent, but no alerts overlay is connected. Is alerts.html open in OBS?',
-      'test.rate': 'Wait a moment, then try again.',
-      'g.countdown': 'Countdown',
-      'g.stats': 'Stream stats',
-      'f.kicksHedefi': 'Kicks goal',
-      'h.kicksHedefi': 'For the Kicks goal bar: the Kicks received this stream.',
-      'f.trenSn': 'Sub train time (s)',
-      'h.trenSn': '30 to 600. A new subscription within this time keeps the train going.',
-      'f.hedefArtis': 'Goal auto-step',
-      'h.hedefArtis': 'When a goal is reached it rises by this much. 0 = off. Applies to the follower, subscriber and Kicks bars.',
-      'f.olaySayisi': 'Events shown',
-      'h.olaySayisi': '3 to 10. The latest follows, subscriptions, gifts and Kicks.',
-      'f.liderTur': 'Leaderboard',
-      'o.liderTur.gift': 'Top gifters',
-      'o.liderTur.kicks': 'Top Kicks senders',
-      'h.liderTur': 'Rank by gifted subscriptions or by Kicks.',
-      'f.liderSayisi': 'People on the board',
-      'h.liderSayisi': '3 to 10.',
-      'h.stats': 'The numbers come from the local relay and start over when the stream goes live; the OBS dock can reset them too. The relay also writes plain text files to labels/ for OBS Text sources.',
-      'g.ticker': 'Announcement bar',
-      'f.takipciHedefi': 'Follower goal',
-      'f.takipciYedek': 'Fallback follower count',
-      'h.takipciYedek': 'Shown when Kick cannot be reached.',
-      'f.aboneHedefi': 'Subscriber goal',
-      'f.aboneSayisi': 'Manual subscriber count',
-      'h.aboneSayisi': 'Shown when no Kick app is set; with one, the live total is used.',
-      'f.yenilemeSn': 'Refresh interval (seconds)',
-      'h.yenilemeSn': '10 to 600.',
-      'f.sohbetMaksMesaj': 'Most messages on screen',
-      'h.sohbetMaksMesaj': '3 to 20.',
-      'f.yayinciYazisi': 'Streamer label',
-      'h.yayinciYazisi': 'Shown next to your name in chat.',
-      'f.geriSayimDk': 'Length (minutes)',
-      'h.geriSayimDk': 'Starts when the source loads. 1 to 720.',
-      'f.geriSayimBaslik': 'Title',
-      'h.geriSayimBaslik': 'Empty shows “Starting soon” in your label language.',
-      'f.duyuruMetinleri': 'Announcements',
-      'ph.duyuruMetinleri': 'Follow for more | !discord | New video every Friday',
-      'h.duyuruMetinleri': 'Separate lines with | (up to 12).',
-      'f.duyuruSn': 'Seconds per announcement',
-      'h.duyuruSn': '3 to 60.',
-      's4.title': 'Add to OBS',
-      's4.step1': 'In OBS choose Sources → + → Browser to add a new source.',
-      's4.step2': 'Turn off “Local file” and paste the link below into the URL box.',
-      's4.step3': 'Set the width and height to the size shown on the card.',
-      's4.again': 'Changed a setting? Copy the link again. The link points to the files in the folder this studio was opened from; if you move the folder, copy the links again.',
-      'card.copy': 'Copy link',
-      'card.preview': 'Preview',
-      'card.needChannel': 'Needs channel',
-      'links.needChannel': 'Channel name is empty: overlays marked “Needs channel” show a setup hint in OBS.',
-      'links.goChannel': 'Enter channel name',
-      'ov.follower': 'Follower bar', 'ov.follower.d': 'Follower goal and count',
-      'ov.subscriber': 'Subscriber bar', 'ov.subscriber.d': 'Subscriber goal and count',
-      'ov.combined': 'Combined bar', 'ov.combined.d': 'Followers and subscribers in one panel',
-      'ov.info': 'Info panel', 'ov.info.d': 'Viewers and uptime, only while live',
-      'ov.countdown': 'Countdown', 'ov.countdown.d': 'For your “starting soon” scene',
-      'ov.ticker': 'Announcement bar', 'ov.ticker.d': 'Rotates your socials, commands and news',
-      'ov.alerts': 'Alerts', 'ov.alerts.d': 'Follow, subscription, gift and Kicks alerts. Needs the local relay',
-      'ov.events': 'Recent events', 'ov.events.d': 'The latest follows, subscriptions, gifts and Kicks of this stream. Needs the local relay',
-      'ov.kicks': 'Kicks goal', 'ov.kicks.d': 'Goal bar for the Kicks received this stream. Needs the local relay',
-      'ov.train': 'Sub train', 'ov.train.d': 'Subscriptions in a row, with the time left to keep the train going. Needs the local relay',
-      'ov.leaderboard': 'Leaderboard', 'ov.leaderboard.d': 'Top gifters or Kicks senders of this stream. Needs the local relay',
-      'ov.chat': 'Chat', 'ov.chat.d': 'Live chat. Needs the local relay (see Help)',
-      'file.title': 'Settings file method',
-      'file.sub': 'AYARLAR.js',
-      'file.intro': 'Prefer OBS’s “Local file” option over a link? Download the file below, replace AYARLAR.js in the project folder, then right-click the source and choose Refresh. In OBS 33 a Local file cannot reach the relay: use the link for chat, alerts and live status.',
-      'file.aria': 'Generated AYARLAR.js content',
-      'file.download': 'Download AYARLAR.js',
-      'file.copy': 'Copy',
-      's5.title': 'Kick app',
-      's5.intro': 'To pull the live active subscriber count from Kick you need the credentials of your own Kick app. They stay in this page’s memory only: they are not saved and never written into links or the AYARLAR.js output.',
-      's5.show': 'Show credentials',
-      's5.test': 'Test connection',
-      's5.download': 'Download AYARLAR.local.js',
-      's5.hint': 'Put AYARLAR.local.js in the same folder as AYARLAR.js. Do not share it or commit it.',
-      's6.title': 'Help',
-      'help.check.title': 'Checklist',
-      'help.notes.title': 'Notes you may see on an overlay',
-      'pv.title': 'Live preview',
-      'pv.tabs': 'Choose an overlay',
-      'pv.open': 'Open in a new tab',
-      'pv.bg': 'Background',
-      'pv.sample': 'Sample data',
-      'pv.live': 'Live data',
-      'bg.checker': 'Checker', 'bg.dark': 'Dark', 'bg.light': 'Light', 'bg.scene': 'Scene',
-      'foot.notAffiliated': 'This project is not affiliated with Kick.',
-      'foot.license': 'License',
-      'toast.linkCopied': 'Link copied.',
-      'toast.linkFail': 'Could not copy. Select the link and copy it by hand.',
-      'out.copied': 'Copied to the clipboard.',
-      'out.copyFail': 'Could not copy. The text is selected; press Ctrl+C.',
-      'out.downloaded': 'AYARLAR.js downloaded.',
-      'out.dlFail': 'Could not start the download.',
-      'core.fail': 'shared/kick-core.js could not be loaded. Check the file path.',
-      'e.noCreds': 'Fill in Client ID and Client Secret first.',
-      'e.noChannel': 'Enter the channel name first (step 1).',
-      'e.checking': 'Checking the connection to Kick…',
-      'e.tokenBad': 'Client ID or Client Secret is wrong (HTTP {status}).',
-      'e.tokenHttp': 'Kick’s login server returned an error (HTTP {status}).',
-      'e.tokenTimeout': 'Timed out: Kick’s login server did not answer.',
-      'e.tokenNet': 'Network error: could not reach Kick’s login server. Check your internet connection.',
-      'e.tokenOther': 'Kick sent an unexpected answer; no access token was received.',
-      'e.chanAuth': 'The Kick app cannot read this channel (HTTP {status}). Check the app’s permissions.',
-      'e.rate': 'Too many requests. Try again in a few minutes.',
-      'e.empty': 'Kick returned no data for this channel. Check the channel name.',
-      'e.chanTimeout': 'Timed out: the Kick API did not answer.',
-      'e.chanNet': 'Network error: could not reach the Kick API.',
-      'e.chanOther': 'Could not read the channel.',
-      'e.noSubs': 'Channel found, but Kick returned no subscriber data.',
-      'e.ok': 'Connected. Active subscribers: {n}{live}.',
-      'e.live': ' · Live',
-      'e.offline': ' · Not live',
-      'e.unexpected': 'An unexpected error occurred.',
-      'e.localNeed': 'Fill in Client ID and Client Secret to create AYARLAR.local.js.',
-      'e.localDone': 'AYARLAR.local.js downloaded.',
-      'localFile': 'Kick app credentials. This file is private: do not share it or commit it.\n   Put it in the same folder as AYARLAR.js.',
-      'help.c1': 'Did you enter only the channel name (the part after kick.com/)?',
-      'help.c2': 'After changing a setting, did you copy the link again and paste it into the URL box in OBS? (With the file method, right-click the source and choose Refresh.)',
-      'help.c3': 'Are the width and height of the OBS source the same as the size on the card?',
-      'help.c4': 'For the live subscriber count, did you enter your Kick app credentials and confirm them with “Test connection”?',
-      'help.n1.t': '⚙ AYARLAR.js → kanal', 'help.n1.d': 'The channel name is empty. The overlay makes no network request; enter the channel name.',
-      'help.n2.t': 'Kick app credentials rejected — AYARLAR.local.js', 'help.n2.d': 'Client ID or Secret is wrong or not authorised. Check them, then refresh the source.',
-      'help.n3.t': 'Kick unreachable, showing the last value', 'help.n3.d': 'A temporary connection problem or a rate limit. The overlay keeps the last good value and usually recovers by itself.',
-      'help.n4.t': 'Kick returned no subscriber data for this channel', 'help.n4.d': 'Kick does not give subscriber data for this channel. The count may show 0; the manual count is not used in this case.',
-      'help.n5.t': 'Cannot reach the chat relay', 'help.n5.d': 'Chat arrives through the local relay. Is “node relay/server.js” running? If not, the chat stays empty and no fake messages are shown. See the Live chat section of the README for setup.',
-      'help.n6.t': '⚙ AYARLAR.js → duyuruMetinleri', 'help.n6.d': 'The announcement text is empty. Fill in the Announcement bar field under Numbers and content.',
-      'help.n7.t': 'The countdown started over', 'help.n7.d': 'It starts when the source loads. Refreshing the source, or switching scenes while “Shutdown source when not visible” is on in OBS, restarts it.',
-
-      // v2.3: new settings, preview, links, backup, relay
-      'how.aria': 'How it works',
-      'f.hataNotu': 'Show the small status and error note on overlays',
-      'f.bilgiBaslik': 'Show the stream title on the info panel',
-      'f.hedefKutlama': 'Goal celebration (at 25%, 50%, 75% and when the goal is reached)',
-      'h.hedefKutlama': 'The bar pulses briefly at each quarter and switches to a “goal reached” look when full.',
-      'f.sohbetSilinmeSn': 'Remove a message after (seconds)',
-      'h.sohbetSilinmeSn': '0 = never. Up to 600.',
-      'f.sohbetGizliKullanicilar': 'Hidden users',
-      'ph.sohbetGizliKullanicilar': 'nightbot, botrix',
-      'h.sohbetGizliKullanicilar': 'Separate with commas; not case-sensitive. Handy for bots.',
-      'f.sohbetKomutGizle': 'Hide command messages that start with “!”',
-      'h.sohbetKomutGizle': 'For example, messages saying !discord do not appear in chat.',
-      'f.geriSayimSaat': 'Target time (HH:MM)',
-      'h.geriSayimSaat': '24-hour local time, e.g. 21:30. When set it wins over the length in minutes; if the time has passed today it counts to tomorrow. Leave empty to use the length.',
-      'g.relay': 'Advanced: relay',
-      'g.css': 'Advanced: custom CSS',
-      'warn.css': 'This CSS is not used: it has a rule that loads from elsewhere, a backslash, or more than 2000 characters.',
-      'f.ozelCss': 'Custom CSS (all overlays)',
-      'h.ozelCss': 'Up to 2000 characters, applied over the theme. Rules that load files or fonts from elsewhere (url(), @import, @font-face, image-set) and backslashes are not accepted; such a value is ignored as a whole.',
-      'f.sohbetYatay': 'Horizontal chat (one row)',
-      'h.sohbetYatay': 'Messages line up side by side for a strip along the screen edge, newest on the right. Source size e.g. 1280 × 80.',
-      'g.relay.for': 'live chat and alert bridge',
-      'f.relayAdresi': 'Relay address',
-      'h.relayAdresi': 'Change it only if you run the relay at a different address. If it differs from the default it is written to AYARLAR.js. Only https, or http on 127.0.0.1 / localhost, is accepted.',
-      'relay.check': 'Check relay',
-      'relay.checking': 'Checking the relay…',
-      'relay.ok': 'Relay is running (v{v}, {n} overlays connected).',
-      'relay.d.version': 'The relay is {relay} and the overlay pack is {pack}. Run both from the same release.',
-      'relay.d.versionOk': 'The relay and the overlay pack are the same version.',
-      'relay.d.chatOk': 'The channel id is known: chat and alerts for this channel are accepted.',
-      'relay.d.chatNo': 'The channel id is unknown, so events are dropped. Set kanal in AYARLAR.js and the Kick app in AYARLAR.local.js, or set RELAY_BROADCASTER_ID, then restart the relay.',
-      'relay.d.events': 'The last verified Kick event arrived {ago}: the tunnel and webhook work.',
-      'relay.d.noEvents': 'No Kick event has arrived since the relay started. Check that your Kick app’s webhook URL is the tunnel address + /kick/webhook, and run “node relay/subscribe.js” once.',
-      'relay.d.subsOk': 'Kick app credentials are set: the subscriber count comes from the official API.',
-      'relay.d.subsNo': 'No Kick app credentials: the subscriber bar shows the number you enter (optional).',
-      'relay.d.tunnel': 'Tunnel is up. The Webhook URL in your Kick app must be: {url}',
-      'relay.d.log': 'Relay log ({ago}): {msg}',
-      'relay.down': 'Relay is not running or not reachable ({url}). Start it with “node relay/server.js”.',
-      'relay.bad': 'The relay gave an unexpected answer (HTTP {status}).',
-      'relay.key': 'The relay access key is missing or wrong. Start the relay once (“node relay/server.js”): it creates AYARLAR.relay.js in the project folder. Then reload this page.',
-      'links.copyAll': 'Copy all links',
-      'obs.download': 'Download OBS scene collection',
-      'obs.how': 'One-step setup: in OBS, add the downloaded file with Scene Collection → Import, then pick it from the same menu. Every overlay arrives in one scene laid out for a 1920 × 1080 canvas; the combined bar and countdown are added hidden. Download it again after changing settings.',
-      'obs.saved': 'Scene collection downloaded.',
-      'obs.scene': 'Kick Overlays',
-      'dock.copy': 'Copy the OBS control dock link',
-      'dock.how': 'Control dock: in OBS open Docks → Custom Browser Docks, type a name and paste this link as the URL. It pauses, skips and replays alerts and sends test alerts. The relay must be running.',
-      'links.copyAllDone': 'All links copied.',
-      'copy.done': 'Copied ✓',
-      'card.linkAria': '{name} link',
-      'reset.confirm': 'Every setting except the channel will be reset. Are you sure?',
-      'reset.yes': 'Yes, reset',
-      'reset.no': 'Cancel',
-      'reset.done': 'Settings reset.',
-      'pv.liveOn': 'The preview now uses real Kick data.',
-      'pv.liveOff': 'The preview is back on sample data.',
-      'pv.liveNeed': 'Enter the channel name first to see live data.',
-      'backup.title': 'Back up and import',
-      'backup.sub': 'JSON',
-      'backup.intro': 'Save your settings as a JSON file, or load one you saved earlier. The file holds public settings only; Client ID and Secret are never written.',
-      'backup.export': 'Export as JSON',
-      'backup.import': 'Import JSON',
-      'backup.exported': 'Settings downloaded as kick-overlay-ayarlar.json.',
-      'backup.imported': '{n} settings imported.',
-      'backup.ignored': ' {n} unknown or private fields were ignored.',
-      'backup.badFile': 'Could not read the file: it is not a valid JSON object.',
-      'backup.empty': 'No recognised setting was found in the file.',
-      'backup.tooBig': 'The file is too large (100 KB at most).',
-      'warn.accentDark': 'This accent color is too dark on the {theme} theme (contrast {ratio}:1). Try a lighter color.',
-      'warn.accentLight': 'This accent color is too light on the {theme} theme (contrast {ratio}:1). Try a darker color.'
-    }
-  };
-
-  // Enum labels per language. Values not listed fall back to the raw enum value.
-  var LABELS = {
-    tr: {
-      stil: { glass: 'Cam', vivid: 'Canlı', soft: 'Yumuşak', cinema: 'Sinema', neon: 'Neon', minimal: 'Minimal', pastel: 'Pastel', terminal: 'Terminal', aurora: 'Kuzey Işığı', holo: 'Holografik', ember: 'Kor', paper: 'Kâğıt', retro: 'Piksel' },
-      sekil: { pill: 'Hap', rounded: 'Yuvarlak', square: 'Kare' },
-      yaziTipi: { inter: 'Inter', poppins: 'Poppins', nunito: 'Nunito', mono: 'Mono' },
-      dil: { tr: 'Türkçe', en: 'İngilizce', both: 'İkisi birden', es: 'Español', pt: 'Português (BR)', de: 'Deutsch', ar: 'العربية' },
-      animasyon: { normal: 'Normal', low: 'Az', off: 'Kapalı' }
-    },
-    en: {
-      stil: { glass: 'Glass', vivid: 'Vivid', soft: 'Soft', cinema: 'Cinema', neon: 'Neon', minimal: 'Minimal', pastel: 'Pastel', terminal: 'Terminal', aurora: 'Aurora', holo: 'Holo', ember: 'Ember', paper: 'Paper', retro: 'Retro' },
-      sekil: { pill: 'Pill', rounded: 'Rounded', square: 'Square' },
-      yaziTipi: { inter: 'Inter', poppins: 'Poppins', nunito: 'Nunito', mono: 'Mono' },
-      dil: { tr: 'Turkish', en: 'English', both: 'Both', es: 'Español', pt: 'Português (BR)', de: 'Deutsch', ar: 'العربية' },
-      animasyon: { normal: 'Normal', low: 'Low', off: 'Off' }
-    }
-  };
+  // Texts live in shared/lang/studio/<lang>.js, one file per language with the same keys.
+  var PACKS = window.KICK_STUDIO_LANG || {};
+  var LANGS = ['tr', 'en', 'es', 'pt', 'de', 'ar'].filter(function (l) { return PACKS[l]; });
+  var I18N = {}, LABELS = {};
+  LANGS.forEach(function (l) { I18N[l] = PACKS[l].ui; LABELS[l] = PACKS[l].labels; });
 
   // Presets only set public keys. Every value still passes through K.normalize.
   var PRESETS = {
@@ -1578,15 +1045,16 @@
 
   var lang = 'en';
   function t(key, vars) {
-    var table = I18N[lang] || I18N.en;
-    var s = Object.prototype.hasOwnProperty.call(table, key) ? table[key] : (I18N.en[key] || key);
+    var base = I18N.en || {};
+    var table = I18N[lang] || base;
+    var s = Object.prototype.hasOwnProperty.call(table, key) ? table[key] : (base[key] || key);
     if (vars) Object.keys(vars).forEach(function (k) { s = s.split('{' + k + '}').join(String(vars[k])); });
     return s;
   }
 
   if (!K) {
     document.documentElement.lang = 'en';
-    $('cikti').value = I18N.en['core.fail'];
+    $('cikti').value = t('core.fail');
     return;
   }
 
@@ -1689,7 +1157,8 @@
   }
 
   function applyI18n() {
-    document.documentElement.lang = lang;
+    document.documentElement.lang = lang === 'pt' ? 'pt-BR' : lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.title = t('brand.title');
     document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
     document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
@@ -1713,7 +1182,7 @@
   }
 
   function setLang(next) {
-    lang = next === 'tr' ? 'tr' : 'en';
+    lang = LANGS.indexOf(next) >= 0 ? next : 'en';
     applyI18n();
     update();
     saveUi();
@@ -2257,8 +1726,14 @@
   function loadUi() {
     var ui = null;
     try { ui = JSON.parse(localStorage.getItem(UI_KEY) || 'null'); } catch (e) { ui = null; }
-    var guess = /^tr\b/i.test((navigator.language || '')) ? 'tr' : 'en';
-    lang = ui && (ui.lang === 'tr' || ui.lang === 'en') ? ui.lang : guess;
+    // The first browser language the studio has, else English.
+    var prefs = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || '']);
+    var guess = 'en';
+    for (var i = 0; i < prefs.length; i++) {
+      var code = String(prefs[i] || '').slice(0, 2).toLowerCase();
+      if (LANGS.indexOf(code) >= 0) { guess = code; break; }
+    }
+    lang = ui && LANGS.indexOf(ui.lang) >= 0 ? ui.lang : guess;
     if (ui && typeof ui.tab === 'string') activeId = overlayById(ui.tab).id;
     if (ui && typeof ui.bg === 'string') background = BACKGROUNDS.indexOf(ui.bg) >= 0 ? ui.bg : 'checker';
   }

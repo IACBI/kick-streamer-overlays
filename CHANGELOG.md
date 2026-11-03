@@ -9,6 +9,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Overlay labels in Spanish (`es`), Brazilian Portuguese (`pt`), German (`de`) and Arabic (`ar`), next to Turkish, English and `both`. Arabic lays every overlay out right to left: bars fill from the right, rows and lists are mirrored, and the ticker runs the other way.
 - Plural forms per language through `Intl.PluralRules` (Arabic has six), and numbers grouped by the label language (`1.234` in Spanish, Portuguese and German; Latin digits in Arabic).
 - Text-to-speech in alerts speaks in the label language.
+- The studio in all six languages, with a language button each and a right-to-left layout for Arabic. It opens in the first browser language it has.
 - Visual QA group `lang`: every overlay in every label language, with the contrast and layout gate.
 
 ### Changed
