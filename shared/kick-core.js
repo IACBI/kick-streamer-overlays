@@ -52,7 +52,11 @@
     uyariKicks:        { t: 'bool', d: true },
     uyariOdul:         { t: 'bool', d: true },
     uyariSes:          { t: 'bool', d: true },
-    uyariSesSeviye:    { t: 'int', d: 60, min: 0, max: 100 }
+    uyariSesSeviye:    { t: 'int', d: 60, min: 0, max: 100 },
+    uyariOdulGizle:    { t: 'str', d: '', max: 400 },
+    uyariTts:          { t: 'bool', d: false },
+    uyariTtsUzunluk:   { t: 'int', d: 120, min: 20, max: 200 },
+    uyariTtsYasak:     { t: 'str', d: '', max: 400 }
   };
 
   // English names accepted for every setting. The Turkish name stays canonical: it is what the studio writes and
@@ -69,6 +73,8 @@
     announcements: 'duyuruMetinleri', announcementSeconds: 'duyuruSn',
     alertSeconds: 'uyariSn', alertFollows: 'uyariTakip', alertSubs: 'uyariAbone', alertGifts: 'uyariHediye',
     alertKicks: 'uyariKicks', alertRewards: 'uyariOdul', alertSound: 'uyariSes', alertVolume: 'uyariSesSeviye',
+    alertRewardsHidden: 'uyariOdulGizle', alertTts: 'uyariTts', alertTtsMaxLength: 'uyariTtsUzunluk',
+    alertTtsBlockedWords: 'uyariTtsYasak',
     relayAddress: 'relayAdresi'
   };
 
@@ -718,10 +724,23 @@
     return url + (url.indexOf('?') === -1 ? '?' : '&') + 'key=' + encodeURIComponent(key);
   }
 
+  // OBS 33 loads a "Local file" source from http://absolute/, and its browser (Chromium's Local Network Access)
+  // does not let such a page reach 127.0.0.1. The relay is then skipped, not retried: every attempt would fail and
+  // write the request, access key included, to OBS's log. A link pasted into the URL box is not affected.
+  function relayBlocked() {
+    var loc = global.location;
+    return !!(loc && loc.protocol === 'http:' && loc.hostname === 'absolute');
+  }
+
+  // The overlay note for a page that cannot reach the relay because OBS loads it as a local file.
+  function relayBlockedNote(s) {
+    return label(s, 'OBS’te “Yerel dosya” yerine stüdyodaki bağlantıyı kullan', 'In OBS, use the studio link instead of “Local file”');
+  }
+
   // Asks the local relay what it can do. Memoized per page; a failed probe is retried at most every 5 minutes.
   function relayInfo(s) {
     var base = s && s.relayAdresi;
-    if (!base) return Promise.resolve(null);
+    if (!base || relayBlocked()) return Promise.resolve(null);
     var m = relayMemo[base];
     if (m) {
       if (m.promise) return m.promise;
@@ -989,6 +1008,40 @@
     });
   }
 
+  // Rewards the streamer hid from the alerts (uyariOdulGizle: titles separated by |), compared without case.
+  function rewardHidden(s, title) {
+    var t = String(title || '').trim().toLowerCase();
+    if (!t) return false;
+    return String(s.uyariOdulGizle || '').split('|').some(function (x) { return x.trim().toLowerCase() === t; });
+  }
+
+  // What text-to-speech reads for a Kicks or reward alert, or '' for nothing. Links are dropped and the message is
+  // cut at a word break. When the name or the message contains a blocked word
+  // (uyariTtsYasak: comma separated, any case, also inside longer words), nothing is read at all: a partly
+  // read message could still say what the filter is there to stop.
+  function ttsText(s, ev) {
+    if (s.uyariTts !== true || !ev || (ev.kind !== 'kicks' && ev.kind !== 'reward')) return '';
+    var clean = function (v) {
+      return String(v || '').replace(/\bhttps?:\/\/\S+|\bwww\.\S+/gi, ' ').replace(/\s+/g, ' ').trim();
+    };
+    var msg = clean(ev.message);
+    var name = clean(ev.username).slice(0, 40);
+    if (!msg) return '';
+    var hay = (name + ' ' + msg).toLowerCase();
+    var blocked = String(s.uyariTtsYasak || '').split(',').some(function (w) {
+      w = w.trim().toLowerCase();
+      return w !== '' && hay.indexOf(w) !== -1;
+    });
+    if (blocked) return '';
+    var max = Number(s.uyariTtsUzunluk) || 120;
+    if (msg.length > max) {
+      // One character past the limit shows whether the cut falls on a word break; with no break, cut hard.
+      var cut = msg.slice(0, max + 1).replace(/\s+\S*$/, '');
+      msg = cut && cut.length <= max ? cut : msg.slice(0, max);
+    }
+    return name ? name + ': ' + msg : msg;
+  }
+
   // Sound and art for the alert overlay. `kinds` are the alert kinds in use; base is the folder the files live in.
   // play(kind) returns what it did: 'off', 'file', 'tone' or 'blocked' (no Web Audio, or the page may not play sound).
   function createAlertMedia(s, kinds, base) {
@@ -1067,10 +1120,10 @@
 
   var ES_CLOSED = 2;
   // Event names the relay streams (relay/server.js). Each page acts on the kinds it shows and ignores the rest.
-  var RELAY_EVENTS = ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks', 'reward', 'live', 'meta', 'control'];
+  var RELAY_EVENTS = ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks', 'reward', 'live', 'meta', 'control', 'overlay'];
 
   // Server-Sent Events: the relay sends chat, ban, alert and stream frames (RELAY_EVENTS) already in the overlay's shape.
-  // h = { onMessage(event), onStatus(status) }. Status: 'connecting', 'open', 'reconnecting'.
+  // h = { onMessage(event), onStatus(status) }. Status: 'connecting', 'open', 'reconnecting', or 'blocked' (see relayBlocked; nothing is tried).
   // A browser retries a dropped stream by itself, but gives up for good after some failures
   // (readyState CLOSED); then we reopen it ourselves with backoff: 1 s, 2 s, ... up to 30 s.
   function connectRelay(url, h) {
@@ -1103,6 +1156,10 @@
       if (stopped) return;
       try { es = new global.EventSource(relayUrl(url)); } catch (e) { retry(); return; }
       attach(es);
+    }
+    if (relayBlocked()) {
+      status('blocked');
+      return function stop() {};
     }
     status('connecting');
     es = new global.EventSource(relayUrl(url));
@@ -1152,6 +1209,8 @@
       time: parseTime
     },
     relayInfo: relayInfo,
+    relayBlocked: relayBlocked,
+    relayBlockedNote: relayBlockedNote,
     relayUrl: relayUrl,
     kick: { channel: kickChannel },
     official: { token: appToken, channel: officialChannel, clearToken: clearToken },
@@ -1159,6 +1218,8 @@
     connectRelay: connectRelay,
     alertTones: ALERT_TONES,
     createAlertMedia: createAlertMedia,
+    rewardHidden: rewardHidden,
+    ttsText: ttsText,
     obsSceneCollection: obsSceneCollection
   };
 })(typeof window !== 'undefined' ? window : globalThis);

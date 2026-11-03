@@ -42,6 +42,8 @@ The alerts overlay matches what streamers expect from paid alert tools.
 
 **Done when:** each alert type can play a sound and show custom media, and the studio can fire a test alert for each type.
 
+**Status (2026-11-03):** done, including the hidden-rewards list and text-to-speech (Kicks and reward messages; Kick's gifted subscriptions carry no message). Default sound files were not added: the built-in tones need no files.
+
 ## v2.7 — One-click OBS
 
 Setting up all overlays in OBS takes one import instead of eight manual sources.
@@ -51,7 +53,7 @@ Setting up all overlays in OBS takes one import instead of eight manual sources.
 - ~~Accept `settings.js` as an English-named alternative to `AYARLAR.js`.~~ Dropped: every setting already has an English name inside `AYARLAR.js`, and a second optional file would make every overlay request a missing file on each load.
 - The studio checks the latest GitHub release and shows a notice when a newer version exists.
 
-**Status (2026-11-03):** scene collection export (checked by loading it in OBS 33 on Windows), the control dock and the update notice are done. Changing the countdown and announcement lines live from the dock is still open.
+**Status (2026-11-03):** scene collection export (checked by loading it in OBS 33 on Windows), the control dock and the update notice are done. Changing the countdown and announcement lines live from the dock is done too.
 
 **Done when:** a fresh OBS install gets every overlay from one import, tested on Windows OBS.
 
@@ -66,7 +68,7 @@ Live chat and alerts work without the streamer knowing what a tunnel or a webhoo
 
 **Done when:** a new user goes from a downloaded executable to working chat by following the wizard alone.
 
-**Status (2026-11-03):** `--tunnel` (the relay runs cloudflared and prints the Webhook URL), tunnel and recent errors in the studio's relay check (used as the status page, so the access key never has to be printed), the macOS executable, and the SmartScreen and checksum notes are done. Kick has no API for setting an app's Webhook URL, so pasting it stays a manual step; an interactive credentials prompt is still open.
+**Status (2026-11-03):** `--tunnel` (the relay runs cloudflared and prints the Webhook URL), tunnel and recent errors in the studio's relay check (used as the status page, so the access key never has to be printed), the macOS executable, and the SmartScreen and checksum notes are done. Kick has no API for setting an app's Webhook URL, so pasting it stays a manual step; the guided setup (`setup`) asks for the channel and credentials and checks them with Kick. Registering the webhook stays a separate `subscribe` run.
 
 ## v2.9 — More overlays
 

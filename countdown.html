@@ -94,10 +94,11 @@
     return now + S.geriSayimDk * 60 * 1000;
   }
   const start = Date.now();
-  const deadline = target(start);
-  const baseMs = PREVIEW ? 300000 : deadline - start;
+  let deadline = target(start);
+  let baseMs = PREVIEW ? 300000 : deadline - start;
+  const defaultTitle = () => S.geriSayimBaslik || K.label(S, 'Birazdan başlıyoruz', 'Starting soon');
 
-  elTitle.textContent = S.geriSayimBaslik || K.label(S, 'Birazdan başlıyoruz', 'Starting soon');
+  elTitle.textContent = defaultTitle();
   K.debug({
     mode: PREVIEW ? 'preview' : S.geriSayimSaat ? 'clock ' + S.geriSayimSaat : S.geriSayimDk + ' min',
     target: new Date(deadline).toLocaleString()
@@ -133,9 +134,33 @@
     }
   }
 
+  // The OBS dock (dock.html) can start a new countdown through the relay while the stream runs.
+  function restart(ev){
+    const d = Number(ev.deadline), total = Number(ev.total);
+    if (!Number.isFinite(d) || !Number.isFinite(total) || total < 0) return;
+    deadline = d;
+    baseMs = Math.max(1, total);
+    panel.classList.remove('is-done');
+    setTitle(typeof ev.title === 'string' && ev.title ? ev.title.slice(0, 60) : defaultTitle());
+    shown = -1;
+    if (timer === null) timer = setInterval(render, 250);
+    render();
+    K.debug({ mode: 'dock', target: new Date(deadline).toLocaleString() });
+  }
+
   render();
   if (shown !== 0) timer = setInterval(render, 250);
-  window.addEventListener('pagehide', function(){ if (timer !== null) clearInterval(timer); });
+  let stopRelay = null;
+  // Only once the relay has run here (it writes the key), so a pack without the relay makes no requests.
+  if (!PREVIEW && window.KICK_RELAY_KEY && S.relayAdresi) {
+    stopRelay = K.connectRelay(S.relayAdresi + '/events', {
+      onMessage: function(ev){ if (ev.kind === 'overlay' && ev.target === 'countdown') restart(ev); }
+    });
+  }
+  window.addEventListener('pagehide', function(){
+    if (timer !== null) clearInterval(timer);
+    if (stopRelay) stopRelay();
+  });
 })();
 </script>
 </body>

@@ -66,9 +66,11 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 
 **All overlays at once.** In the same step, press **Download OBS scene collection**. In OBS choose **Scene Collection → Import**, add the downloaded `kick-overlay-obs.json`, then pick **Kick Overlay Pack** from the **Scene Collection** menu. You get one scene with every overlay as a Browser source at its size, laid out for a 1920 × 1080 canvas; the combined bar and the countdown come in hidden, and the alerts source already has **Control audio via OBS** on. Download it again after you change settings. Keep the project folder where it is: the links point at its files.
 
-**Control dock.** With the relay running, `dock.html` works as an OBS dock: press **Copy the OBS control dock link** in the studio, then in OBS open **Docks → Custom Browser Docks**, type a name and paste the link as the URL. It shows whether the relay is running and lets you pause and resume alerts (they keep queueing while paused), skip the one on screen, replay the last one, and send a test alert of each kind.
+**Control dock.** With the relay running, `dock.html` works as an OBS dock: press **Copy the OBS control dock link** in the studio, then in OBS open **Docks → Custom Browser Docks**, type a name and paste the link as the URL. It shows whether the relay is running and lets you pause and resume alerts (they keep queueing while paused), skip the one on screen, replay the last one, and send a test alert of each kind. It can also restart the countdown with new minutes and a title, and replace the announcement bar's lines during the stream (**Back to settings** returns to `duyuruMetinleri`). An overlay that opens later picks up the running countdown and the current lines.
 
 Prefer OBS's **Local file** option? Open the studio's **Settings file method**, download `AYARLAR.js`, put it in the project folder in place of the existing file, tick **Local file** in OBS, and choose the overlay file. After a change, right-click the source and choose **Refresh**. You can also edit `AYARLAR.js` by hand.
+
+> **Local file and the relay.** OBS 33 loads a **Local file** source from a page address that its browser does not let reach the relay on `127.0.0.1`. Chat, alerts, live stream status and the dock's countdown and announcement changes then cannot work, and the overlay says to use the studio link instead. For anything that needs the relay, use the link (Local file off).
 
 A link holds only your public settings, never your Kick app credentials. The subscriber total reads them from `AYARLAR.local.js` (or from the relay, see [Relay](#relay-en)).
 
@@ -137,6 +139,8 @@ Troubleshooting. Messages appear in the language set by `dil`: Turkish, English,
 Kick sends chat messages, bans, follows, subscriptions, gifted subscriptions, Kicks, channel point reward redemptions and stream start, end and title changes to a web address you register in your Kick app. The relay in `relay/` receives them, checks Kick's signature, and passes them to `chat.html`, `alerts.html` and `info-panel.html`.
 
 1. Create a Kick developer app. Put its client ID and secret in `AYARLAR.local.js` (see [Configuration](#configuration-en)), or in the environment as `KICK_CLIENT_ID` and `KICK_CLIENT_SECRET`.
+
+   **Guided setup:** run `node relay/setup.js` (or `kick-relay-win-x64.exe setup`). It asks for your channel, Client ID and Client Secret (the secret is not shown while you type), checks them with Kick, and saves them: the credentials to `AYARLAR.local.js`, the channel to `kanal` in `AYARLAR.js`. Other keys in `AYARLAR.local.js` are kept, but comments in that file are not. That covers steps 1 and 2.
 2. Let the relay know your channel. It looks up your broadcaster ID from `kanal` in `AYARLAR.js` (or from `KICK_CHANNEL`) when it starts. If you already know the ID, set `RELAY_BROADCASTER_ID` instead and the lookup is skipped.
 3. Start the relay and leave it running while you stream:
 
@@ -177,6 +181,8 @@ The relay is one small Node.js program with no packages. It has two listeners, b
 | `GET /health` | The relay version, the number of open event streams, `lastEventAt` (when the last signed Kick event arrived, or `null`), and what it can do: `chat`, `alerts`, `channel` and `subscribers`. The studio's **Check relay** button shows each of these as a line. |
 | `POST /test-alert?kind=KIND` | Sends a fixed sample alert (`follow`, `sub`, `gift`, `kicks` or `reward`) to the open alerts pages, sound and art included. The studio's test buttons use it. At most one every 1.5 seconds. |
 | `POST /control?action=ACTION` | The control dock's buttons: `pause`, `resume`, `skip` or `replay` (the last alert again, under a new id). A page that connects while alerts are paused is told at once. At most one every 0.3 seconds. |
+| `POST /overlay?target=countdown&minutes=N&title=TEXT` | The dock's countdown: starts a new countdown of 0–720 minutes on every connected `countdown.html`. The title is optional (up to 60 characters). A page that connects before it ends gets it too. |
+| `POST /overlay?target=ticker&lines=A\|B` | The dock's announcement lines for every connected `ticker.html`, separated by `\|` (up to 12 lines, 400 characters in all). `reset=1` instead of `lines` goes back to `duyuruMetinleri`. Same limit as `/control`. |
 | `GET /channel?slug=NAME` | Kick's public channel data, cached for 20 seconds. The `X-Kick-Source` header says whether it came from Kick's v2 or v1 API. |
 | `GET /subscribers?slug=NAME` | Your subscriber total from Kick's official API, using the app credentials the relay holds. Cached for 15 seconds. Returns `subs`, `gifted`, `canceled`, `live`, `viewers`, `startMs` and `title`. |
 
@@ -243,6 +249,10 @@ Every setting lives in `AYARLAR.js`, and the studio writes the same settings int
 | `uyariOdul` | `alertRewards` | Show channel point reward redemptions (pending or accepted; rejected ones are skipped) | `true` |
 | `uyariSes` | `alertSound` | Play a sound with each live alert. Previews stay silent | `true` |
 | `uyariSesSeviye` | `alertVolume` | Alert volume (0–100) | `60` |
+| `uyariOdulGizle` | `alertRewardsHidden` | Reward names that never show an alert, separated by `\|` (not case-sensitive) | *(empty)* |
+| `uyariTts` | `alertTts` | Read Kicks and reward messages aloud with the computer's voice. The speech plays on the computer's default output, not through the OBS source, so it reaches the stream only when OBS captures desktop audio. Previews stay silent | `false` |
+| `uyariTtsUzunluk` | `alertTtsMaxLength` | Longest message read aloud, in characters (20–200); a longer one is cut at a word break | `120` |
+| `uyariTtsYasak` | `alertTtsBlockedWords` | Words separated by commas. A message whose name or text contains one is not read at all. Links are never read | *(empty)* |
 
 Settings that are only for the local machine. They are never read from a link:
 
@@ -354,9 +364,11 @@ Without the relay, the subscriber bars request and renew their own access token 
 
 **Tüm overlay'ler tek seferde.** Aynı adımda **OBS sahne koleksiyonunu indir** düğmesine bas. OBS'te **Sahne Koleksiyonu → İçe Aktar**'ı seç, indirdiğin `kick-overlay-obs.json` dosyasını ekle, sonra **Sahne Koleksiyonu** menüsünden **Kick Overlay Pack**'i seç. Her overlay kendi boyutunda bir Tarayıcı kaynağı olarak, 1920 × 1080 tuvale göre yerleştirilmiş tek bir sahnede gelir. Birleşik çubuk ve geri sayım gizli eklenir; bildirim kaynağında **Sesi OBS ile kontrol et** zaten açıktır. Ayarları değiştirirsen dosyayı yeniden indir. Proje klasörünün yerini değiştirme: bağlantılar oradaki dosyaları gösterir.
 
-**Kontrol paneli.** Relay çalışırken `dock.html` bir OBS paneli olarak kullanılabilir: stüdyoda **OBS kontrol paneli linkini kopyala**'ya bas, sonra OBS'te **Paneller → Özel Tarayıcı Panelleri**'ni aç, bir ad yaz ve linki URL olarak yapıştır. Panel relay'in çalışıp çalışmadığını gösterir; bildirimleri duraklatıp devam ettirmeni (duraklatılınca sırada beklerler), ekrandakini geçmeni, sonuncuyu tekrarlamanı ve her türden test bildirimi göndermeni sağlar.
+**Kontrol paneli.** Relay çalışırken `dock.html` bir OBS paneli olarak kullanılabilir: stüdyoda **OBS kontrol paneli linkini kopyala**'ya bas, sonra OBS'te **Paneller → Özel Tarayıcı Panelleri**'ni aç, bir ad yaz ve linki URL olarak yapıştır. Panel relay'in çalışıp çalışmadığını gösterir; bildirimleri duraklatıp devam ettirmeni (duraklatılınca sırada beklerler), ekrandakini geçmeni, sonuncuyu tekrarlamanı ve her türden test bildirimi göndermeni sağlar. Yayın sırasında geri sayımı yeni bir süre ve başlıkla yeniden başlatabilir, duyuru çubuğunun satırlarını değiştirebilirsin (**Ayarlara dön** `duyuruMetinleri` değerine geri döner). Sonradan açılan bir overlay de süren geri sayımı ve güncel satırları alır.
 
 OBS'in **Yerel dosya** seçeneğini mi tercih edersin? Stüdyodaki **Ayar dosyası yöntemi** bölümünden `AYARLAR.js` dosyasını indir, proje klasöründeki dosyanın yerine koy, OBS'te **Yerel dosya** kutusunu işaretle ve overlay dosyasını seç. Değişiklikten sonra kaynağa sağ tıklayıp **Yenile**'yi seç. `AYARLAR.js` dosyasını elle de düzenleyebilirsin.
+
+> **Yerel dosya ve relay.** OBS 33, **Yerel dosya** kaynağını tarayıcısının `127.0.0.1` üzerindeki relay'e erişmesine izin vermediği bir sayfa adresinden yükler. Bu durumda sohbet, bildirimler, canlı yayın durumu ve paneldeki geri sayım ile duyuru değişiklikleri çalışamaz; overlay de stüdyodaki bağlantıyı kullanmanı söyler. Relay gereken her şey için bağlantıyı kullan (Yerel dosya kapalı).
 
 Bağlantı yalnızca herkese açık ayarlarını taşır, Kick uygulaman bilgilerini asla. Abone toplamı bu bilgileri `AYARLAR.local.js` dosyasından (ya da relay üzerinden, bkz. [Relay](#relay-tr)) okur.
 
@@ -425,6 +437,8 @@ Sorun giderme. Mesajlar `dil` ayarındaki dilde görünür: Türkçe, İngilizce
 Kick; sohbet mesajlarını, yasakları, takipleri, abonelikleri, hediye abonelikleri, Kicks'i, kanal puanı ödüllerini ve yayının başlama, bitme ve başlık değişikliklerini Kick uygulamanda kayıtlı bir web adresine gönderir. `relay/` klasöründeki relay bunları alır, Kick'in imzasını doğrular ve `chat.html`, `alerts.html` ile `info-panel.html`'e iletir.
 
 1. Bir Kick geliştirici uygulaması oluştur. Client ID ile secret değerlerini `AYARLAR.local.js` dosyasına ekle (bkz. [Yapılandırma](#yapilandirma-tr)) ya da ortam değişkeni olarak `KICK_CLIENT_ID` ve `KICK_CLIENT_SECRET` ayarla.
+
+   **Adım adım kurulum:** `node relay/setup.js` (ya da `kick-relay-win-x64.exe setup`) çalıştır. Kanalını, Client ID'yi ve Client Secret'ı sorar (secret yazarken ekranda görünmez), Kick'e karşı dener ve kaydeder: uygulama bilgilerini `AYARLAR.local.js` dosyasına, kanalı `AYARLAR.js` içindeki `kanal` değerine. `AYARLAR.local.js` içindeki diğer ayarlar korunur, ama o dosyadaki yorumlar korunmaz. 1. ve 2. adımı birlikte halleder.
 2. Relay'in kanalını tanıması gerekir. Başlarken `AYARLAR.js` içindeki `kanal` değerinden (ya da `KICK_CHANNEL`'dan) yayıncı kimliğini bulur. Kimliğini zaten biliyorsan `RELAY_BROADCASTER_ID` değerine yaz; bu durumda arama yapılmaz.
 3. Relay'i başlat ve yayın sırasında açık bırak:
 
@@ -465,6 +479,8 @@ Relay, paket gerektirmeyen küçük bir Node.js programıdır. İki dinleyicisi 
 | `GET /health` | Relay sürümü, açık olay bağlantısı sayısı, `lastEventAt` (son imzalı Kick olayının geldiği an ya da `null`) ve neler yapabildiği: `chat`, `alerts`, `channel`, `subscribers`. Stüdyodaki **Relay'i kontrol et** düğmesi bunların her birini ayrı bir satırda gösterir. |
 | `POST /test-alert?kind=TÜR` | Açık bildirim sayfalarına sabit bir örnek bildirim (`follow`, `sub`, `gift`, `kicks` ya da `reward`) gönderir; ses ve görsel dahil. Stüdyodaki test düğmeleri bunu kullanır. En fazla 1,5 saniyede bir. |
 | `POST /control?action=İŞLEM` | Kontrol panelinin düğmeleri: `pause`, `resume`, `skip` ya da `replay` (son bildirim, yeni bir kimlikle yeniden). Bildirimler duraklatılmışken bağlanan sayfaya bu hemen bildirilir. En fazla 0,3 saniyede bir. |
+| `POST /overlay?target=countdown&minutes=N&title=METİN` | Panelin geri sayımı: bağlı her `countdown.html` için 0–720 dakikalık yeni bir geri sayım başlatır. Başlık isteğe bağlıdır (en çok 60 karakter). Geri sayım bitmeden bağlanan sayfa da bunu alır. |
+| `POST /overlay?target=ticker&lines=A\|B` | Panelin duyuru satırları, bağlı her `ticker.html` için; `\|` ile ayrılır (en çok 12 satır, toplam 400 karakter). `lines` yerine `reset=1` `duyuruMetinleri` değerine döner. `/control` ile aynı sınır. |
 | `GET /channel?slug=AD` | Kick'in herkese açık kanal verisi, 20 saniye önbellekte tutulur. `X-Kick-Source` başlığı verinin Kick'in v2 mi v1 mi API'sinden geldiğini söyler. |
 | `GET /subscribers?slug=AD` | Relay'in tuttuğu uygulama bilgileriyle Kick'in resmi API'sinden abone toplamın. 15 saniye önbellekte tutulur. `subs`, `gifted`, `canceled`, `live`, `viewers`, `startMs` ve `title` döndürür. |
 
@@ -531,6 +547,10 @@ Tüm ayarlar `AYARLAR.js` içindedir; stüdyo aynı ayarları verdiği bağlant�
 | `uyariOdul` | `alertRewards` | Kanal puanı ödül kullanımlarını göster (bekleyen ya da onaylanan; reddedilenler gösterilmez) | `true` |
 | `uyariSes` | `alertSound` | Her canlı bildirimde ses çal. Önizlemeler sessizdir | `true` |
 | `uyariSesSeviye` | `alertVolume` | Bildirim ses seviyesi (0–100) | `60` |
+| `uyariOdulGizle` | `alertRewardsHidden` | Hiç bildirim göstermeyecek ödül adları, `\|` ile ayrılır (büyük-küçük harf fark etmez) | *(boş)* |
+| `uyariTts` | `alertTts` | Kicks ve ödül mesajlarını bilgisayarın sesiyle oku. Ses OBS kaynağından değil, bilgisayarın varsayılan çıkışından gelir; yayına ancak OBS masaüstü sesini alıyorsa gider. Önizlemeler sessizdir | `false` |
+| `uyariTtsUzunluk` | `alertTtsMaxLength` | Sesli okunacak en uzun mesaj, karakter olarak (20–200); daha uzunu kelime sınırında kesilir | `120` |
+| `uyariTtsYasak` | `alertTtsBlockedWords` | Virgülle ayrılmış kelimeler. İsminde ya da metninde bunlardan biri geçen mesaj hiç okunmaz. Bağlantılar hiçbir zaman okunmaz | *(boş)* |
 
 Yalnızca yerel makinede geçerli olan anahtarlar. Bağlantıdan asla okunmazlar:
 

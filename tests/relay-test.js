@@ -647,6 +647,102 @@ function statusOf(port, p, headers) {
   }
 
   // ======================================================================================
+  console.log('\n== relay: /overlay (countdown and announcements from the dock)');
+  {
+    const clock = mkClock();
+    const r = createRelay(baseOpts({ now: clock.now }));
+    const { eventsPort: ep } = await r.start();
+    const st = openSse(ep);
+    await sleep(100);
+    const ov = async (q, method = 'POST') => { clock.advance(400); return eget(ep, '/overlay?' + q, method); };
+    check('/overlay: GET is refused (405)', (await ov('target=ticker&lines=a', 'GET')).status === 405);
+    check('/overlay: POST without the key gets 401', (await get(ep, '/overlay?target=ticker&lines=a', 'POST', { Origin: 'null' })).status === 401);
+    check('/overlay: an unknown target gets 400', (await ov('target=chat&lines=a')).status === 400);
+    for (const m of ['-1', '721', '1.5', 'abc', '']) check(`/overlay: countdown minutes "${m}" gets 400`, (await ov('target=countdown&minutes=' + encodeURIComponent(m))).status === 400);
+    check('/overlay: a ticker update without lines gets 400', (await ov('target=ticker&lines=' + encodeURIComponent(' | | '))).status === 400);
+    const start = clock.now();
+    const cd = await ov('target=countdown&minutes=10&title=' + encodeURIComponent('  Back\nsoon  '));
+    const end = clock.now();   // the test clock runs with real time, so the deadline is checked within the request window
+    check('/overlay: a countdown is accepted', cd.status === 200 && JSON.parse(cd.body).target === 'countdown', cd.body);
+    check('/overlay: a second request inside the gap gets 429', (await eget(ep, '/overlay?target=ticker&lines=x', 'POST')).status === 429);
+    const long = 'x'.repeat(500);
+    await ov('target=ticker&lines=' + encodeURIComponent(' One |  | Two  ' + '| L'.repeat(20) + '|' + long));
+    await sleep(150);
+    const frames = st.frames.filter((f) => f.event === 'overlay');
+    const c = frames[0] && frames[0].data, t = frames[1] && frames[1].data;
+    check('/overlay: the countdown frame carries the deadline, the length and a one-line title', c && c.target === 'countdown' && c.deadline >= start + 400 + 600000 && c.deadline <= end + 600000 && c.total === 600000 && c.title === 'Back soon', JSON.stringify(c));
+    check('/overlay: ticker lines are trimmed, empty ones dropped, at most 12, within 400 characters in all', t && t.lines[0] === 'One' && t.lines[1] === 'Two' && t.lines.length === 12 && t.lines.join('|').length <= 400, JSON.stringify(t && t.lines.slice(0, 3)));
+    const late = openSse(ep);
+    await sleep(150);
+    check('/overlay: a page that connects later gets the running countdown and the current lines', late.frames.length === 2 && late.frames[0].data.target === 'countdown' && late.frames[1].data.target === 'ticker', JSON.stringify(late.frames.map((f) => f.data.target)));
+    late.close();
+    clock.advance(11 * 60000);
+    await ov('target=ticker&reset=1');
+    const later = openSse(ep);
+    await sleep(150);
+    check('/overlay: an ended countdown and reset lines are not sent to new pages', later.frames.length === 0, JSON.stringify(later.frames));
+    later.close();
+    const reset = st.frames.filter((f) => f.event === 'overlay').pop();
+    check('/overlay: reset sends an empty list (back to the page setting)', reset && reset.data.target === 'ticker' && Array.isArray(reset.data.lines) && reset.data.lines.length === 0, JSON.stringify(reset && reset.data));
+    st.close();
+    r.stop();
+  }
+
+  // ======================================================================================
+  console.log('\n== relay: guided setup');
+  {
+    const fs = require('fs');
+    const { runSetup, saveChannel } = require(path.join(__dirname, '..', 'relay', 'setup.js'));
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ko-relay-setup-'));
+    const pubText = '// my settings\nwindow.KICK_OVERLAY_AYARLAR = {\n  // Kick channel name\n  kanal: "",\n  stil: "glass"\n};\n';
+    fs.writeFileSync(path.join(dir, 'AYARLAR.js'), pubText);
+    fs.writeFileSync(path.join(dir, 'AYARLAR.local.js'), 'window.KICK_OVERLAY_YEREL = { apiBase: "https://api.kick.com", kickClientId: "old" };');
+    const SECRET = 'setup-secret-value-123';
+    const calls = [];
+    const fakeFetch = async (url, opts) => {
+      calls.push(String(url));
+      if (/\/oauth\/token$/.test(url)) {
+        const f = new URLSearchParams(String(opts.body));
+        if (f.get('client_secret') !== SECRET) return new Response('{"error":"invalid_client"}', { status: 401 });
+        return new Response(JSON.stringify({ access_token: 't1', expires_in: 3600 }), { status: 200 });
+      }
+      if (/\/public\/v1\/channels/.test(url)) {
+        const slug = new URL(url).searchParams.get('slug');
+        return new Response(JSON.stringify({ data: slug === 'iacbi' ? [{ broadcaster_user_id: 42, slug }] : [] }), { status: 200 });
+      }
+      return new Response('{}', { status: 404 });
+    };
+    const script = (answers) => {
+      const asked = [], said = [];
+      return { asked, said, io: { root: dir, env: {}, fetchImpl: fakeFetch, say: (l) => said.push(l),
+        ask: async (q, hidden) => { asked.push({ q, hidden: !!hidden }); return answers.shift() || ''; } } };
+    };
+    let s = script(['', 'iacbi', 'bad id with spaces', 'my-client-id', 'wrong-secret', 'n']);
+    let saved = await runSetup(s.io);
+    check('setup: the channel is asked again until given, a bad Client ID is refused', s.asked.filter((a) => /Channel/.test(a.q)).length === 2 && s.said.some((l) => /does not look like a Client ID/.test(l)));
+    check('setup: only the secret is asked hidden', s.asked.filter((a) => a.hidden).length === 1 && /Secret/.test(s.asked.find((a) => a.hidden).q));
+    check('setup: rejected credentials and "n" save nothing', saved === false && s.said.some((l) => /rejected/.test(l)) && /kickClientId: "old"/.test(fs.readFileSync(path.join(dir, 'AYARLAR.local.js'), 'utf8')));
+    s = script(['IACBI', 'my-client-id', SECRET]);
+    saved = await runSetup(s.io);
+    const local = fs.readFileSync(path.join(dir, 'AYARLAR.local.js'), 'utf8');
+    const sandbox = { window: {} };
+    require('vm').runInNewContext(local, sandbox);
+    check('setup: working credentials are saved, other local keys kept', saved === true && sandbox.window.KICK_OVERLAY_YEREL.kickClientId === 'my-client-id' && sandbox.window.KICK_OVERLAY_YEREL.kickClientSecret === SECRET && sandbox.window.KICK_OVERLAY_YEREL.apiBase === 'https://api.kick.com', JSON.stringify(Object.keys(sandbox.window.KICK_OVERLAY_YEREL)));
+    check('setup: the secret is never printed', !s.said.some((l) => l.includes(SECRET)));
+    const pubAfter = fs.readFileSync(path.join(dir, 'AYARLAR.js'), 'utf8');
+    check('setup: kanal is set in AYARLAR.js, comments and other lines kept', pubAfter === pubText.replace('kanal: ""', 'kanal: "iacbi"'), pubAfter);
+    s = script(['', 'my-client-id', SECRET]);
+    await runSetup(s.io);
+    check('setup: Enter keeps the channel already in AYARLAR.js', s.asked[0].q.includes('[iacbi]') && fs.readFileSync(path.join(dir, 'AYARLAR.js'), 'utf8') === pubAfter);
+    s = script(['nochannel', 'my-client-id', SECRET, 'y']);
+    saved = await runSetup(s.io);
+    check('setup: an unknown channel is reported, and "y" saves anyway', saved === true && s.said.some((l) => /was not found/.test(l)));
+    fs.writeFileSync(path.join(dir, 'AYARLAR.js'), 'window.KICK_OVERLAY_AYARLAR = {};\n');
+    check('setup: a settings file without a kanal line is left alone', saveChannel(dir, 'iacbi') === false && fs.readFileSync(path.join(dir, 'AYARLAR.js'), 'utf8') === 'window.KICK_OVERLAY_AYARLAR = {};\n');
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+
+  // ======================================================================================
   console.log('\n== relay: events access key');
   {
     const r = createRelay(baseOpts());
