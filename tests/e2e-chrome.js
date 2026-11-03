@@ -290,6 +290,24 @@ async function offlineChecks() {
   })`);
   check('studio: generated settings file contains KICK_OVERLAY_AYARLAR', /KICK_OVERLAY_AYARLAR/.test(stInfo.settings));
   check('studio: theme choices rendered', stInfo.themeHits >= 1, `hits=${stInfo.themeHits}`);
+  // The OBS export, read from the blob the button hands to the download link.
+  const obs = await st.eval(`(async () => {
+    let blob = null;
+    const make = URL.createObjectURL;
+    URL.createObjectURL = (b) => { blob = b; return make.call(URL, b); };
+    const click = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {};
+    document.getElementById('obsIndir').click();
+    URL.createObjectURL = make;
+    HTMLAnchorElement.prototype.click = click;
+    const c = JSON.parse(await blob.text());
+    const browsers = c.sources.filter((x) => x.id === 'browser_source');
+    return { scene: c.current_scene, count: browsers.length, files: browsers.map((x) => x.settings.url.split('?')[0].split('/').pop()),
+      local: browsers.every((x) => /^file:\\/\\/\\//.test(x.settings.url)), audio: browsers.filter((x) => x.settings.reroute_audio).map((x) => x.settings.url.split('?')[0].split('/').pop()),
+      hidden: c.sources[0].settings.items.filter((i) => !i.visible).length };
+  })()`);
+  check('studio: the OBS scene collection holds all eight overlays as Browser sources with their file links',
+    obs.count === 8 && obs.files.includes('chat.html') && obs.files.includes('alerts.html') && obs.local && obs.hidden === 2 && obs.audio.join() === 'alerts.html', JSON.stringify(obs));
   check('studio: no unexpected errors', unexpected(st.logs).length === 0, short(unexpected(st.logs)));
   await st.shot('studio.png');
 

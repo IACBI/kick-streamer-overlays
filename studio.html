@@ -727,7 +727,12 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
           <span data-i18n="links.copyAll"></span>
         </button>
+        <button type="button" id="obsIndir" class="st-btn st-btn--primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+          <span data-i18n="obs.download"></span>
+        </button>
       </div>
+      <p class="st-note" data-i18n="obs.how"></p>
       <p class="st-note" data-i18n="s4.again"></p>
 
       <details class="st-group" style="margin-top:16px">
@@ -1041,6 +1046,10 @@
       'relay.bad': 'Relay beklenmeyen bir yanıt verdi (HTTP {status}).',
       'relay.key': 'Relay erişim anahtarı eksik ya da yanlış. Relay’i bir kez başlat (“node relay/server.js”): proje klasöründe AYARLAR.relay.js dosyasını oluşturur. Sonra bu sayfayı yenile.',
       'links.copyAll': 'Tüm linkleri kopyala',
+      'obs.download': 'OBS sahne koleksiyonunu indir',
+      'obs.how': 'Tek seferde kurulum: indirdiğin dosyayı OBS’te Sahne Koleksiyonu → İçe Aktar ile ekle, sonra aynı menüden seç. Tüm overlay’ler 1920 × 1080 tuval için yerleştirilmiş tek bir sahnede gelir; birleşik çubuk ve geri sayım gizli eklenir. Ayar değiştirirsen dosyayı yeniden indir.',
+      'obs.saved': 'Sahne koleksiyonu indirildi.',
+      'obs.scene': 'Kick Overlay’ler',
       'links.copyAllDone': 'Tüm bağlantılar kopyalandı.',
       'copy.done': 'Kopyalandı ✓',
       'card.linkAria': '{name} bağlantısı',
@@ -1259,6 +1268,10 @@
       'relay.bad': 'The relay gave an unexpected answer (HTTP {status}).',
       'relay.key': 'The relay access key is missing or wrong. Start the relay once (“node relay/server.js”): it creates AYARLAR.relay.js in the project folder. Then reload this page.',
       'links.copyAll': 'Copy all links',
+      'obs.download': 'Download OBS scene collection',
+      'obs.how': 'One-step setup: in OBS, add the downloaded file with Scene Collection → Import, then pick it from the same menu. Every overlay arrives in one scene laid out for a 1920 × 1080 canvas; the combined bar and countdown are added hidden. Download it again after changing settings.',
+      'obs.saved': 'Scene collection downloaded.',
+      'obs.scene': 'Kick Overlays',
       'links.copyAllDone': 'All links copied.',
       'copy.done': 'Copied ✓',
       'card.linkAria': '{name} link',
@@ -1826,6 +1839,40 @@
     }
   }
 
+  // ---- OBS scene collection --------------------------------------------------
+
+  // Where each overlay sits on a 1920 × 1080 canvas. The combined bar repeats the two goal bars and the countdown
+  // belongs to a "starting soon" moment, so both come in hidden.
+  var OBS_LAYOUT = {
+    follower: { x: 40, y: 40 },
+    subscriber: { x: 40, y: 140 },
+    combined: { x: 40, y: 40, hidden: true },
+    info: { x: 1580, y: 40 },
+    countdown: { x: 700, y: 445, hidden: true },
+    ticker: { x: 580, y: 980 },
+    chat: { x: 1420, y: 150 },
+    alerts: { x: 640, y: 60 }
+  };
+
+  function downloadObsCollection() {
+    var s = currentSettings();
+    var collection = K.obsSceneCollection({
+      name: 'Kick Overlay Pack',
+      scene: t('obs.scene'),
+      items: OVERLAYS.map(function (o) {
+        var at = OBS_LAYOUT[o.id];
+        return { name: 'Kick · ' + t('ov.' + o.id), url: overlayUrl(o, s), width: o.w, height: o.h,
+          x: at.x, y: at.y, visible: !at.hidden, audio: o.id === 'alerts' };
+      })
+    });
+    try {
+      download('kick-overlay-obs.json', JSON.stringify(collection, null, 2) + '\n', 'application/json;charset=utf-8');
+      toast(t('obs.saved'));
+    } catch (e) {
+      toast(t('out.dlFail'), true);
+    }
+  }
+
   // ---- Help ------------------------------------------------------------------
 
   function buildHelp() {
@@ -2267,6 +2314,7 @@
 
     $('pv-canli').addEventListener('click', toggleLive);
     $('hepsiniKopyala').addEventListener('click', copyAllLinks);
+    $('obsIndir').addEventListener('click', downloadObsCollection);
     $('relayKontrol').addEventListener('click', checkRelay);
     $('sesDene').addEventListener('click', trySound);
     Array.prototype.forEach.call(document.querySelectorAll('[data-test-alert]'), function (b) {

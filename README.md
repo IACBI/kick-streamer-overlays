@@ -63,6 +63,8 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 3. In the studio's **Add to OBS** step, press **Copy link** on the overlay you want. In OBS add a source with **Sources → + → Browser**, turn **Local file** off, paste the link into **URL**, and set the width and height shown on the card (they are also in the table below).
 4. After you change a setting in the studio, copy the link again and paste it into the source.
 
+**All overlays at once.** In the same step, press **Download OBS scene collection**. In OBS choose **Scene Collection → Import**, add the downloaded `kick-overlay-obs.json`, then pick **Kick Overlay Pack** from the **Scene Collection** menu. You get one scene with every overlay as a Browser source at its size, laid out for a 1920 × 1080 canvas; the combined bar and the countdown come in hidden, and the alerts source already has **Control audio via OBS** on. Download it again after you change settings. Keep the project folder where it is: the links point at its files.
+
 Prefer OBS's **Local file** option? Open the studio's **Settings file method**, download `AYARLAR.js`, put it in the project folder in place of the existing file, tick **Local file** in OBS, and choose the overlay file. After a change, right-click the source and choose **Refresh**. You can also edit `AYARLAR.js` by hand.
 
 A link holds only your public settings, never your Kick app credentials. The subscriber total reads them from `AYARLAR.local.js` (or from the relay, see [Relay](#relay-en)).
@@ -342,6 +344,8 @@ Without the relay, the subscriber bars request and renew their own access token 
 2. `studio.html` dosyasını tarayıcıda aç. Kanal adını yaz ve bir görünüm seç.
 3. Stüdyonun **OBS'e ekle** adımında istediğin overlay'in **Bağlantıyı kopyala** düğmesine bas. OBS'te **Kaynaklar → + → Tarayıcı** ile bir kaynak ekle, **Yerel dosya** kutusunu kapat, bağlantıyı **URL** kutusuna yapıştır ve genişlik ile yüksekliği kartta yazan boyuta ayarla (aşağıdaki tabloda da var).
 4. Stüdyoda bir ayarı değiştirdikten sonra bağlantıyı yeniden kopyalayıp kaynağa yapıştır.
+
+**Tüm overlay'ler tek seferde.** Aynı adımda **OBS sahne koleksiyonunu indir** düğmesine bas. OBS'te **Sahne Koleksiyonu → İçe Aktar**'ı seç, indirdiğin `kick-overlay-obs.json` dosyasını ekle, sonra **Sahne Koleksiyonu** menüsünden **Kick Overlay Pack**'i seç. Her overlay kendi boyutunda bir Tarayıcı kaynağı olarak, 1920 × 1080 tuvale göre yerleştirilmiş tek bir sahnede gelir. Birleşik çubuk ve geri sayım gizli eklenir; bildirim kaynağında **Sesi OBS ile kontrol et** zaten açıktır. Ayarları değiştirirsen dosyayı yeniden indir. Proje klasörünün yerini değiştirme: bağlantılar oradaki dosyaları gösterir.
 
 OBS'in **Yerel dosya** seçeneğini mi tercih edersin? Stüdyodaki **Ayar dosyası yöntemi** bölümünden `AYARLAR.js` dosyasını indir, proje klasöründeki dosyanın yerine koy, OBS'te **Yerel dosya** kutusunu işaretle ve overlay dosyasını seç. Değişiklikten sonra kaynağa sağ tıklayıp **Yenile**'yi seç. `AYARLAR.js` dosyasını elle de düzenleyebilirsin.
 
