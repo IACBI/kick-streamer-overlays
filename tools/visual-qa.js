@@ -62,7 +62,9 @@ const OVERLAYS = {
   'countdown':      { file: 'countdown.html',      w: 520, h: 190, wait: 3000,  params: {} },
   'ticker':         { file: 'ticker.html',         w: 760, h: 80,  wait: 3500,  params: {} },
   // uyariSn=30 keeps the first sample on screen until the timers are frozen; the Kicks sample has every text line.
-  'alerts':         { file: 'alerts.html',         w: 640, h: 200, wait: 2500,  params: { uyariSn: 30, uyariTakip: 0, uyariAbone: 0, uyariHediye: 0 } }
+  'alerts':         { file: 'alerts.html',         w: 640, h: 200, wait: 2500,  params: { uyariSn: 30, uyariTakip: 0, uyariAbone: 0, uyariHediye: 0 } },
+  'events':         { file: 'events.html',         w: 420, h: 400, wait: 2000,  params: {} },
+  'leaderboard':    { file: 'leaderboard.html',    w: 380, h: 400, wait: 2000,  params: {} }
 };
 const OVERLAY_NAMES = list(argOf('--overlays', null)) || Object.keys(OVERLAYS);
 

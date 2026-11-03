@@ -3,7 +3,7 @@
 
 Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime panel, a chat overlay, follow, subscription, gift and Kicks alerts, a "starting soon" countdown, a rotating announcement bar, and a studio that gives you a ready link for each overlay. The basic setup needs no server and no account.
 
-[![CI](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml/badge.svg)](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml) ![License](https://img.shields.io/badge/license-MIT-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Overlays](https://img.shields.io/badge/overlays-8-0ea5e9)
+[![CI](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml/badge.svg)](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml) ![License](https://img.shields.io/badge/license-MIT-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Overlays](https://img.shields.io/badge/overlays-10-0ea5e9)
 
 <p align="center"><img src="screenshots/hero.png" alt="Goal bars, a countdown, an announcement bar, an info panel and chat in one theme family" width="860"></p>
 
@@ -42,6 +42,7 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 - Chat filters: hide `!` commands and named users such as bots, and fade messages out after a set time
 - An info panel with viewers, uptime, peak viewers and, optionally, the stream title (`bilgiBaslik`). With the relay it switches the moment the stream starts or ends
 - An alerts overlay for new followers, new and renewed subscriptions, gifted subscriptions, Kicks and channel point rewards. One card at a time; during a raid the queue keeps at most 25 and drops the oldest follows first. Each alert type can be turned off. Each type plays its own short sound, and your own sound and image or video can replace it
+- A recent events list and a leaderboard (top gifters or top Kicks senders) for the current stream. The numbers start over when the stream goes live, survive a relay restart, and can be cleared from the dock. The relay also writes them as plain text files for OBS Text sources
 - Preview mode (`?onizleme=1`) with sample numbers and no network calls, and a status box with `?debug=1`
 - Studio in Turkish and English: live preview with a tab per overlay, quick looks, a copy-link button for each overlay or all of them, JSON export and import of the look (credentials are never included), the `AYARLAR.js` file as an alternative, a step-by-step relay check, and a connection test for your Kick app
 - Every setting also has an English name (`channel`, `theme`, `followerGoal` …), in `AYARLAR.js` and in links
@@ -86,6 +87,8 @@ A link holds only your public settings, never your Kick app credentials. The sub
 | `alerts.html` | Follow, subscription, gift and Kicks alerts (needs the relay, see Live chat) | 640 × 200 |
 | `countdown.html` | "Starting soon" countdown that starts when the source loads | 520 × 190 |
 | `ticker.html` | Announcement bar that rotates your lines | 760 × 80 |
+| `events.html` | Recent follows, subscriptions, gifts and Kicks of this stream (needs the relay) | 420 × 400 |
+| `leaderboard.html` | Top gifters or top Kicks senders of this stream (needs the relay) | 380 × 400 |
 | `studio.html` | Studio: previews, settings and links. Open it in a browser, not in OBS | — |
 
 These previews use sample data (`?onizleme=1`), so they show the design and make no request to Kick.
@@ -177,12 +180,14 @@ The relay is one small Node.js program with no packages. It has two listeners, b
 
 | Endpoint | Answer |
 |---|---|
-| `GET /events` | Server-sent events: `chat` and `ban` for `chat.html`; `follow`, `sub`, `gift`, `kicks` and `reward` for `alerts.html`. |
+| `GET /events` | Server-sent events: `chat` and `ban` for `chat.html`; `follow`, `sub`, `gift`, `kicks` and `reward` for `alerts.html`; `stats` for `events.html` and `leaderboard.html`. |
 | `GET /health` | The relay version, the number of open event streams, `lastEventAt` (when the last signed Kick event arrived, or `null`), and what it can do: `chat`, `alerts`, `channel` and `subscribers`. The studio's **Check relay** button shows each of these as a line. |
 | `POST /test-alert?kind=KIND` | Sends a fixed sample alert (`follow`, `sub`, `gift`, `kicks` or `reward`) to the open alerts pages, sound and art included. The studio's test buttons use it. At most one every 1.5 seconds. |
 | `POST /control?action=ACTION` | The control dock's buttons: `pause`, `resume`, `skip` or `replay` (the last alert again, under a new id). A page that connects while alerts are paused is told at once. At most one every 0.3 seconds. |
 | `POST /overlay?target=countdown&minutes=N&title=TEXT` | The dock's countdown: starts a new countdown of 0–720 minutes on every connected `countdown.html`. The title is optional (up to 60 characters). A page that connects before it ends gets it too. |
 | `POST /overlay?target=ticker&lines=A\|B` | The dock's announcement lines for every connected `ticker.html`, separated by `\|` (up to 12 lines, 400 characters in all). `reset=1` instead of `lines` goes back to `duyuruMetinleri`. Same limit as `/control`. |
+| `GET /stats` | This stream's numbers: totals, the last 20 events, the top 10 gifters and Kicks senders. Test alerts and replays are not counted. |
+| `POST /stats/reset` | Starts the numbers over (the dock's **Reset stream stats**). They also start over when Kick reports the stream going live. Same limit as `/control`. |
 | `GET /channel?slug=NAME` | Kick's public channel data, cached for 20 seconds. The `X-Kick-Source` header says whether it came from Kick's v2 or v1 API. |
 | `GET /subscribers?slug=NAME` | Your subscriber total from Kick's official API, using the app credentials the relay holds. Cached for 15 seconds. Returns `subs`, `gifted`, `canceled`, `live`, `viewers`, `startMs` and `title`. |
 
@@ -191,6 +196,8 @@ Every request must carry the access key from `AYARLAR.relay.js` as a `key` query
 When Kick limits the relay, it answers `429` with `Retry-After`. Without credentials `/subscribers` answers `503`, and a rejected login answers `401`.
 
 **Relay without Node.js.** Each release has a relay executable: `kick-relay-win-x64.exe` for Windows, `kick-relay-linux-x64` for Linux and `kick-relay-macos-arm64` for macOS on Apple silicon. Put it in the overlay folder, next to `AYARLAR.js`, and run it in place of `node relay/server.js`; it reads and writes the same files there. Compare its checksum with `SHA256SUMS.txt` from the same release. The executables are not code-signed. On Windows, SmartScreen may say "Windows protected your PC" on the first start: check the checksum first, then choose **More info → Run anyway**. On macOS, make the file runnable and clear the download quarantine once (`chmod +x kick-relay-macos-arm64 && xattr -d com.apple.quarantine kick-relay-macos-arm64`), then start it from Terminal; on an Intel Mac, use Node.js.
+
+**Stream stats and text files.** The relay keeps this stream's numbers in `kick-relay-stats.json` next to `AYARLAR.js`, so a restart mid-stream loses nothing. After the first event it also writes plain text files to `labels/` for OBS Text sources (**Read from file**): `latest-follower.txt`, `latest-subscriber.txt`, `latest-gifter.txt`, `latest-kicks.txt`, `top-gifter.txt`, `top-kicks.txt`, `follows-total.txt`, `subs-total.txt` (subscriptions plus gifted ones) and `kicks-total.txt`. Set `RELAY_LABELS=0` to turn the text files off. Both are git-ignored.
 
 The subscriber bars need no client secret in the browser when the relay runs. Put the app credentials in `AYARLAR.local.js` or the environment and start the relay. The bars then get the total from `/subscribers`, and the page sends no request to Kick itself. If the relay is not running, the bars use `AYARLAR.local.js` directly. If that is missing too, they show `aboneSayisi`.
 
@@ -206,6 +213,7 @@ The relay reads these environment variables. Each has a default, and the setting
 | `RELAY_EVENTS_PORT` | `8790` | Overlay port. If you change it, set `relayAdresi` to match. |
 | `RELAY_KEY` | generated into `AYARLAR.relay.js` | Overlay access key. Must be 32–128 characters of `A-Z a-z 0-9 _ -`; the relay refuses to start otherwise. |
 | `RELAY_LOG_FORMAT` | `text` | `json` writes each log line as one `{"time", "level", "msg"}` object, for a log collector or a service manager. |
+| `RELAY_LABELS` | on | `0` stops the plain text files in `labels/`. |
 
 <a id="configuration-en"></a>
 ### Configuration
@@ -253,6 +261,9 @@ Every setting lives in `AYARLAR.js`, and the studio writes the same settings int
 | `uyariTts` | `alertTts` | Read Kicks and reward messages aloud with the computer's voice. The speech plays on the computer's default output, not through the OBS source, so it reaches the stream only when OBS captures desktop audio. Previews stay silent | `false` |
 | `uyariTtsUzunluk` | `alertTtsMaxLength` | Longest message read aloud, in characters (20–200); a longer one is cut at a word break | `120` |
 | `uyariTtsYasak` | `alertTtsBlockedWords` | Words separated by commas. A message whose name or text contains one is not read at all. Links are never read | *(empty)* |
+| `olaySayisi` | `eventsCount` | Recent events (`events.html`): how many events to show (3–10) | `5` |
+| `liderTur` | `leaderboardType` | Leaderboard (`leaderboard.html`): `gift` ranks gifted subscriptions, `kicks` ranks Kicks | `gift` |
+| `liderSayisi` | `leaderboardCount` | People on the leaderboard (3–10) | `5` |
 
 Settings that are only for the local machine. They are never read from a link:
 
@@ -340,6 +351,7 @@ Without the relay, the subscriber bars request and renew their own access token 
 - Sohbet filtreleri: `!` ile başlayan komutları ve bot gibi adı verilen kullanıcıları gizle, mesajları belli bir süre sonra soluklaştır
 - İzleyici, yayın süresi, en yüksek izleyici sayısı ve istersen yayın başlığını (`bilgiBaslik`) gösteren bir yayın paneli. Relay açıksa yayın başlar başlamaz ya da biter bitmez değişir
 - Yeni takipçi, yeni ve yenilenen abonelik, hediye abonelik, Kicks ve kanal puanı ödülleri için bildirim overlay'i. Kartlar tek tek gelir; raid sırasında sırada en çok 25 bildirim tutulur ve önce en eski takip bildirimleri atılır. Her bildirim türü ayrı ayrı kapatılabilir. Her tür kendi kısa sesini çalar; yerine kendi sesini ve görselini ya da videonu koyabilirsin
+- O yayının son olayları ve liderlik tablosu (en çok hediye eden ya da Kicks gönderenler). Sayılar yayın başlayınca sıfırlanır, relay yeniden başlasa da korunur ve panelden elle sıfırlanabilir. Relay bunları OBS Metin kaynakları için düz metin dosyalarına da yazar
 - Önizleme modu (`?onizleme=1`): ağ çağrısı yapmadan örnek sayılar gösterir. `?debug=1` ile küçük bir durum kutusu açılır
 - Türkçe ve İngilizce stüdyo: her overlay için sekmeli canlı önizleme, hazır görünümler, her overlay için ya da hepsi için bağlantı kopyalama, görünümü JSON olarak dışa ve içe aktarma (kimlik bilgileri hiçbir zaman dahil edilmez), alternatif olarak `AYARLAR.js` dosyası, adım adım relay denetimi ve Kick uygulaman için bağlantı testi
 - Her ayarın İngilizce bir adı da var (`channel`, `theme`, `followerGoal` …); `AYARLAR.js` dosyasında da bağlantılarda da çalışır
@@ -384,6 +396,8 @@ Bağlantı yalnızca herkese açık ayarlarını taşır, Kick uygulaman bilgile
 | `alerts.html` | Takip, abonelik, hediye ve Kicks bildirimleri (relay gerektirir, bkz. Canlı sohbet) | 640 × 200 |
 | `countdown.html` | Kaynak yüklenince başlayan "birazdan başlıyoruz" geri sayımı | 520 × 190 |
 | `ticker.html` | Satırlarını sırayla gösteren duyuru çubuğu | 760 × 80 |
+| `events.html` | Bu yayının son takip, abonelik, hediye ve Kicks olayları (relay gerektirir) | 420 × 400 |
+| `leaderboard.html` | Bu yayında en çok hediye eden ya da Kicks gönderenler (relay gerektirir) | 380 × 400 |
 | `studio.html` | Stüdyo: önizleme, ayarlar ve bağlantılar. OBS'de değil, tarayıcıda aç | — |
 
 Buradaki tüm animasyonlar örnek veri kullanır (`?onizleme=1`); yani tasarımı gösterir ve Kick'e istek yapmaz.
@@ -475,12 +489,14 @@ Relay, paket gerektirmeyen küçük bir Node.js programıdır. İki dinleyicisi 
 
 | Uç nokta | Yanıt |
 |---|---|
-| `GET /events` | Sunucu gönderimli olaylar (SSE): `chat.html` için `chat` ve `ban`; `alerts.html` için `follow`, `sub`, `gift`, `kicks` ve `reward`. |
+| `GET /events` | Sunucu gönderimli olaylar (SSE): `chat.html` için `chat` ve `ban`; `alerts.html` için `follow`, `sub`, `gift`, `kicks` ve `reward`; `events.html` ve `leaderboard.html` için `stats`. |
 | `GET /health` | Relay sürümü, açık olay bağlantısı sayısı, `lastEventAt` (son imzalı Kick olayının geldiği an ya da `null`) ve neler yapabildiği: `chat`, `alerts`, `channel`, `subscribers`. Stüdyodaki **Relay'i kontrol et** düğmesi bunların her birini ayrı bir satırda gösterir. |
 | `POST /test-alert?kind=TÜR` | Açık bildirim sayfalarına sabit bir örnek bildirim (`follow`, `sub`, `gift`, `kicks` ya da `reward`) gönderir; ses ve görsel dahil. Stüdyodaki test düğmeleri bunu kullanır. En fazla 1,5 saniyede bir. |
 | `POST /control?action=İŞLEM` | Kontrol panelinin düğmeleri: `pause`, `resume`, `skip` ya da `replay` (son bildirim, yeni bir kimlikle yeniden). Bildirimler duraklatılmışken bağlanan sayfaya bu hemen bildirilir. En fazla 0,3 saniyede bir. |
 | `POST /overlay?target=countdown&minutes=N&title=METİN` | Panelin geri sayımı: bağlı her `countdown.html` için 0–720 dakikalık yeni bir geri sayım başlatır. Başlık isteğe bağlıdır (en çok 60 karakter). Geri sayım bitmeden bağlanan sayfa da bunu alır. |
 | `POST /overlay?target=ticker&lines=A\|B` | Panelin duyuru satırları, bağlı her `ticker.html` için; `\|` ile ayrılır (en çok 12 satır, toplam 400 karakter). `lines` yerine `reset=1` `duyuruMetinleri` değerine döner. `/control` ile aynı sınır. |
+| `GET /stats` | Bu yayının sayıları: toplamlar, son 20 olay, en çok hediye eden ve Kicks gönderen ilk 10 kişi. Test bildirimleri ve tekrarlar sayılmaz. |
+| `POST /stats/reset` | Sayıları sıfırlar (paneldeki **İstatistikleri sıfırla**). Kick yayının başladığını bildirdiğinde de sıfırlanırlar. `/control` ile aynı sınır. |
 | `GET /channel?slug=AD` | Kick'in herkese açık kanal verisi, 20 saniye önbellekte tutulur. `X-Kick-Source` başlığı verinin Kick'in v2 mi v1 mi API'sinden geldiğini söyler. |
 | `GET /subscribers?slug=AD` | Relay'in tuttuğu uygulama bilgileriyle Kick'in resmi API'sinden abone toplamın. 15 saniye önbellekte tutulur. `subs`, `gifted`, `canceled`, `live`, `viewers`, `startMs` ve `title` döndürür. |
 
@@ -489,6 +505,8 @@ Her istek erişim anahtarını `key` sorgu parametresiyle taşımalıdır, örne
 Kick sınır koyarsa relay `429` ve `Retry-After` ile yanıt verir. Uygulama bilgisi yoksa `/subscribers` `503`, reddedilen giriş `401` döndürür.
 
 **Node.js olmadan relay.** Her sürümde bir relay programı var: Windows için `kick-relay-win-x64.exe`, Linux için `kick-relay-linux-x64`, Apple işlemcili macOS için `kick-relay-macos-arm64`. Programı overlay klasörüne, `AYARLAR.js` dosyasının yanına koy ve `node relay/server.js` yerine onu çalıştır; aynı dosyaları orada okur ve yazar. Sağlama toplamını aynı sürümdeki `SHA256SUMS.txt` ile karşılaştır. Programlar kod imzalı değil. Windows'ta SmartScreen ilk açılışta "Windows bilgisayarınızı korudu" diyebilir: önce sağlama toplamını kontrol et, sonra **Ek bilgi → Yine de çalıştır**'ı seç. macOS'ta dosyayı bir kez çalıştırılabilir yap ve indirme karantinasını kaldır (`chmod +x kick-relay-macos-arm64 && xattr -d com.apple.quarantine kick-relay-macos-arm64`), sonra Terminal'den başlat; Intel Mac'te Node.js kullan.
+
+**Yayın istatistikleri ve metin dosyaları.** Relay bu yayının sayılarını `AYARLAR.js` dosyasının yanındaki `kick-relay-stats.json` dosyasında tutar; yayın ortasında yeniden başlasa da bir şey kaybolmaz. İlk olaydan sonra OBS Metin kaynakları (**Dosyadan oku**) için `labels/` klasörüne düz metin dosyaları da yazar: `latest-follower.txt`, `latest-subscriber.txt`, `latest-gifter.txt`, `latest-kicks.txt`, `top-gifter.txt`, `top-kicks.txt`, `follows-total.txt`, `subs-total.txt` (abonelikler ve hediye edilenler) ve `kicks-total.txt`. Metin dosyalarını kapatmak için `RELAY_LABELS=0` yap. İkisi de git'e eklenmez.
 
 Relay çalışırken abone çubuklarının tarayıcıda istemci sırrına ihtiyacı yoktur. Uygulama bilgilerini `AYARLAR.local.js` dosyasına ya da ortama koy ve relay'i başlat. Çubuklar toplamı `/subscribers` üzerinden alır, sayfa Kick'e kendisi istek göndermez. Relay çalışmıyorsa çubuklar `AYARLAR.local.js` dosyasını doğrudan kullanır. O da yoksa `aboneSayisi` gösterilir.
 
@@ -504,6 +522,7 @@ Relay şu ortam değişkenlerini okur. Her birinin bir varsayılanı vardır; de
 | `RELAY_EVENTS_PORT` | `8790` | Overlay portu. Değiştirirsen `relayAdresi` değerini de aynı yap. |
 | `RELAY_KEY` | `AYARLAR.relay.js` içine üretilir | Overlay erişim anahtarı. `A-Z a-z 0-9 _ -` karakterlerinden 32–128 uzunlukta olmalı; değilse relay başlamaz. |
 | `RELAY_LOG_FORMAT` | `text` | `json` yapılırsa her günlük satırı tek bir `{"time", "level", "msg"}` nesnesi olarak yazılır; günlük toplayıcılar ve servis yöneticileri için. |
+| `RELAY_LABELS` | açık | `0` yapılırsa `labels/` içindeki metin dosyaları yazılmaz. |
 
 <a id="yapilandirma-tr"></a>
 ### Yapılandırma
@@ -551,6 +570,9 @@ Tüm ayarlar `AYARLAR.js` içindedir; stüdyo aynı ayarları verdiği bağlant�
 | `uyariTts` | `alertTts` | Kicks ve ödül mesajlarını bilgisayarın sesiyle oku. Ses OBS kaynağından değil, bilgisayarın varsayılan çıkışından gelir; yayına ancak OBS masaüstü sesini alıyorsa gider. Önizlemeler sessizdir | `false` |
 | `uyariTtsUzunluk` | `alertTtsMaxLength` | Sesli okunacak en uzun mesaj, karakter olarak (20–200); daha uzunu kelime sınırında kesilir | `120` |
 | `uyariTtsYasak` | `alertTtsBlockedWords` | Virgülle ayrılmış kelimeler. İsminde ya da metninde bunlardan biri geçen mesaj hiç okunmaz. Bağlantılar hiçbir zaman okunmaz | *(boş)* |
+| `olaySayisi` | `eventsCount` | Son olaylar (`events.html`): gösterilecek olay sayısı (3–10) | `5` |
+| `liderTur` | `leaderboardType` | Liderlik tablosu (`leaderboard.html`): `gift` hediye aboneliklere, `kicks` Kicks'e göre sıralar | `gift` |
+| `liderSayisi` | `leaderboardCount` | Tablodaki kişi sayısı (3–10) | `5` |
 
 Yalnızca yerel makinede geçerli olan anahtarlar. Bağlantıdan asla okunmazlar:
 

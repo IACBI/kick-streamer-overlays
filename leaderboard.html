@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<!-- OBS Browser source (Local file): 380 x 400. Top gifters or top Kicks senders of this stream. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kick Leaderboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="shared/themes.css">
+<script src="AYARLAR.js"></script>
+<script src="AYARLAR.relay.js"></script>
+<script src="shared/kick-core.js"></script>
+<style>
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+  body { position: relative; box-sizing: border-box; padding: 12px; font-family: var(--font); -webkit-font-smoothing: antialiased; }
+</style>
+</head>
+<body>
+<div class="ko-list" id="list" role="list" aria-live="polite">
+  <div class="ko-list-title" id="title"></div>
+</div>
+<div class="ko-note is-hidden" id="note" aria-live="polite"></div>
+
+<script>
+(function(){
+  const K = window.KickOverlay;
+  const S = K.readSettings();
+  const PREVIEW = K.isPreview();
+  K.applyLook(S);
+  K.loadFont(S);
+
+  const list = document.getElementById('list');
+  const noteEl = document.getElementById('note');
+  const RELAY_DOWN_MS = 5000;
+  const KICKS = S.liderTur === 'kicks';
+  let last = null;          // the board's text last drawn, so an unrelated stats frame does not redraw it
+  let stopRelay = null, downTimer = null;
+
+  document.getElementById('title').textContent = KICKS
+    ? K.label(S, 'En çok Kicks gönderen', 'Top Kicks')
+    : K.label(S, 'En çok hediye eden', 'Top gifters');
+
+  function value(x){
+    if (KICKS) return K.fmt(x.amount) + ' Kicks';
+    return K.label(S, K.fmt(x.count) + ' abonelik', x.count === 1 ? '1 sub' : K.fmt(x.count) + ' subs');
+  }
+
+  function render(stats){
+    const board = (KICKS ? stats.topKicks : stats.topGifters).slice(0, S.liderSayisi);
+    const text = JSON.stringify(board);
+    if (text === last) return;
+    const first = last === null;
+    last = text;
+    list.querySelectorAll('.ko-item, .ko-empty').forEach(el => el.remove());
+    if (!board.length) {
+      const empty = document.createElement('div');
+      empty.className = 'ko-empty';
+      empty.textContent = K.label(S, 'Henüz kimse yok', 'No one yet');
+      list.appendChild(empty);
+    }
+    board.forEach((x, i) => {
+      const el = document.createElement('div');
+      el.className = 'ko-item' + (first ? '' : ' is-new');
+      el.setAttribute('role', 'listitem');
+      const rank = document.createElement('span');
+      rank.className = 'ko-rank';
+      rank.textContent = String(i + 1);
+      const name = document.createElement('span');
+      name.className = 'ko-item-name';
+      name.textContent = x.name;
+      const v = document.createElement('span');
+      v.className = 'ko-item-value';
+      v.textContent = value(x);
+      el.append(rank, name, v);
+      list.appendChild(el);
+    });
+    K.debug({ board: board.length, type: S.liderTur });
+  }
+
+  function onStatus(st){
+    K.debug({ relay: st });
+    if (st === 'blocked') { K.note(noteEl, S, K.relayBlockedNote(S)); return; }
+    if (st === 'open') {
+      if (downTimer !== null) { clearTimeout(downTimer); downTimer = null; }
+      K.note(noteEl, S, '');
+    } else if (downTimer === null) {
+      downTimer = setTimeout(() => { downTimer = null; K.note(noteEl, S, K.label(S, 'Bildirim köprüsü çalışmıyor', 'Alert relay not running')); }, RELAY_DOWN_MS);
+    }
+  }
+
+  window.addEventListener('pagehide', function(){
+    if (downTimer !== null) clearTimeout(downTimer);
+    if (stopRelay) stopRelay();
+  });
+
+  // The board comes from the local relay's stream stats (relay/stats.js); previews and sample mode show sample names.
+  if (PREVIEW || !S.kanal) {
+    if (!S.kanal && !PREVIEW) {
+      const hint = document.createElement('div');
+      hint.className = 'ko-hint';
+      hint.textContent = K.text(S).hint;
+      document.body.appendChild(hint);
+    }
+    render(K.sampleStats());
+  } else {
+    render(K.parseStats(null));
+    stopRelay = K.connectRelay(S.relayAdresi + '/events', {
+      onMessage: (ev) => { if (ev.kind === 'stats') render(K.parseStats(ev)); },
+      onStatus: onStatus
+    });
+  }
+})();
+</script>
+</body>
+</html>

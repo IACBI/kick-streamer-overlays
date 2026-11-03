@@ -15,10 +15,12 @@
 const crypto = require('crypto');
 const http = require('http');
 const { HEADER, verifySignature, isFresh, ReplayGuard, TokenBucket, normalizeEvent } = require('./webhook.js');
-const { loadConfig, fetchTimeout, loadRelayKey, parsePort } = require('./config.js');
+const { ROOT, loadConfig, fetchTimeout, loadRelayKey, parsePort } = require('./config.js');
 const { createKickApi, retryAfterSec } = require('./kick-api.js');
 const { createLogger } = require('./log.js');
 const { startTunnel, cloudflaredPath } = require('./tunnel.js');
+const { createStats } = require('./stats.js');
+const path = require('path');
 
 const { version: VERSION } = require('../package.json');
 const KEY_TTL_MS = 60 * 60 * 1000;
@@ -44,6 +46,7 @@ const CONTROL_ACTIONS = new Set(['pause', 'resume', 'skip', 'replay']);
 const MAX_COUNTDOWN_MIN = 720;          // same limit as the geriSayimDk setting
 const MAX_LINES = 12;                   // same limits as the duyuruMetinleri setting (kick-core splitLines)
 const MAX_TEXT = 400;
+const STATS_FRAME_MS = 300;             // a burst of gifts sends one stats frame, not one per event
 const TEST_GAP_MS = 1500;              // test alerts are for setup; a stuck button must not flood the stream
 // Fixed samples, so a test request cannot put any text of its own on stream.
 const TEST_ALERTS = {
@@ -184,6 +187,8 @@ function createRelay(opts) {
     webhookPreAuthRate: { perSec: 200, burst: 400 },   // unsigned traffic: an emergency ceiling only
     webhookRate: { perSec: 30, burst: 60 },            // signed traffic: what Kick really sends
     accessKey: undefined,      // events port key; undefined reads or creates AYARLAR.relay.js
+    statsFile: null,           // stream stats survive a restart when set (main() sets it next to AYARLAR.js)
+    labelsDir: null,           // plain-text files for OBS Text sources when set
     normalizeEvent,
     logger: console,
     now: () => Date.now()
@@ -271,6 +276,25 @@ function createRelay(opts) {
     } catch (e) { dropClient(res); }
   }
 
+  // ---- stream stats: recent events, leaderboards, totals, sub train ----
+  // The stats clock falls back to wall time: stats are created at startup, before any injected clock is trusted.
+  const statsNow = () => { try { return o.now(); } catch (e) { return Date.now(); } };
+  const stats = createStats({ now: statsNow, file: o.statsFile, labelsDir: o.labelsDir, logger: o.logger });
+  const statsFrame = () => `event: stats
+data: ${JSON.stringify(stats.snapshot())}
+
+`;
+  let statsTimer = null;
+  function statsChanged() {
+    if (statsTimer) return;
+    statsTimer = setTimeout(() => {
+      statsTimer = null;
+      const frame = statsFrame();
+      for (const res of Array.from(clients)) writeClient(res, frame);
+    }, STATS_FRAME_MS);
+    if (statsTimer.unref) statsTimer.unref();
+  }
+
   // The last alert shown, real or test, so the dock can replay it; and whether alerts are paused, which a page
   // that connects later must learn too.
   let lastAlert = null, alertsPaused = false;
@@ -322,7 +346,12 @@ function createRelay(opts) {
     // A reward keeps one id across its pending and accepted updates, so it is shown once.
     if (ev && ALERT_KINDS.has(ev.kind)) ev.id = ev.kind === 'reward' ? 'reward-' + ev.redemptionId : String(messageId);
     if (ev) {
-      if (broadcasterId ? ev.broadcasterId === broadcasterId : o.allowAnyBroadcaster) broadcast(ev);
+      if (broadcasterId ? ev.broadcasterId === broadcasterId : o.allowAnyBroadcaster) {
+        broadcast(ev);
+        // A new stream starts the numbers over; Kick sends is_live true once, when the stream starts.
+        if (ev.kind === 'live' && ev.live === true) { stats.reset(); statsChanged(); }
+        else if (stats.record(ev)) statsChanged();
+      }
       else if (!broadcasterId) {
         warnDropped();
         if (o.now() - lastResolve >= RESOLVE_GAP_MS) resolveBroadcaster();   // maybe it works now; this event is still dropped
@@ -515,12 +544,21 @@ function createRelay(opts) {
     try { url = new URL(req.url, 'http://localhost'); } catch (e) { return send(res, 400, { error: 'bad request' }); }
     const p = url.pathname;
     // POST is only for the routes with a side effect; everything else is read-only GET.
-    const method = p === '/test-alert' || p === '/control' || p === '/overlay' ? 'POST' : 'GET';
+    const method = p === '/test-alert' || p === '/control' || p === '/overlay' || p === '/stats/reset' ? 'POST' : 'GET';
     if (req.method !== method) return send(res, 405, { error: 'method not allowed' }, { Allow: method + ', OPTIONS' });
     if (!keyOk(url.searchParams.get('key'))) return send(res, 401, { ok: false, error: 'bad key' });
     if (p === '/test-alert') return handleTestAlert(res, url.searchParams.get('kind') || '');
     if (p === '/control') return handleControl(res, url.searchParams.get('action') || '');
     if (p === '/overlay') return handleOverlay(res, url.searchParams);
+    if (p === '/stats') return send(res, 200, Object.assign({ ok: true }, stats.snapshot()));
+    if (p === '/stats/reset') {
+      const now = o.now();
+      if (now - lastControlAt < CONTROL_GAP_MS) return send(res, 429, { ok: false, error: 'rate' }, { 'Retry-After': '1' });
+      lastControlAt = now;
+      stats.reset();
+      statsChanged();
+      return send(res, 200, { ok: true, clients: clients.size });
+    }
 
     if (p === '/health') {
       return send(res, 200, {
@@ -548,6 +586,8 @@ function createRelay(opts) {
     // A countdown that ended is not sent again: an old "Going live!" must not replace a fresh page's own countdown.
     if (countdownState && countdownState.deadline > o.now()) res.write(overlayFrame(countdownState));
     if (tickerState) res.write(overlayFrame(tickerState));
+    // Only a stream that already has numbers is sent; an empty one is what a page starts with anyway.
+    if (stats.hasData()) res.write(statsFrame());
     clients.add(res);
     const remove = () => clients.delete(res);
     res.on('close', remove);
@@ -570,7 +610,7 @@ function createRelay(opts) {
   }
 
   return {
-    webhook, events, clients, broadcast,
+    webhook, events, clients, broadcast, stats,
     logger: o.logger,
     setTunnel(url) { tunnelUrl = typeof url === 'string' && /^https:\/\//.test(url) ? url : null; },
     chatReady,
@@ -584,6 +624,8 @@ function createRelay(opts) {
     },
     stop() {
       clearInterval(heartbeat);
+      if (statsTimer) { clearTimeout(statsTimer); statsTimer = null; }
+      stats.flush();
       for (const res of Array.from(clients)) { try { res.end(); } catch (e) { /* gone */ } }
       clients.clear();
       webhook.close();
@@ -610,6 +652,8 @@ function main(env = process.env, argv = process.argv.slice(2)) {
       broadcasterUserId: String(env.RELAY_BROADCASTER_ID || ''),
       allowAnyBroadcaster: env.RELAY_ALLOW_ANY_BROADCASTER === '1',
       fetchImpl: globalThis.fetch,
+      statsFile: path.join(ROOT, 'kick-relay-stats.json'),
+      labelsDir: env.RELAY_LABELS === '0' ? null : path.join(ROOT, 'labels'),
       logger: log
     });
   } catch (e) {

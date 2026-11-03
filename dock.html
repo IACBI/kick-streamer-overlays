@@ -76,6 +76,10 @@
       <button type="button" id="tk-reset"></button>
     </div>
   </section>
+  <section aria-labelledby="h-stats">
+    <h2 id="h-stats"></h2>
+    <div class="row"><button type="button" id="st-reset"></button></div>
+  </section>
   <p id="msg" role="status" aria-live="polite"></p>
 </main>
 
@@ -202,12 +206,29 @@
   });
   $('tk-reset').addEventListener('click', (e) => send('/overlay?target=ticker&reset=1', e.currentTarget));
 
+  // Clearing the stream's numbers cannot be undone, so it takes a second press within a few seconds.
+  const CONFIRM_MS = 4000;
+  const stReset = $('st-reset');
+  let armTimer = null;
+  const disarm = () => { if (armTimer !== null) clearTimeout(armTimer); armTimer = null; stReset.textContent = L('İstatistikleri sıfırla', 'Reset stream stats'); };
+  $('h-stats').textContent = L('Yayın istatistikleri', 'Stream stats');
+  disarm();
+  stReset.addEventListener('click', (e) => {
+    if (armTimer === null) {
+      stReset.textContent = L('Emin misin? Tekrar bas', 'Sure? Press again');
+      armTimer = setTimeout(disarm, CONFIRM_MS);
+      return;
+    }
+    disarm();
+    send('/stats/reset', e.currentTarget);
+  });
+
   renderPause();
   setControls(false);
   statusText.textContent = L('Kontrol ediliyor…', 'Checking…');
   health();
   healthTimer = setInterval(health, HEALTH_MS);
-  window.addEventListener('pagehide', () => clearInterval(healthTimer));
+  window.addEventListener('pagehide', () => { clearInterval(healthTimer); disarm(); });
 })();
 </script>
 </body>

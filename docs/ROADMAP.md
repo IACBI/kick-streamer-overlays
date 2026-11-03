@@ -85,6 +85,8 @@ The pack covers the widgets streamers usually add from other tools.
 
 **Done when:** each new overlay has a preview mode, a studio tab and e2e coverage, like the existing ones.
 
+**Status (2026-11-04):** the recent events list, both leaderboards and the plain-text labels are done, fed by stream stats the relay keeps.
+
 ## v3.0 — International
 
 Streamers outside Turkey and English-speaking countries can use the pack in their own language.

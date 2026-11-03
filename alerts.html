@@ -41,15 +41,6 @@
   const RELAY_DOWN_MS = 5000;
   const SEEN_CAP = 500;
   const ENABLED = { follow: S.uyariTakip, sub: S.uyariAbone, gift: S.uyariHediye, kicks: S.uyariKicks, reward: S.uyariOdul };
-  const SVG_NS = 'http://www.w3.org/2000/svg';
-  const ICONS = {
-    follow: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z'],
-    sub: ['M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6 6.8 19.4l1-5.9L3.5 9.4l5.9-.8L12 3.2z'],
-    gift: ['M4 10h16v10H4z', 'M3 7h18v3H3zM12 7v13', 'M12 7C12 7 11.4 3.5 9 4c-1.9.4-1.4 3 3 3zM12 7c0 0 .6-3.5 3-3 1.9.4 1.4 3-3 3z'],
-    kicks: ['M13 2L4 14h7l-1 8 9-12h-7l1-8z'],
-    reward: ['M12 14.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11z', 'M8.6 13.4L7 21l5-2.8 5 2.8-1.6-7.6']
-  };
-
   const queue = [];
   const seen = new Set();
   let current = null;       // the alert element on screen
@@ -81,18 +72,6 @@
       synth.speak(u);
     } catch (e) { return 0; }
     return Math.min(TTS_MAX_MS, 1500 + text.length * TTS_MS_PER_CHAR);
-  }
-
-  function icon(kind){
-    const svg = document.createElementNS(SVG_NS, 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('aria-hidden', 'true');
-    for (const d of ICONS[kind]) {
-      const p = document.createElementNS(SVG_NS, 'path');
-      p.setAttribute('d', d);
-      svg.appendChild(p);
-    }
-    return svg;
   }
 
   // Title, name and detail per kind. Everything is set as text; nothing from an event is parsed as markup.
@@ -142,7 +121,7 @@
     else {
       ic = document.createElement('span');
       ic.className = 'ko-alert-icon';
-      ic.appendChild(icon(ev.kind));
+      ic.appendChild(K.alertIcon(ev.kind));
     }
     const body = document.createElement('div');
     body.className = 'ko-alert-body';

@@ -17,3 +17,8 @@ qa-out/
 
 # Built relay executables (npm run build:relay)
 dist/
+
+# Stream stats and OBS text labels, written by the relay
+kick-relay-stats.json
+kick-relay-stats.json.tmp
+labels/

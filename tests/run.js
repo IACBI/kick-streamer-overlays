@@ -18,7 +18,7 @@ const CORE_FILE = path.join(ROOT, 'shared', 'kick-core.js');
 const CSS_FILE = path.join(ROOT, 'shared', 'themes.css');
 const SETTINGS_FILE = path.join(ROOT, 'AYARLAR.js');
 const FIXTURE_DIR = path.join(__dirname, 'fixtures');
-const OVERLAY_PAGES = ['follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html', 'countdown.html', 'ticker.html', 'alerts.html'];
+const OVERLAY_PAGES = ['follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html', 'countdown.html', 'ticker.html', 'alerts.html', 'events.html', 'leaderboard.html'];
 // The studio is a configurator: it generates AYARLAR.js, so it does not load the settings scripts.
 const STUDIO_PAGE = 'studio.html';
 
@@ -38,7 +38,8 @@ const DEFAULTS = {
   geriSayimSaat: '', sohbetKomutGizle: false, sohbetGizliKullanicilar: '', sohbetSilinmeSn: 0,
   hataNotu: true, hedefKutlama: true, bilgiBaslik: false,
   uyariSn: 6, uyariTakip: true, uyariAbone: true, uyariHediye: true, uyariKicks: true, uyariOdul: true,
-  uyariSes: true, uyariSesSeviye: 60, uyariOdulGizle: '', uyariTts: false, uyariTtsUzunluk: 120, uyariTtsYasak: ''
+  uyariSes: true, uyariSesSeviye: 60, uyariOdulGizle: '', uyariTts: false, uyariTtsUzunluk: 120, uyariTtsYasak: '',
+  olaySayisi: 5, liderTur: 'gift', liderSayisi: 5
 };
 const RELAY = 'http://127.0.0.1:8790';
 
@@ -458,6 +459,57 @@ async function testReadSettings() {
     eq(K.rewardHidden(s, 'Hydrate now'), false, 'whole title only');
     eq(K.rewardHidden(s, ''), false, 'empty title');
     eq(K.rewardHidden(K.normalize({}), 'Hydrate'), false, 'nothing hidden by default');
+  });
+
+  await check('stats settings: defaults, aliases and clamping', () => {
+    const { K } = loadCore();
+    eqFields(K.normalize({}), { olaySayisi: 5, liderTur: 'gift', liderSayisi: 5 });
+    eqFields(K.normalize({ eventsCount: 8, leaderboardType: 'kicks', leaderboardCount: 3 }), { olaySayisi: 8, liderTur: 'kicks', liderSayisi: 3 }, 'alias ');
+    eqFields(K.normalize({ olaySayisi: 99, liderTur: 'bits', liderSayisi: 1 }), { olaySayisi: 10, liderTur: 'gift', liderSayisi: 3 }, 'clamped ');
+  });
+
+  await check('parseStats: keeps well-formed entries, drops odd ones, never throws', () => {
+    const { K } = loadCore();
+    const empty = { totals: { follows: 0, subs: 0, gifted: 0, kicks: 0 }, recent: [], topGifters: [], topKicks: [], subTimes: [] };
+    for (const bad of [null, undefined, 'x', 5, [], { totals: 'x', recent: {}, topGifters: 'x' }]) eq(JSON.parse(JSON.stringify(K.parseStats(bad))), empty, 'empty for ' + JSON.stringify(bad));
+    const p = K.parseStats({
+      totals: { follows: 3, subs: -1, gifted: 2.7, kicks: 'lots' },
+      recent: [
+        { kind: 'follow', name: '  Mia \t ', at: 5 },
+        { kind: 'gift', anonymous: true, name: 'hidden', count: 3, at: 4 },
+        { kind: 'gift', name: '', count: 1, at: 3 },
+        { kind: 'chat', name: 'x', at: 2 },
+        { kind: 'sub', name: 'Kenji', months: 0, at: 1 },
+        null
+      ],
+      topGifters: [{ name: 'Alex', count: 4 }, { name: 'NoCount' }, { name: '', count: 2 }],
+      topKicks: [{ name: 'Luna', amount: 500 }, { name: 'Zero', amount: 0 }],
+      subTimes: [{ at: 1, n: 2 }, { at: 'x', n: 1 }, { at: 2, n: 0 }]
+    });
+    eq(JSON.parse(JSON.stringify(p.totals)), { follows: 3, subs: 0, gifted: 2, kicks: 0 }, 'totals');
+    eq(p.recent.map((e) => e.kind + ':' + e.name + ':' + e.anonymous), ['follow:Mia:false', 'gift::true', 'sub:Kenji:false'], 'recent');
+    eq(p.recent[2].months, 1, 'months floor');
+    eq(p.recent[1].count, 3, 'gift count');
+    eq(p.topGifters.map((x) => x.name + '=' + x.count), ['Alex=4'], 'gifters');
+    eq(p.topKicks.map((x) => x.name + '=' + x.amount), ['Luna=500'], 'kicks');
+    eq(p.subTimes.length, 1, 'sub times');
+    const many = K.parseStats({ recent: Array.from({ length: 40 }, (_, i) => ({ kind: 'follow', name: 'u' + i, at: i })) });
+    eq(many.recent.length, 20, 'recent capped');
+  });
+
+  await check('eventText and sampleStats: labels per kind and language; the sample fills both overlays', () => {
+    const { K } = loadCore();
+    const en = K.normalize({ dil: 'en' }), tr = K.normalize({ dil: 'tr' });
+    eq(K.eventText(en, { kind: 'follow', name: 'Mia' }).detail, 'followed', 'follow en');
+    eq(K.eventText(tr, { kind: 'follow', name: 'Mia' }).detail, 'takip etti', 'follow tr');
+    eq(K.eventText(en, { kind: 'sub', name: 'S', months: 6 }).detail, 'subscribed for 6 months', 'sub months');
+    eq(K.eventText(en, { kind: 'sub', name: 'S', months: 1 }).detail, 'subscribed', 'sub first');
+    eq(K.eventText(en, { kind: 'gift', name: 'A', count: 1 }).detail, 'gifted a sub', 'one gift');
+    const anon = K.eventText(en, { kind: 'gift', name: '', anonymous: true, count: 5 });
+    eq(anon.name + ' ' + anon.detail, 'Anonymous gifted 5 subs', 'anonymous gift');
+    eq(K.eventText(en, { kind: 'kicks', name: 'L', amount: 1500 }).detail, '1,500 Kicks', 'kicks');
+    const s = K.sampleStats(1000000);
+    ok(s.recent.length >= 10 && s.topGifters.length >= 5 && s.topKicks.length >= 5, 'sample covers 10 events and 5 names');
   });
 
   await check('ttsText: off by default; reads Kicks and reward messages; drops links; blocks words; cuts at a word', () => {
@@ -2565,7 +2617,7 @@ async function testThemesAndPages() {
     for (const m of html.matchAll(/data-i18n(?:-ph|-aria)?="([^"]+)"/g)) used.add(m[1]);
     for (const m of html.matchAll(/\bt\('([^']+)'/g)) used.add(m[1]);
     // Keys built from an id at run time.
-    ['follower', 'subscriber', 'combined', 'info', 'countdown', 'ticker', 'chat', 'alerts'].forEach((id) => { used.add('ov.' + id); used.add('ov.' + id + '.d'); });
+    ['follower', 'subscriber', 'combined', 'info', 'countdown', 'ticker', 'chat', 'alerts', 'events', 'leaderboard'].forEach((id) => { used.add('ov.' + id); used.add('ov.' + id + '.d'); });
     ['minimal', 'neon', 'pastel', 'gece', 'kagit'].forEach((id) => used.add('preset.' + id));
     ['checker', 'dark', 'light', 'scene'].forEach((id) => used.add('bg.' + id));
     for (let n = 1; n <= 4; n++) used.add('help.c' + n);

@@ -402,7 +402,9 @@ body.motion-low .ko-msg,
 body.motion-off .ko-bar,
 body.motion-off .ko-panel,
 body.motion-off .ko-alert,
-body.motion-off .ko-msg { backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.motion-off .ko-msg,
+body.motion-low .ko-list,
+body.motion-off .ko-list { backdrop-filter: none; -webkit-backdrop-filter: none; }
 
 /* Studio preview reload after an edit (?sessiz=1, set by kick-core): open in the final state, no intro. */
 html.ko-quiet body { --ko-dur-in: 0s; --ko-dur-fill: 0s; --ko-rise: 0px; }
@@ -659,6 +661,48 @@ body.theme-retro .ko-alert-media { border-radius: 0; }
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 body.theme-retro .ko-alert-icon { border-radius: 0; }
+
+/* ---- lists: recent events, leaderboard ---- */
+.ko-list {
+  display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box; padding: 12px 14px;
+  /* A pill radius would clip a tall card, so the list caps it. */
+  border-radius: min(var(--r-card), 22px);
+  background: linear-gradient(var(--surface-boost), var(--surface-boost)), var(--surface);
+  border: 1px solid var(--surface-border);
+  backdrop-filter: blur(var(--blur)) saturate(140%); -webkit-backdrop-filter: blur(var(--blur)) saturate(140%);
+  box-shadow: var(--shadow);
+  animation: ko-rise-in var(--ko-dur-in) var(--ko-ease) backwards;
+}
+.ko-list-title {
+  font-size: 13px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--muted);
+  text-shadow: var(--text-shadow); margin-bottom: 2px;
+}
+.ko-item { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ko-item.is-new { animation: ko-enter var(--ko-dur-in) var(--ko-ease) backwards; }
+.ko-item-icon, .ko-rank {
+  flex: 0 0 auto; display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: calc(var(--r-card) * .45); background: var(--chip-bg); color: var(--chip-text);
+}
+.ko-item-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ko-rank { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+/* Only first place keeps the accent tile; the rest step back so the leader reads first. */
+/* The other places sit on the card itself, so their numbers keep the card text contrast. */
+.ko-rank { background: transparent; box-shadow: inset 0 0 0 1.5px var(--track-bg); color: var(--text); text-shadow: var(--text-shadow); }
+.ko-list-title + .ko-item .ko-rank { background: var(--chip-bg); color: var(--chip-text); box-shadow: none; text-shadow: none; }
+.ko-item-name {
+  flex: 0 1 auto; min-width: 0; font-size: 16px; font-weight: 800; color: var(--text); text-shadow: var(--text-shadow);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ko-item-detail {
+  flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; color: var(--muted); text-shadow: var(--text-shadow);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ko-item-value {
+  margin-left: auto; flex: 0 0 auto; font-size: 16px; font-weight: 800; color: var(--text); text-shadow: var(--text-shadow);
+  font-variant-numeric: tabular-nums;
+}
+.ko-empty { font-size: 14px; color: var(--muted); text-shadow: var(--text-shadow); }
+body.theme-retro .ko-item-icon, body.theme-retro .ko-rank { border-radius: 0; }
 
 /* Long single-line text (ticker, title). Static with an ellipsis; scrolls only at full motion. */
 .ko-marquee { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

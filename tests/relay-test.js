@@ -1164,6 +1164,109 @@ function statusOf(port, p, headers) {
     check('CLI: an invalid port stops at startup with exit 1', badPort.code === 1 && /RELAY_EVENTS_PORT/.test(badPort.err), badPort.err);
   }
 
+  // ======================================================================================
+  console.log('\n== relay: stream stats (recent events, leaderboards, label files)');
+  {
+    const os = require('os');
+    const fs = require('fs');
+    const { createStats, SUB_WINDOW_MS } = require(path.join(__dirname, '..', 'relay', 'stats.js'));
+    const clock = mkClock();
+    const st = createStats({ now: clock.now, logger: quietLogger() });
+    check('stats: nothing counted at start', st.hasData() === false && st.snapshot().recent.length === 0);
+    check('stats: test alerts, replays, chat and malformed alerts are not counted',
+      [{ kind: 'follow', username: 'T', test: true }, { kind: 'sub', username: 'R', replay: true }, { kind: 'chat', username: 'C' }, { kind: 'follow', username: '  ' }, null]
+        .every((ev) => st.record(ev) === false) && !st.hasData());
+    st.record({ kind: 'follow', username: 'Mia' });
+    st.record({ kind: 'sub', username: 'Kenji', months: 3 });
+    st.record({ kind: 'gift', username: 'Alex', count: 5 });
+    st.record({ kind: 'gift', username: 'alex', count: 2 });
+    st.record({ kind: 'gift', anonymous: true, username: '', count: 4 });
+    st.record({ kind: 'kicks', username: 'Luna', amount: 500 });
+    st.record({ kind: 'kicks', username: 'Noah', amount: 100 });
+    st.record({ kind: 'kicks', username: 'Noah', amount: 450 });
+    let snap = st.snapshot();
+    check('stats: totals add up follows, subs, gifted subs and Kicks', JSON.stringify(snap.totals) === JSON.stringify({ follows: 1, subs: 1, gifted: 11, kicks: 1050 }), JSON.stringify(snap.totals));
+    check('stats: gifters merge names in any case under the latest spelling; anonymous gifts stay off the board',
+      snap.topGifters.length === 1 && snap.topGifters[0].name === 'alex' && snap.topGifters[0].count === 7, JSON.stringify(snap.topGifters));
+    check('stats: Kicks board is sorted by amount', snap.topKicks.map((x) => x.name + '=' + x.amount).join() === 'Noah=550,Luna=500', JSON.stringify(snap.topKicks));
+    check('stats: recent events are newest first, with the fields the overlay shows', snap.recent.length === 8 && snap.recent[0].kind === 'kicks' && snap.recent[0].amount === 450 && snap.recent[3].anonymous === true && snap.recent[3].name === '' && snap.recent[6].months === 3, JSON.stringify(snap.recent.slice(0, 4)));
+    check('stats: the sub train sees subscriptions and gifted subscriptions', snap.subTimes.reduce((a, t) => a + t.n, 0) === 12, JSON.stringify(snap.subTimes));
+    clock.advance(SUB_WINDOW_MS + 1000);
+    check('stats: sub train entries expire after the window', st.snapshot().subTimes.length === 0);
+    for (let i = 0; i < 30; i++) st.record({ kind: 'follow', username: 'f' + i });
+    check('stats: recent events are capped at 20', st.snapshot().recent.length === 20);
+    const lab = st.labels();
+    check('stats: label texts for OBS Text sources', lab['latest-follower.txt'] === 'f29' && lab['top-gifter.txt'] === 'alex (7)' && lab['top-kicks.txt'] === 'Noah (550)' && lab['subs-total.txt'] === '12' && lab['latest-gifter.txt'] === 'Anonymous', JSON.stringify(lab));
+    st.reset();
+    snap = st.snapshot();
+    check('stats: reset starts every number over', !st.hasData() && snap.totals.kicks === 0 && snap.topGifters.length === 0 && snap.recent.length === 0);
+
+    // Saved state and label files, in a throwaway folder.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ko-relay-stats-'));
+    const file = path.join(dir, 'kick-relay-stats.json');
+    const labelsDir = path.join(dir, 'labels');
+    const a = createStats({ file, labelsDir, logger: quietLogger() });
+    a.flush();
+    check('stats: nothing is written before the first event', !fs.existsSync(file) && !fs.existsSync(labelsDir));
+    a.record({ kind: 'kicks', username: 'Luna', amount: 300 });
+    a.record({ kind: 'follow', username: 'Mia' });
+    a.flush();
+    check('stats: the state file and the label files are written', fs.existsSync(file) && fs.readFileSync(path.join(labelsDir, 'top-kicks.txt'), 'utf8') === 'Luna (300)' && fs.readFileSync(path.join(labelsDir, 'latest-follower.txt'), 'utf8') === 'Mia' && !fs.existsSync(file + '.tmp'));
+    const b = createStats({ file, logger: quietLogger() });
+    check('stats: a restarted relay picks up the saved numbers', b.hasData() && b.snapshot().totals.kicks === 300 && b.snapshot().topKicks[0].name === 'Luna');
+    fs.writeFileSync(file, JSON.stringify({ since: 'x', totals: { follows: -5, kicks: 1.5, subs: 2 }, recent: [{ kind: 'follow', name: '<b>x</b>'.repeat(30), at: 1 }, { kind: 'nope', name: 'y', at: 1 }, 7], gifters: { a: { name: 'Al', count: 'many' }, b: { name: 'Bo', count: 3 } }, latest: { follow: 'x' } }));
+    const c = createStats({ file, logger: quietLogger() }).snapshot();
+    check('stats: a damaged state file keeps only valid fields', c.totals.follows === 0 && c.totals.kicks === 0 && c.totals.subs === 2 && c.recent.length === 1 && c.recent[0].name.length === 60 && c.topGifters.length === 1 && c.topGifters[0].name === 'Bo' && c.latest.follow === null, JSON.stringify(c));
+    fs.writeFileSync(file, '{not json');
+    const warnLog = quietLogger();
+    check('stats: an unreadable state file starts from zero with a warning', !createStats({ file, logger: warnLog }).hasData() && warnLog.warns.length === 1);
+    fs.rmSync(dir, { recursive: true, force: true });
+
+    // Through the relay: signed alerts update the stats, which reach the pages and GET /stats.
+    const rc = mkClock();
+    const r = createRelay(baseOpts({ now: rc.now, broadcasterUserId: '113812015' }));
+    const { webhookPort: wp, eventsPort: ep } = await r.start();
+    const first = openSse(ep);
+    await sleep(100);
+    check('stats: a page connecting before any event gets no stats frame', !first.frames.some((x) => x.event === 'stats'));
+    const ts = new Date().toISOString();
+    const signed = (fx, type, id) => {
+      const body = JSON.stringify(Object.assign(fixture(fx), { broadcaster: Object.assign(fixture(fx).broadcaster, { user_id: 113812015 }) }));
+      return post(wp, { id, ts, body, sig: sign(id, ts, body, privateKey), type });
+    };
+    await signed('kicks-gifted', 'kicks.gifted', 'sx-kicks');
+    await signed('subscription-gifts', 'channel.subscription.gifts', 'sx-gift');
+    await signed('channel-followed', 'channel.followed', 'sx-follow');
+    await sleep(500);
+    const sf = first.frames.filter((x) => x.event === 'stats');
+    check('stats: a burst of alerts sends one throttled stats frame', sf.length === 1 && sf[0].data.recent.length === 3, JSON.stringify(sf.map((x) => x.data.recent.length)));
+    const g = JSON.parse((await eget(ep, '/stats')).body);
+    check('GET /stats returns the snapshot', g.ok === true && g.recent.length === 3 && g.totals.follows === 1 && g.topKicks.length === 1, JSON.stringify(g.totals));
+    check('GET /stats needs the key', (await get(ep, '/stats')).status === 401);
+    const late = openSse(ep);
+    await sleep(150);
+    check('stats: a page connecting later gets the current stats at once', late.frames.length === 1 && late.frames[0].event === 'stats' && late.frames[0].data.recent.length === 3);
+    late.close();
+    await eget(ep, '/test-alert?kind=follow', 'POST');
+    await sleep(500);
+    check('stats: a test alert from the studio is not counted', JSON.parse((await eget(ep, '/stats')).body).totals.follows === 1);
+    check('POST /stats/reset: GET is refused (405)', (await eget(ep, '/stats/reset')).status === 405);
+    check('POST /stats/reset: a foreign origin is refused (403)', (await eget(ep, '/stats/reset', 'POST', { Origin: 'http://evil.example' })).status === 403);
+    rc.advance(2000);
+    const rs = await eget(ep, '/stats/reset', 'POST', { Origin: 'null' });
+    check('POST /stats/reset from the dock clears the stats', rs.status === 200 && JSON.parse((await eget(ep, '/stats')).body).recent.length === 0, rs.body);
+    check('POST /stats/reset: a second request inside the gap gets 429', (await eget(ep, '/stats/reset', 'POST')).status === 429);
+    await sleep(500);
+    const lastFrame = first.frames.filter((x) => x.event === 'stats').pop();
+    check('stats: the reset reaches the pages as an empty stats frame', lastFrame && lastFrame.data.recent.length === 0 && lastFrame.data.totals.kicks === 0);
+    await signed('channel-followed', 'channel.followed', 'sx-follow-2');
+    await signed('livestream-status-started', 'livestream.status.updated', 'sx-live');
+    await sleep(500);
+    check('stats: the stream going live starts the numbers over', JSON.parse((await eget(ep, '/stats')).body).recent.length === 0);
+    first.close();
+    r.stop();
+  }
+
   const failed = results.filter((ok) => !ok).length;
   console.log(`\n${results.length - failed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
