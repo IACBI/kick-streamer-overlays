@@ -202,6 +202,21 @@ function normalizeAlert(type, body, isObj) {
       createdAt
     };
   }
+  if (type === 'channel.reward.redemption.updated') {
+    const u = body.redeemer, reward = body.reward;
+    if (!isObj(u) || !nameOf(u) || !isObj(reward) || typeof reward.title !== 'string') return null;
+    // A redemption is sent again when it is accepted or rejected. Rejected ones are not shown, and the
+    // redemption id lets the overlay show a pending and then accepted redemption once.
+    if (body.status !== 'pending' && body.status !== 'accepted') return null;
+    const id = idOf(body.id);
+    if (!id) return null;
+    return {
+      kind: 'reward', redemptionId: cap(id, 60), broadcasterId, userId: idOf(u.user_id), username: nameOf(u),
+      title: cap(reward.title.trim(), 60), cost: countOf(reward.cost, 0) || 0,
+      message: cap(typeof body.user_input === 'string' ? body.user_input.trim() : '', 200),
+      createdAt: cap(String(body.redeemed_at || ''), 40)
+    };
+  }
   return null;
 }
 
@@ -209,7 +224,7 @@ function normalizeAlert(type, body, isObj) {
 const EVENT_TYPES = [
   'chat.message.sent', 'moderation.banned',
   'channel.followed', 'channel.subscription.new', 'channel.subscription.renewal', 'channel.subscription.gifts',
-  'kicks.gifted',
+  'kicks.gifted', 'channel.reward.redemption.updated',
   'livestream.status.updated', 'livestream.metadata.updated'
 ];
 

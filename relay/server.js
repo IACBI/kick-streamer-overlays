@@ -37,14 +37,15 @@ const SLUG = /^[a-z0-9_-]{1,40}$/;
 const LOOPBACK_HOST = /^(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/i;
 const LOOPBACK_NAME = /^(?:127\.0\.0\.1|localhost|\[::1\])$/i;
 // Alert bodies carry no id of their own; the signed delivery id is unique, so it becomes the overlay's dedupe key.
-const ALERT_KINDS = new Set(['follow', 'sub', 'gift', 'kicks']);
+const ALERT_KINDS = new Set(['follow', 'sub', 'gift', 'kicks', 'reward']);
 const TEST_GAP_MS = 1500;               // test alerts are for setup; a stuck button must not flood the stream
 // Fixed samples, so a test request cannot put any text of its own on stream.
 const TEST_ALERTS = {
   follow: { kind: 'follow', username: 'TestFollower' },
   sub: { kind: 'sub', username: 'TestSubscriber', months: 1, renewal: false },
   gift: { kind: 'gift', username: 'TestGifter', count: 5, anonymous: false },
-  kicks: { kind: 'kicks', username: 'TestKicks', amount: 100, giftName: 'Test', message: '' }
+  kicks: { kind: 'kicks', username: 'TestKicks', amount: 100, giftName: 'Test', message: '' },
+  reward: { kind: 'reward', username: 'TestRedeemer', title: 'Test reward', cost: 100, message: '' }
 };
 
 function send(res, status, body, extra) {
@@ -290,7 +291,8 @@ function createRelay(opts) {
     let body;
     try { body = JSON.parse(raw.toString('utf8')); } catch (e) { return send(res, 400, { error: 'bad json' }); }
     const ev = o.normalizeEvent(String(type || ''), body);
-    if (ev && ALERT_KINDS.has(ev.kind)) ev.id = String(messageId);
+    // A reward keeps one id across its pending and accepted updates, so it is shown once.
+    if (ev && ALERT_KINDS.has(ev.kind)) ev.id = ev.kind === 'reward' ? 'reward-' + ev.redemptionId : String(messageId);
     if (ev) {
       if (broadcasterId ? ev.broadcasterId === broadcasterId : o.allowAnyBroadcaster) broadcast(ev);
       else if (!broadcasterId) {

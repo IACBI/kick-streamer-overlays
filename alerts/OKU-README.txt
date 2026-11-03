@@ -10,7 +10,7 @@ BOŞ olsa bile her şey çalışır.
 
 İstersen kendi dosyalarını buraya şu adlarla koyabilirsin:
 
-    follow   sub   gift   kicks
+    follow   sub   gift   kicks   reward
 
 SES   -> follow.mp3, sub.ogg, ... (.mp3 .ogg .wav)
          Dosya varsa yerleşik ses yerine o çalar.
@@ -35,7 +35,7 @@ if this folder is EMPTY.
 
 If you like, drop your own files here using these names:
 
-    follow   sub   gift   kicks
+    follow   sub   gift   kicks   reward
 
 SOUND -> follow.mp3, sub.ogg, ... (.mp3 .ogg .wav)
          If the file exists it plays instead of the built-in sound.

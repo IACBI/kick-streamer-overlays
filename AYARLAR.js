@@ -98,9 +98,11 @@ window.KICK_OVERLAY_AYARLAR = {
   uyariAbone: true,
   uyariHediye: true,
   uyariKicks: true,
+  // Channel point rewards (needs the "Read Channel points rewards" scope in your Kick app)
+  uyariOdul: true,
 
   // Play a short sound with each alert, and its volume (0–100).
-  // A file in alerts/ (follow.mp3, sub.mp3, gift.mp3, kicks.mp3) replaces the built-in sound; see alerts/OKU-README.txt.
+  // A file in alerts/ (follow.mp3, sub.mp3, gift.mp3, kicks.mp3, reward.mp3) replaces the built-in sound; see alerts/OKU-README.txt.
   uyariSes: true,
   uyariSesSeviye: 60,
 

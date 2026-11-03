@@ -40,13 +40,14 @@
   const OUT_FALLBACK_MS = 350;   // .ko-alert.is-out in themes.css, used when the computed length is unreadable
   const RELAY_DOWN_MS = 5000;
   const SEEN_CAP = 500;
-  const ENABLED = { follow: S.uyariTakip, sub: S.uyariAbone, gift: S.uyariHediye, kicks: S.uyariKicks };
+  const ENABLED = { follow: S.uyariTakip, sub: S.uyariAbone, gift: S.uyariHediye, kicks: S.uyariKicks, reward: S.uyariOdul };
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const ICONS = {
     follow: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z'],
     sub: ['M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6 6.8 19.4l1-5.9L3.5 9.4l5.9-.8L12 3.2z'],
     gift: ['M4 10h16v10H4z', 'M3 7h18v3H3zM12 7v13', 'M12 7C12 7 11.4 3.5 9 4c-1.9.4-1.4 3 3 3zM12 7c0 0 .6-3.5 3-3 1.9.4 1.4 3-3 3z'],
-    kicks: ['M13 2L4 14h7l-1 8 9-12h-7l1-8z']
+    kicks: ['M13 2L4 14h7l-1 8 9-12h-7l1-8z'],
+    reward: ['M12 14.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11z', 'M8.6 13.4L7 21l5-2.8 5 2.8-1.6-7.6']
   };
 
   const queue = [];
@@ -90,6 +91,9 @@
       case 'kicks':
         return { title: K.label(S, 'Kicks hediyesi', 'Kicks gift'), name: ev.username,
           detail: n(ev.amount) + ' Kicks' + (ev.giftName ? ' · ' + ev.giftName : ''), message: ev.message || '' };
+      case 'reward':
+        return { title: K.label(S, 'Ödül kullanıldı', 'Reward redeemed'), name: ev.username,
+          detail: ev.rewardTitle + (ev.cost ? ' · ' + n(ev.cost) + ' ' + K.label(S, 'puan', 'points') : ''), message: ev.message || '' };
     }
     return null;
   }
@@ -160,6 +164,8 @@
       count: Math.max(1, Math.trunc(Number(raw.count)) || 1),
       amount: Math.max(0, Math.trunc(Number(raw.amount)) || 0),
       giftName: String(raw.giftName || '').slice(0, 40),
+      rewardTitle: String(raw.title || '').slice(0, 60),
+      cost: Math.max(0, Math.trunc(Number(raw.cost)) || 0),
       message: String(raw.message || '').slice(0, 200)
     };
     if (ev.id) {
@@ -228,7 +234,8 @@
     { kind: 'sub', username: 'Kenji', months: 1, renewal: false },
     { kind: 'gift', username: 'Alex', count: 5 },
     { kind: 'kicks', username: 'Luna', amount: 500, giftName: 'Rage Quit', message: 'GG!' },
-    { kind: 'sub', username: 'Sora', months: 6, renewal: true }
+    { kind: 'sub', username: 'Sora', months: 6, renewal: true },
+    { kind: 'reward', username: 'Rin', title: 'Pick the next game', cost: 500, message: 'Valorant!' }
   ];
   function startPreview(withHint){
     if (withHint) {
