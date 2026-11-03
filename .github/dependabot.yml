@@ -4,6 +4,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      # init and analyze must run the same CodeQL version; separate PRs would each fail CI.
+      codeql:
+        patterns: ['github/codeql-action*']
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -12,3 +16,7 @@ updates:
     groups:
       dev-tools:
         patterns: ['*']
+    ignore:
+      # The types follow the oldest supported Node.js (engines: >=20), not the newest release.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
