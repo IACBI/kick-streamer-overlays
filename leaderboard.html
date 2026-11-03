@@ -10,6 +10,12 @@
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
@@ -38,12 +44,12 @@
   let stopRelay = null, downTimer = null;
 
   document.getElementById('title').textContent = KICKS
-    ? K.label(S, 'En çok Kicks gönderen', 'Top Kicks')
-    : K.label(S, 'En çok hediye eden', 'Top gifters');
+    ? K.t(S, 'board.kicks')
+    : K.t(S, 'board.gifts');
 
   function value(x){
-    if (KICKS) return K.fmt(x.amount) + ' Kicks';
-    return K.label(S, K.fmt(x.count) + ' abonelik', x.count === 1 ? '1 sub' : K.fmt(x.count) + ' subs');
+    if (KICKS) return K.t(S, 'event.kicks', { n: x.amount });
+    return K.t(S, 'board.subs', { n: x.count });
   }
 
   function render(stats){
@@ -56,7 +62,7 @@
     if (!board.length) {
       const empty = document.createElement('div');
       empty.className = 'ko-empty';
-      empty.textContent = K.label(S, 'Henüz kimse yok', 'No one yet');
+      empty.textContent = K.t(S, 'board.empty');
       list.appendChild(empty);
     }
     board.forEach((x, i) => {
@@ -85,7 +91,7 @@
       if (downTimer !== null) { clearTimeout(downTimer); downTimer = null; }
       K.note(noteEl, S, '');
     } else if (downTimer === null) {
-      downTimer = setTimeout(() => { downTimer = null; K.note(noteEl, S, K.label(S, 'Bildirim köprüsü çalışmıyor', 'Alert relay not running')); }, RELAY_DOWN_MS);
+      downTimer = setTimeout(() => { downTimer = null; K.note(noteEl, S, K.t(S, 'note.alertRelay')); }, RELAY_DOWN_MS);
     }
   }
 

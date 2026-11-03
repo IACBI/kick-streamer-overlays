@@ -11,6 +11,12 @@
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.local.js"></script>
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
@@ -49,7 +55,7 @@
   // Poll statuses that are a normal answer; anything else backs the poller off.
   const FINE = { ok: 1, manual: 1, 'no-data': 1, 'no-channel': 1 };
 
-  $('lbl').textContent = K.label(S, 'Abone', 'Subscriber');
+  $('lbl').textContent = K.t(S, 'bar.subscriber');
   const bar = K.createGoalBar({
     bar: $('bar'), fill: $('fill'), val: $('val'), pct: $('pct'), delta: $('delta'), goal: $('goal')
   }, GOAL, S);

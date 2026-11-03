@@ -35,7 +35,7 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 ### Features
 
 - 13 themes: `glass`, `vivid`, `soft`, `cinema`, `neon`, `minimal`, `pastel`, `terminal`, `aurora`, `holo`, `ember`, `paper`, `retro`
-- Corner shapes (`pill`, `rounded`, `square`), four fonts (only the one you pick is loaded), labels in Turkish, English or both, three motion levels, and an optional percentage. Reduced-motion settings are respected everywhere
+- Corner shapes (`pill`, `rounded`, `square`), four fonts (only the one you pick is loaded), labels in Turkish, English, Spanish, Brazilian Portuguese, German or Arabic (right to left), or Turkish and English together, three motion levels, and an optional percentage. Reduced-motion settings are respected everywhere
 - A session gain next to the subscriber count, such as "+3 this stream". It survives an OBS refresh for 12 hours
 - Goal bars pulse at 25, 50 and 75 %, and show a goal-reached state at 100 % (`hedefKutlama`). With `hedefArtis` a reached goal moves up by a set step instead
 - A countdown to a length in minutes or to a clock time (`geriSayimSaat`), and an announcement bar that rotates your lines. Both work without any Kick data
@@ -127,7 +127,7 @@ These previews use sample data (`?onizleme=1`), so they show the design and make
   <sub><b>Announcement bar.</b> Your lines rotate with a soft transition. A thin line shows when the next one arrives.</sub>
 </p>
 
-Troubleshooting. Messages appear in the language set by `dil`: Turkish, English, or both.
+Troubleshooting. Messages appear in the language set by `dil`.
 
 - **`⚙ AYARLAR.js → kanal`** is shown: enter your channel name in the studio and copy the link again (or set `kanal` in `AYARLAR.js` and refresh the source).
 - **Kick app credentials rejected**: check `kickClientId` and `kickClientSecret` in `AYARLAR.local.js`. The studio's connection test shows the same error.
@@ -230,7 +230,7 @@ Every setting lives in `AYARLAR.js`, and the studio writes the same settings int
 | `stil` | `theme` | `glass` · `vivid` · `soft` · `cinema` · `neon` · `minimal` · `pastel` · `terminal` · `aurora` · `holo` · `ember` · `paper` · `retro` | `glass` |
 | `sekil` | `shape` | `pill` · `rounded` · `square` | `pill` |
 | `yaziTipi` | `font` | `inter` · `poppins` · `nunito` · `mono` | `inter` |
-| `dil` | `language` | `tr` · `en` · `both` | `both` |
+| `dil` | `language` | `tr` · `en` · `both` · `es` · `pt` · `de` · `ar` | `both` |
 | `animasyon` | `motion` | `normal` · `low` · `off` | `normal` |
 | `renk` | `accent` | Accent color, hex (e.g. `#53fc18`) | `#53fc18` |
 | `ozelCss` | `customCss` | Custom CSS applied over the theme on every overlay, up to 2000 characters. A value with `url(`, `@import`, `@font-face`, `image-set` or a backslash is ignored as a whole | *(empty)* |
@@ -313,6 +313,7 @@ Without the relay, the subscriber bars request and renew their own access token 
 - `npm run build:relay` builds the relay executable for your platform into `dist/`, and `npm run test:relay-binary` starts it from an empty folder and checks it.
 - GitHub Actions runs both suites on Node.js 20, 22 and 24 on Ubuntu and Windows, plus lint, the type check, the Chrome tests with the relay, the visual contrast gate, the relay executable on both systems and CodeQL, for every push to `main` and every pull request. Pushing a `vX.Y.Z` tag publishes the release with the zip, the executables and their checksums.
 - Browser tests: `node tests/e2e-chrome.js`. They need Chrome or Edge. Add `--live --channel <name>` for real Kick data, `--token` for the local mock, `--preview` for sample mode, `--perf` for a 30-second heap and DOM check, and `--relay` for live chat through the relay with signed test events.
+- Overlay and dock texts live in `shared/lang/<code>.js`, one file per language with the same keys as `en.js`; the tests check that every file has every key. To add a language, copy `en.js`, translate the values and add the code to `dil` in `shared/kick-core.js`.
 - The studio keeps all its texts in one Turkish and English table. A new setting needs an entry in both languages.
 - Pages must stay classic scripts so they work from `file://`. Use the shared `.ko-*` components and tokens in `shared/themes.css`, and prefer `transform` and `opacity` for new animations.
 - `node tools/record-previews.js` re-creates the images in `screenshots/` (needs Node.js 22 or newer, Chrome or Edge, and `ffmpeg`).
@@ -353,7 +354,7 @@ Without the relay, the subscriber bars request and renew their own access token 
 ### Özellikler
 
 - 13 tema: `glass`, `vivid`, `soft`, `cinema`, `neon`, `minimal`, `pastel`, `terminal`, `aurora`, `holo`, `ember`, `paper`, `retro`
-- Köşe şekilleri (`pill`, `rounded`, `square`), dört yazı tipi (yalnızca seçtiğin yüklenir), Türkçe, İngilizce ya da ikisi birden etiketler, üç hareket seviyesi ve isteğe bağlı yüzde gösterimi. Hareket azaltma ayarları her yerde geçerlidir
+- Köşe şekilleri (`pill`, `rounded`, `square`), dört yazı tipi (yalnızca seçtiğin yüklenir), Türkçe, İngilizce, İspanyolca, Brezilya Portekizcesi, Almanca ya da Arapça (sağdan sola) veya Türkçe ve İngilizce birlikte etiketler, üç hareket seviyesi ve isteğe bağlı yüzde gösterimi. Hareket azaltma ayarları her yerde geçerlidir
 - Abone sayısının yanında "bu yayında +3" gibi yayın içi artış. OBS'te kaynağı yenilesen de 12 saat boyunca korunur
 - Hedef çubukları yüzde 25, 50 ve 75'te nabız atar, yüzde 100'de "hedefe ulaşıldı" durumuna geçer (`hedefKutlama`). `hedefArtis` ile ulaşılan hedef belirlenen adım kadar yükselir
 - Dakika cinsinden ya da saat olarak (`geriSayimSaat`) geri sayım ve satırlarını döndüren duyuru çubuğu. İkisi de Kick verisi olmadan çalışır
@@ -445,7 +446,7 @@ Buradaki tüm animasyonlar örnek veri kullanır (`?onizleme=1`); yani tasarım�
   <sub><b>Duyuru çubuğu.</b> Satırların yumuşak bir geçişle döner. İnce bir çizgi bir sonrakinin ne zaman geleceğini gösterir.</sub>
 </p>
 
-Sorun giderme. Mesajlar `dil` ayarındaki dilde görünür: Türkçe, İngilizce ya da ikisi birden.
+Sorun giderme. Mesajlar `dil` ayarındaki dilde görünür.
 
 - **`⚙ AYARLAR.js → kanal`** yazısı görünüyorsa stüdyoda kanal adını yaz ve bağlantıyı yeniden kopyala (ya da `AYARLAR.js` içinde `kanal` alanını doldurup kaynağı yenile).
 - **Kick uygulama bilgisi hatalı**: Kick uygulama bilgilerini reddetti. `AYARLAR.local.js` içindeki `kickClientId` ve `kickClientSecret` değerlerini kontrol et. Stüdyonun bağlantı testi aynı hatayı gösterir.
@@ -548,7 +549,7 @@ Tüm ayarlar `AYARLAR.js` içindedir; stüdyo aynı ayarları verdiği bağlant�
 | `stil` | `theme` | `glass` · `vivid` · `soft` · `cinema` · `neon` · `minimal` · `pastel` · `terminal` · `aurora` · `holo` · `ember` · `paper` · `retro` | `glass` |
 | `sekil` | `shape` | `pill` · `rounded` · `square` | `pill` |
 | `yaziTipi` | `font` | `inter` · `poppins` · `nunito` · `mono` | `inter` |
-| `dil` | `language` | `tr` · `en` · `both` | `both` |
+| `dil` | `language` | `tr` · `en` · `both` · `es` · `pt` · `de` · `ar` | `both` |
 | `animasyon` | `motion` | `normal` · `low` · `off` | `normal` |
 | `renk` | `accent` | Vurgu rengi, hex (ör. `#53fc18`) | `#53fc18` |
 | `ozelCss` | `customCss` | Her overlay'de temanın üzerine uygulanan özel CSS, en çok 2000 karakter. `url(`, `@import`, `@font-face`, `image-set` ya da ters eğik çizgi içeren değer tümüyle yok sayılır | *(boş)* |
@@ -631,6 +632,7 @@ Relay yoksa abone çubukları erişim anahtarını `id.kick.com` üzerinden kend
 - `npm run build:relay` kendi platformun için relay programını `dist/` klasörüne derler; `npm run test:relay-binary` onu boş bir klasörden başlatıp denetler.
 - GitHub Actions, `main` dalına her push'ta ve her pull request'te iki test takımını Node.js 20, 22 ve 24 ile Ubuntu ve Windows'ta çalıştırır; ayrıca lint, tip denetimi, relay'li Chrome testleri, görsel kontrast kapısı, iki sistemde relay programı ve CodeQL çalışır. `vX.Y.Z` etiketi push edilince sürüm; zip, programlar ve sağlama toplamlarıyla yayınlanır.
 - Tarayıcı testleri: `node tests/e2e-chrome.js`. Chrome veya Edge gerekir. Gerçek Kick verisi için `--live --channel <ad>`, yerel sahte sunucu için `--token`, önizleme modu için `--preview`, 30 saniyelik bellek ve DOM kontrolü için `--perf`, imzalı test olaylarıyla relay üzerinden canlı sohbet için `--relay` ekle.
+- Overlay ve panel metinleri `shared/lang/<kod>.js` içindedir: her dil için bir dosya, anahtarları `en.js` ile aynı. Testler her dosyada her anahtarın olduğunu denetler. Yeni bir dil için `en.js` dosyasını kopyala, değerleri çevir ve kodu `shared/kick-core.js` içindeki `dil` listesine ekle.
 - Stüdyo tüm metinlerini tek bir Türkçe ve İngilizce tabloda tutar. Yeni bir ayar için iki dilde de giriş gerekir.
 - Sayfalar `file://` üzerinden çalışabilmek için klasik script olarak kalmalı. Ortak `.ko-*` bileşenlerini ve `shared/themes.css` içindeki değişkenleri kullan, yeni animasyonlar için `transform` ve `opacity` tercih et.
 - `node tools/record-previews.js`, `screenshots/` içindeki görselleri yeniden üretir (Node.js 22 veya üstü, Chrome veya Edge ve `ffmpeg` gerekir).

@@ -4,6 +4,18 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- Overlay labels in Spanish (`es`), Brazilian Portuguese (`pt`), German (`de`) and Arabic (`ar`), next to Turkish, English and `both`. Arabic lays every overlay out right to left: bars fill from the right, rows and lists are mirrored, and the ticker runs the other way.
+- Plural forms per language through `Intl.PluralRules` (Arabic has six), and numbers grouped by the label language (`1.234` in Spanish, Portuguese and German; Latin digits in Arabic).
+- Text-to-speech in alerts speaks in the label language.
+- Visual QA group `lang`: every overlay in every label language, with the contrast and layout gate.
+
+### Changed
+
+- Overlay and dock texts moved into `shared/lang/<code>.js`, one file per language with the same keys, so a translation is a small pull request. `KickOverlay.t()` replaces `KickOverlay.label()`.
+- Names, chat messages, alert messages and announcements take their writing direction from their own first letter, so Arabic text reads right in a left-to-right overlay and Latin text in an Arabic one.
+
 ## [2.7.0] - 2026-11-04
 
 ### Added

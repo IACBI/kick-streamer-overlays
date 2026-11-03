@@ -10,6 +10,12 @@
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
@@ -27,7 +33,9 @@
   }
   /* Ellipsis only works on a block that holds the text, not on the flex container, so the text sits in its own box. */
   .tk-text { display: block; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .tk-text.ko-marquee { text-align: left; }
+  .tk-text.ko-marquee { text-align: start; }
+  /* An announcement takes its direction from its own first letter (Arabic text in an English overlay and back). */
+  #line { unicode-bidi: plaintext; }
   /* Without a scroll (low, off, reduced motion) a long line wraps to two lines; longer text is paged by the script. */
   .tk-text.tk-wrap {
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; text-overflow: clip; width: 100%;
@@ -43,6 +51,7 @@
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; height: 3px; background: var(--fill-bg);
     transform-origin: 0 50%; transform: scaleX(0); opacity: 0; transition: opacity var(--ko-dur-out, .35s) ease;
   }
+  [dir=rtl] .tk-bar { transform-origin: 100% 50%; }
   .tk-bar.is-run { opacity: 1; animation: tk-run var(--tk-ms, 6000ms) linear forwards; }
   .tk-bar.is-run.is-hide { opacity: 0; }
   @keyframes tk-run { from { transform: scaleX(0); } to { transform: scaleX(1); } }
@@ -200,7 +209,7 @@
   function showHint(){
     hint = document.createElement('div');
     hint.className = 'ko-hint';
-    hint.textContent = K.label(S, '⚙ AYARLAR.js → duyuruMetinleri ayarla', '⚙ Set duyuruMetinleri in AYARLAR.js');
+    hint.textContent = K.t(S, 'hint.ticker');
     elBar.appendChild(hint);
   }
 

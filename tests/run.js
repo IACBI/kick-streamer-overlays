@@ -45,6 +45,9 @@ const DEFAULTS = {
 const RELAY = 'http://127.0.0.1:8790';
 
 const CORE_SOURCE = fs.readFileSync(CORE_FILE, 'utf8');
+// Label languages, in the order every page loads them (before kick-core.js).
+const LANGS = ['tr', 'en', 'es', 'pt', 'de', 'ar'];
+const LANG_FILES = LANGS.map((l) => path.join(ROOT, 'shared', 'lang', l + '.js'));
 const PKG_VERSION = require('../package.json').version;
 
 // ---- Runner ------------------------------------------------------------------
@@ -127,6 +130,7 @@ function loadCore(opts = {}) {
   vm.createContext(ctx);
   if (opts.ayarlar) ctx.KICK_OVERLAY_AYARLAR = opts.ayarlar;
   if (opts.yerel) ctx.KICK_OVERLAY_YEREL = opts.yerel;
+  if (!opts.noLang) LANG_FILES.forEach((f) => vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f }));
   vm.runInContext(CORE_SOURCE, ctx, { filename: CORE_FILE });
   return { K: ctx.KickOverlay, ctx, env };
 }
@@ -265,6 +269,10 @@ function checkHeadTemplate(html, page) {
   const iLocal = scripts.indexOf('AYARLAR.local.js');
   const iCore = scripts.indexOf('shared/kick-core.js');
   ok(iSettings >= 0 && iCore >= 0, 'AYARLAR.js or shared/kick-core.js script missing');
+  LANGS.forEach((l) => {
+    const i = scripts.indexOf('shared/lang/' + l + '.js');
+    ok(i >= 0 && i < iCore, 'shared/lang/' + l + '.js must load before shared/kick-core.js');
+  });
   if (LOCAL_SETTINGS_PAGES.includes(page)) {
     ok(iLocal >= 0, 'AYARLAR.local.js script missing');
     ok(iSettings < iLocal && iLocal < iCore, 'script order must be AYARLAR.js, AYARLAR.local.js, shared/kick-core.js');
@@ -274,13 +282,78 @@ function checkHeadTemplate(html, page) {
   }
 }
 
+// ---- Section: language files ----------------------------------------------------
+
+const PLURAL_CATS = ['zero', 'one', 'two', 'few', 'many', 'other'];
+const slots = (v) => new Set(String(v).match(/\{\w+\}/g) || []);
+
+async function testLangFiles() {
+  section('Language files (shared/lang)');
+  const { ctx } = loadCore();
+  const packs = ctx.KICK_LANG;
+  const en = packs.en;
+
+  await check('every language file registers itself and has exactly the English keys', () => {
+    LANGS.forEach((l) => {
+      ok(packs[l] && typeof packs[l] === 'object', l + ' not registered');
+      const missing = Object.keys(en).filter((k) => !(k in packs[l]));
+      const extra = Object.keys(packs[l]).filter((k) => !(k in en));
+      eq(missing, [], l + ' missing keys');
+      eq(extra, [], l + ' extra keys');
+    });
+  });
+
+  await check('values are non-empty; plural forms use CLDR categories and always have "other"', () => {
+    LANGS.forEach((l) => Object.keys(packs[l]).forEach((k) => {
+      const v = packs[l][k];
+      if (typeof v === 'string') { ok(v.trim(), l + '.' + k + ' is empty'); return; }
+      ok(v && typeof v === 'object', l + '.' + k + ' must be a string or plural forms');
+      ok(typeof v.other === 'string' && v.other.trim(), l + '.' + k + ' has no "other" form');
+      Object.keys(v).forEach((c) => ok(PLURAL_CATS.includes(c) && typeof v[c] === 'string' && v[c].trim(), l + '.' + k + '.' + c));
+      ok(typeof en[k] === 'object', l + '.' + k + ' is plural but en.' + k + ' is not, so callers pass no {n}');
+    }));
+  });
+
+  await check('placeholders: a translation uses only the English slots, and "other" keeps all of them', () => {
+    LANGS.forEach((l) => Object.keys(en).forEach((k) => {
+      const enSlots = new Set([].concat(...[].concat(en[k]).map((v) => typeof v === 'object' ? Object.values(v) : [v]).map((v) => [...slots(v)])));
+      const v = packs[l][k];
+      const forms = typeof v === 'object' ? Object.values(v) : [v];
+      forms.forEach((f) => slots(f).forEach((x) => ok(enSlots.has(x), l + '.' + k + ' uses unknown ' + x)));
+      const other = typeof v === 'object' ? v.other : v;
+      enSlots.forEach((x) => ok(slots(other).has(x), l + '.' + k + ' drops ' + x));
+    }));
+  });
+
+  await check('every key the pages and kick-core use exists in en.js, and every en.js key is used', () => {
+    const sources = [CORE_SOURCE].concat(fs.readdirSync(ROOT).filter((f) => f.endsWith('.html')).map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')));
+    const used = new Set();
+    sources.forEach((src) => {
+      for (const m of src.matchAll(/\b(?:K\.t|t)\(\s*\w+\s*,\s*'([\w.]+)'/g)) used.add(m[1]);
+      // A key ending in "." is a prefix joined at run time (dock.kind.<kind>); those are added below.
+      for (const m of src.matchAll(/\bL\(\s*'([\w.]*\w)'/g)) used.add(m[1]);
+    });
+    ['follow', 'sub', 'gift', 'kicks', 'reward'].forEach((k) => used.add('dock.kind.' + k));
+    eq([...used].filter((k) => !(k in en)).sort(), [], 'used but not in en.js');
+    eq(Object.keys(en).filter((k) => !used.has(k)).sort(), [], 'in en.js but never used');
+  });
+
+  await check('language files are plain data: no code beyond the registration wrapper', () => {
+    LANG_FILES.forEach((f) => {
+      const src = fs.readFileSync(f, 'utf8').replace(/^\s*\/\/.*$/gm, '');
+      ok(/^\s*\(function \(g\) \{\s*\(g\.KICK_LANG = g\.KICK_LANG \|\| \{\}\)\.\w+ = \{/.test(src), path.basename(f) + ' wrapper');
+      ok(!/\b(function|=>|eval|document|window|fetch)\b/.test(src.replace(/^\s*\(function \(g\) \{/, '')), path.basename(f) + ' contains code');
+    });
+  });
+}
+
 // ---- Section: core API and settings -------------------------------------------
 
 async function testCoreApi() {
   section('Core API surface');
   const { K } = loadCore();
   await check('kick-core.js loads and exposes the documented API', () => {
-    ['readSettings', 'normalize', 'schemaKeys', 'enums', 'label', 'fmt', 'pct', 'applyLook', 'tween',
+    ['readSettings', 'normalize', 'schemaKeys', 'enums', 't', 'useLang', 'speechLang', 'fmt', 'pct', 'applyLook', 'tween',
       'getJson', 'createSubscriberSource', 'connectRelay', 'isDebug', 'loadFont', 'setFill', 'poller', 'relayInfo',
       'text', 'createGoalBar', 'note', 'debug'].forEach((n) => ok(typeof K[n] === 'function', 'missing ' + n));
     ['followers', 'live', 'subBadges', 'time', 'official'].forEach((n) =>
@@ -707,10 +780,48 @@ async function testHelpers() {
   section('Labels, numbers, look');
   const { K, ctx, env } = loadCore();
 
-  await check('label() picks tr, en, or both', () => {
-    eq(K.label({ dil: 'tr' }, 'Takipçi', 'Follower'), 'Takipçi', 'tr');
-    eq(K.label({ dil: 'en' }, 'Takipçi', 'Follower'), 'Follower', 'en');
-    eq(K.label({ dil: 'both' }, 'Takipçi', 'Follower'), 'Takipçi / Follower', 'both');
+  await check('t() picks the language, joins tr / en for both, and falls back to English, then the key', () => {
+    eq(K.t({ dil: 'tr' }, 'bar.follower'), 'Takipçi', 'tr');
+    eq(K.t({ dil: 'en' }, 'bar.follower'), 'Follower', 'en');
+    eq(K.t({ dil: 'both' }, 'bar.follower'), 'Takipçi / Follower', 'both');
+    eq(K.t({ dil: 'de' }, 'bar.subscriber'), 'Abonnenten', 'de');
+    eq(K.t({ dil: 'xx' }, 'bar.follower'), 'Follower', 'unknown language');
+    eq(K.t({ dil: 'en' }, 'no.such.key'), 'no.such.key', 'unknown key');
+    const saved = ctx.KICK_LANG.es['bar.follower'];
+    delete ctx.KICK_LANG.es['bar.follower'];
+    eq(K.t({ dil: 'es' }, 'bar.follower'), 'Follower', 'missing in es');
+    ctx.KICK_LANG.es['bar.follower'] = saved;
+    eq(K.t({ dil: 'en' }, 'dock.refused', { status: 503 }), 'The relay refused the request (HTTP 503).', 'named slot');
+    eq(K.t({ dil: 'en' }, 'dock.refused'), 'The relay refused the request (HTTP {status}).', 'unfilled slot stays');
+  });
+
+  await check('t() picks plural forms with Intl.PluralRules and formats {n}', () => {
+    eq(K.t({ dil: 'en' }, 'event.gifted', { n: 1 }), 'gifted a sub', 'en one');
+    eq(K.t({ dil: 'en' }, 'event.gifted', { n: 1500 }), 'gifted 1,500 subs', 'en other');
+    eq(K.t({ dil: 'de' }, 'alert.months', { n: 1 }), '1 Monat', 'de one');
+    eq(K.t({ dil: 'de' }, 'alert.months', { n: 3 }), '3 Monate', 'de other');
+    eq(K.t({ dil: 'tr' }, 'event.gifted', { n: 3 }), '3 abonelik hediye etti', 'tr has no plural');
+    eq(K.t({ dil: 'ar' }, 'board.subs', { n: 2 }), 'اشتراكان', 'ar two');
+    eq(K.t({ dil: 'ar' }, 'board.subs', { n: 5 }), '5 اشتراكات', 'ar few');
+    eq(K.t({ dil: 'ar' }, 'board.subs', { n: 11 }), '11 اشتراكًا', 'ar many');
+    eq(K.t({ dil: 'both' }, 'board.subs', { n: 2 }), '2 abonelik / 2 subs', 'both');
+  });
+
+  await check('useLang() sets lang, dir and the number locale; speechLang() picks the voice', () => {
+    const cases = { tr: ['tr', 'ltr', '1.234.567'], en: ['en', 'ltr', '1,234,567'], both: ['en', 'ltr', '1,234,567'],
+      es: ['es', 'ltr', '1.234.567'], pt: ['pt', 'ltr', '1.234.567'], de: ['de', 'ltr', '1.234.567'], ar: ['ar', 'rtl', '1,234,567'] };
+    Object.keys(cases).forEach((dil) => {
+      ctx.document = fakeDocument('');
+      K.useLang(K.normalize({ dil }));
+      const [lang, dir, n] = cases[dil];
+      eq(ctx.document.documentElement.lang, lang, dil + ' lang');
+      eq(ctx.document.documentElement.dir, dir, dil + ' dir');
+      eq(K.fmt(1234567), n, dil + ' number');
+    });
+    eq(K.speechLang({ dil: 'both' }), 'tr-TR', 'both speaks Turkish');
+    eq(K.speechLang({ dil: 'ar' }), 'ar-SA', 'ar');
+    eq(K.speechLang({ dil: 'pt' }), 'pt-BR', 'pt');
+    K.useLang(K.normalize({ dil: 'en' }));
   });
 
   await check('fmt() groups thousands and handles bad input', () => {
@@ -2610,7 +2721,7 @@ async function testThemesAndPages() {
     eq(K.enums('stil'), ['glass', 'vivid', 'soft', 'cinema', 'neon', 'minimal', 'pastel', 'terminal', 'aurora', 'holo', 'ember', 'paper', 'retro'], 'stil');
     eq(K.enums('sekil'), ['pill', 'rounded', 'square'], 'sekil');
     eq(K.enums('yaziTipi'), ['inter', 'poppins', 'nunito', 'mono'], 'yaziTipi');
-    eq(K.enums('dil'), ['tr', 'en', 'both'], 'dil');
+    eq(K.enums('dil'), ['tr', 'en', 'both', 'es', 'pt', 'de', 'ar'], 'dil');
     eq(K.enums('animasyon'), ['normal', 'low', 'off'], 'animasyon');
   });
 
@@ -2629,9 +2740,9 @@ async function testThemesAndPages() {
     });
   }
 
-  await check('dil: every value is handled by label() (no CSS class by design)', () => {
-    const expected = { tr: 'T', en: 'E', both: 'T / E' };
-    K.enums('dil').forEach((v) => eq(K.label(K.normalize({ dil: v }), 'T', 'E'), expected[v], 'dil ' + v));
+  await check('dil: every value has a language file or is "both" (no CSS class by design)', () => {
+    eq(K.enums('dil').filter((v) => v !== 'both').sort(), LANGS.slice().sort(), 'dil values vs shared/lang files');
+    K.enums('dil').forEach((v) => ok(K.t(K.normalize({ dil: v }), 'bar.follower') !== 'bar.follower', 'dil ' + v));
   });
 
   await check('applyLook() emits the class for every enum value', () => {
@@ -2768,6 +2879,7 @@ async function testVersionSync() {
 // ---- Main ------------------------------------------------------------------------
 
 (async function main() {
+  await testLangFiles();
   await testCoreApi();
   await testNormalize();
   await testReadSettings();

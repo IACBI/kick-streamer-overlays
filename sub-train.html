@@ -10,6 +10,12 @@
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
@@ -59,7 +65,7 @@
   let train = null;           // { count, endsAt } while a train runs
   let tickTimer = null, stopRelay = null, downTimer = null, sampleMode = false;
 
-  document.getElementById('lbl').textContent = K.label(S, 'Abone treni', 'Sub train');
+  document.getElementById('lbl').textContent = K.t(S, 'bar.subTrain');
 
   const clock = (ms) => {
     const s = Math.max(0, Math.ceil(ms / 1000));
@@ -111,7 +117,7 @@
       if (downTimer !== null) { clearTimeout(downTimer); downTimer = null; }
       K.note(elNote, S, '');
     } else if (downTimer === null) {
-      downTimer = setTimeout(() => { downTimer = null; K.note(elNote, S, K.label(S, 'Bildirim köprüsü çalışmıyor', 'Alert relay not running')); }, RELAY_DOWN_MS);
+      downTimer = setTimeout(() => { downTimer = null; K.note(elNote, S, K.t(S, 'note.alertRelay')); }, RELAY_DOWN_MS);
     }
   }
 

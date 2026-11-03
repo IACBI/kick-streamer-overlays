@@ -14,6 +14,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   /* ---- Studio tokens (UI only; overlay styling lives in shared/themes.css) ---- */
@@ -1475,14 +1481,14 @@
       stil: { glass: 'Cam', vivid: 'Canlı', soft: 'Yumuşak', cinema: 'Sinema', neon: 'Neon', minimal: 'Minimal', pastel: 'Pastel', terminal: 'Terminal', aurora: 'Kuzey Işığı', holo: 'Holografik', ember: 'Kor', paper: 'Kâğıt', retro: 'Piksel' },
       sekil: { pill: 'Hap', rounded: 'Yuvarlak', square: 'Kare' },
       yaziTipi: { inter: 'Inter', poppins: 'Poppins', nunito: 'Nunito', mono: 'Mono' },
-      dil: { tr: 'Türkçe', en: 'İngilizce', both: 'İkisi birden' },
+      dil: { tr: 'Türkçe', en: 'İngilizce', both: 'İkisi birden', es: 'Español', pt: 'Português (BR)', de: 'Deutsch', ar: 'العربية' },
       animasyon: { normal: 'Normal', low: 'Az', off: 'Kapalı' }
     },
     en: {
       stil: { glass: 'Glass', vivid: 'Vivid', soft: 'Soft', cinema: 'Cinema', neon: 'Neon', minimal: 'Minimal', pastel: 'Pastel', terminal: 'Terminal', aurora: 'Aurora', holo: 'Holo', ember: 'Ember', paper: 'Paper', retro: 'Retro' },
       sekil: { pill: 'Pill', rounded: 'Rounded', square: 'Square' },
       yaziTipi: { inter: 'Inter', poppins: 'Poppins', nunito: 'Nunito', mono: 'Mono' },
-      dil: { tr: 'Turkish', en: 'English', both: 'Both' },
+      dil: { tr: 'Turkish', en: 'English', both: 'Both', es: 'Español', pt: 'Português (BR)', de: 'Deutsch', ar: 'العربية' },
       animasyon: { normal: 'Normal', low: 'Low', off: 'Off' }
     }
   };
@@ -1523,7 +1529,7 @@
     { key: 'stil', note: 'Theme: ' + K.enums('stil').join(' | ') },
     { key: 'sekil', note: 'Corner shape: pill | rounded | square' },
     { key: 'yaziTipi', note: 'Font: inter | poppins | nunito | mono' },
-    { key: 'dil', note: 'Labels: tr | en | both  (both = "Takipçi / Follower")' },
+    { key: 'dil', note: 'Labels: tr | en | both | es | pt | de | ar  (both = "Takipçi / Follower")' },
     { key: 'animasyon', note: 'Motion: normal | low | off' },
     { key: 'renk', note: "Accent color (hex). Used by every theme except pastel's fills." },
     { key: 'yayinciYazisi', note: 'Label shown next to YOUR name in chat' },

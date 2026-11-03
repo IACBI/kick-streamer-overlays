@@ -10,6 +10,12 @@
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
@@ -36,7 +42,7 @@
   let shownKeys = null;     // keys of the rows on screen; null until the first frame, so nothing animates at load
   let stopRelay = null, downTimer = null;
 
-  document.getElementById('title').textContent = K.label(S, 'Son olaylar', 'Recent events');
+  document.getElementById('title').textContent = K.t(S, 'events.title');
 
   const keyOf = (e) => e.kind + '|' + e.name + '|' + e.at;
 
@@ -65,7 +71,7 @@
     if (!items.length) {
       const empty = document.createElement('div');
       empty.className = 'ko-empty';
-      empty.textContent = K.label(S, 'Henüz olay yok', 'No events yet');
+      empty.textContent = K.t(S, 'events.empty');
       list.appendChild(empty);
     }
     items.forEach(e => list.appendChild(row(e, shownKeys !== null && !shownKeys.has(keyOf(e)))));
@@ -80,7 +86,7 @@
       if (downTimer !== null) { clearTimeout(downTimer); downTimer = null; }
       K.note(noteEl, S, '');
     } else if (downTimer === null) {
-      downTimer = setTimeout(() => { downTimer = null; K.note(noteEl, S, K.label(S, 'Bildirim köprüsü çalışmıyor', 'Alert relay not running')); }, RELAY_DOWN_MS);
+      downTimer = setTimeout(() => { downTimer = null; K.note(noteEl, S, K.t(S, 'note.alertRelay')); }, RELAY_DOWN_MS);
     }
   }
 

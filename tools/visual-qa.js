@@ -4,7 +4,7 @@
  * Plain Node, no npm packages. Needs Chrome or Edge (or set CHROME_PATH) and network for Google Fonts.
  *
  *   node tools/visual-qa.js --out <dir>                     everything (a few minutes)
- *   node tools/visual-qa.js --out <dir> --only main        one group: main,levels,shapes,fonts,stress,cvd,scenes
+ *   node tools/visual-qa.js --out <dir> --only main        one group: main,levels,shapes,fonts,stress,lang,cvd,scenes
  *   node tools/visual-qa.js --out <dir> --overlays chat,ticker --themes glass,neon --accents "#53fc18"
  *   node tools/visual-qa.js --out <dir> --bgs dark,busy    backgrounds: light,dark,busy
  *   node tools/visual-qa.js --out <dir> --no-measure       screenshots only (skip contrast data)
@@ -223,9 +223,10 @@ function qaMeasure() {
       for (const row of doc.querySelectorAll('.ko-row')) {
         const kids = [...row.children].filter((k) => k.getClientRects().length);
         let minGap = Infinity;
+        const rtl = cs(row).direction === 'rtl';
         for (let i = 0; i < kids.length - 1; i++) {
           const a = kids[i].getBoundingClientRect(), b = kids[i + 1].getBoundingClientRect();
-          minGap = Math.min(minGap, b.left - a.right);
+          minGap = Math.min(minGap, rtl ? a.left - b.right : b.left - a.right);
         }
         if (minGap < 0) res.issues.push({ type: 'collision', gap: +minGap.toFixed(1) });
         else if (minGap < 10) res.issues.push({ type: 'tight', gap: +minGap.toFixed(1) });
@@ -235,9 +236,10 @@ function qaMeasure() {
       for (const { b, f } of barEls) {
         if (!f || !b.getClientRects().length) continue;
         const r = b.getBoundingClientRect();
-        // The fill is a full-width layer slid left by (1 - fill), so the fraction is 1 + tx / width.
+        // The fill is a full-width layer slid out by (1 - fill) of its width (left, or mirrored right in RTL),
+        // so the fraction is 1 - |tx| / width.
         const m = new win.DOMMatrix(cs(f).transform);
-        const frac = f.offsetWidth ? 1 + m.e / f.offsetWidth : 0;
+        const frac = f.offsetWidth ? 1 - Math.abs(m.e) / f.offsetWidth : 0;
         res.bars.push({ sel: label(b), x: ox + r.left, y: oy + r.top, w: r.width, h: r.height, frac: Math.max(0, Math.min(1, frac)) });
       }
     }
@@ -774,6 +776,12 @@ function buildPlan() {
       { label: 'follower 100% (goal 1,000)', overlay: 'follower-bar', params: { takipciHedefi: 1000 } }
     ];
     for (const theme of ['glass', 'minimal', 'soft']) add({ name: `stress-${theme}`, title: `stress: wide numbers, theme ${theme}`, rows: fonts, cols, overlay: 'follower-bar', params: { stil: theme, dil: 'both', yuzdeGoster: 1 } }, 'stress', ['dark']);
+  }
+  // Every label language, right-to-left included: labels fit, rows keep their gaps, fills grow from the start side.
+  if (want('lang')) {
+    const langs = ['tr', 'en', 'both', 'es', 'pt', 'de', 'ar'].map((d) => ({ label: d, params: { dil: d } }));
+    const rows = ['glass', 'minimal', 'retro'].filter((t) => THEMES.includes(t)).map((t) => ({ label: t, params: { stil: t } }));
+    for (const ov of OVERLAY_NAMES) add({ name: 'lang-' + ov, title: ov + ' (label languages)', overlay: ov, rows, cols: langs }, 'lang', ['dark']);
   }
   if (want('cvd')) {
     for (const ov of ['follower-bar', 'subscriber-bar', 'combined-bar', 'info-panel'].filter((o) => OVERLAY_NAMES.includes(o))) {

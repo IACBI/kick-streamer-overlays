@@ -10,6 +10,12 @@
 <link rel="stylesheet" href="shared/themes.css">
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
@@ -39,6 +45,7 @@
     width: 100%; height: 100%; border-radius: inherit; background: var(--fill-bg);
     transform: translateX(calc((var(--fill, 1) - 1) * 100%)); transition: transform 1s linear;
   }
+  [dir=rtl] .cd-fill { transform: scaleX(-1) translateX(calc((var(--fill, 1) - 1) * 100%)); }
   /* Done: the last step is a smooth refill instead of a per-second tick. */
   .cd.is-done .cd-fill { transition: transform var(--ko-dur-fill, 1.2s) var(--ko-ease-out, cubic-bezier(.22, 1, .36, 1)); }
   .cd.is-done { border-color: rgb(var(--accent-rgb) / 70%); box-shadow: var(--shadow), 0 0 18px rgb(var(--accent-rgb) / 45%); }
@@ -96,7 +103,7 @@
   const start = Date.now();
   let deadline = target(start);
   let baseMs = PREVIEW ? 300000 : deadline - start;
-  const defaultTitle = () => S.geriSayimBaslik || K.label(S, 'Birazdan başlıyoruz', 'Starting soon');
+  const defaultTitle = () => S.geriSayimBaslik || K.t(S, 'countdown.soon');
 
   elTitle.textContent = defaultTitle();
   K.debug({
@@ -128,7 +135,7 @@
     if (done) {
       // Done: a full bar, an accent edge and a pulsing 00:00 make it clear.
       panel.classList.add('is-done');
-      setTitle(K.label(S, 'Başlıyoruz!', 'Going live!'));
+      setTitle(K.t(S, 'countdown.live'));
       clearInterval(timer);
       timer = null;
     }

@@ -56,8 +56,8 @@ jobs:
           node-version: 24
       - name: Chrome end-to-end tests (offline pages, local relay, studio)
         run: node tests/e2e-chrome.js --relay
-      - name: Visual quality gate (contrast and layout)
-        run: node tools/visual-qa.js --out qa-out --only main --gate
+      - name: Visual quality gate (contrast and layout, every label language incl. right to left)
+        run: node tools/visual-qa.js --out qa-out --only main,lang --gate
       - name: Keep the visual QA sheets when the gate fails
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

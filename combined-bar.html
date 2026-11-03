@@ -11,6 +11,12 @@
 <script src="AYARLAR.js"></script>
 <script src="AYARLAR.local.js"></script>
 <script src="AYARLAR.relay.js"></script>
+<script src="shared/lang/tr.js"></script>
+<script src="shared/lang/en.js"></script>
+<script src="shared/lang/es.js"></script>
+<script src="shared/lang/pt.js"></script>
+<script src="shared/lang/de.js"></script>
+<script src="shared/lang/ar.js"></script>
 <script src="shared/kick-core.js"></script>
 <style>
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
@@ -65,8 +71,8 @@
     return K.createGoalBar({ bar: root, fill: q('[data-fill]'), val: q('[data-val]'), pct: q('[data-pct]'), delta: del, goal: q('[data-goal]') }, goal, S);
   }
 
-  const followRow = makeRow($('followRow'), S.takipciHedefi, K.label(S, 'Takipçi', 'Follower'));
-  const subRow = makeRow($('subRow'), S.aboneHedefi, K.label(S, 'Abone', 'Subscriber'));
+  const followRow = makeRow($('followRow'), S.takipciHedefi, K.t(S, 'bar.follower'));
+  const subRow = makeRow($('subRow'), S.aboneHedefi, K.t(S, 'bar.subscriber'));
 
   // Both rows share one note; each source keeps its own message.
   const msgs = { followers: '', subs: '' };
