@@ -637,6 +637,10 @@ body.theme-paper .ko-stat svg { filter: none; }
   width: 26px; height: 26px; fill: none; stroke: currentColor;
   stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
+.ko-alert-media {
+  flex: 0 0 auto; width: 96px; height: 96px; object-fit: contain; border-radius: calc(var(--r-card) * .75);
+}
+body.theme-retro .ko-alert-media { border-radius: 0; }
 .ko-alert-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ko-alert-title {
   font-size: 14px; font-weight: 700; letter-spacing: .3px; color: var(--muted); text-shadow: var(--text-shadow);

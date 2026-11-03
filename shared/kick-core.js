@@ -49,7 +49,9 @@
     uyariTakip:        { t: 'bool', d: true },
     uyariAbone:        { t: 'bool', d: true },
     uyariHediye:       { t: 'bool', d: true },
-    uyariKicks:        { t: 'bool', d: true }
+    uyariKicks:        { t: 'bool', d: true },
+    uyariSes:          { t: 'bool', d: true },
+    uyariSesSeviye:    { t: 'int', d: 60, min: 0, max: 100 }
   };
 
   // English names accepted for every setting. The Turkish name stays canonical: it is what the studio writes and
@@ -65,7 +67,7 @@
     countdownMinutes: 'geriSayimDk', countdownTime: 'geriSayimSaat', countdownTitle: 'geriSayimBaslik',
     announcements: 'duyuruMetinleri', announcementSeconds: 'duyuruSn',
     alertSeconds: 'uyariSn', alertFollows: 'uyariTakip', alertSubs: 'uyariAbone', alertGifts: 'uyariHediye',
-    alertKicks: 'uyariKicks',
+    alertKicks: 'uyariKicks', alertSound: 'uyariSes', alertVolume: 'uyariSesSeviye',
     relayAddress: 'relayAdresi'
   };
 
@@ -896,6 +898,123 @@
     return api;
   }
 
+  // ---- Alert sound and art (alerts.html) ----------------------------------
+
+  // Built-in tones per alert kind, as [frequency Hz, start s, length s]. They are synthesized with Web Audio,
+  // so the pack ships no sound files to license or load. A file in alerts/ replaces the tone for its kind.
+  var ALERT_TONES = {
+    follow: [[659.25, 0, 0.2], [880, 0.13, 0.42]],
+    sub: [[523.25, 0, 0.16], [659.25, 0.1, 0.16], [783.99, 0.2, 0.18], [1046.5, 0.3, 0.5]],
+    gift: [[1318.5, 0, 0.12], [1568, 0.07, 0.12], [1760, 0.14, 0.12], [2093, 0.21, 0.45]],
+    kicks: [[987.77, 0, 0.09], [1318.5, 0.08, 0.5]]
+  };
+  var ALERT_WAVE = { follow: 'sine', sub: 'sine', gift: 'triangle', kicks: 'triangle' };
+  // Only fixed names in the local alerts/ folder are tried. Nothing is ever loaded from a URL in the settings,
+  // so a link cannot make an overlay fetch remote content.
+  var ALERT_SOUND_EXT = ['mp3', 'ogg', 'wav'];
+  var ALERT_ART_EXT = ['webm', 'png', 'gif', 'webp'];
+  var MEDIA_PROBE_MS = 4000;
+
+  function probeMedia(src, type) {
+    return new Promise(function (resolve) {
+      var doc = global.document, el = null, done = false;
+      function finish(ok) { if (done) return; done = true; clearTimeout(timer); resolve(ok); }
+      var timer = setTimeout(function () { finish(false); }, MEDIA_PROBE_MS);
+      try {
+        if (type === 'audio' && typeof global.Audio === 'function') {
+          el = new global.Audio();
+          el.preload = 'auto';
+          el.oncanplaythrough = function () { finish(true); };
+        } else if (type === 'video' && doc) {
+          el = doc.createElement('video');
+          el.muted = true;
+          el.preload = 'auto';
+          el.onloadeddata = function () { finish(true); };
+        } else if (type === 'image' && typeof global.Image === 'function') {
+          el = new global.Image();
+          el.onload = function () { finish(true); };
+        }
+      } catch (e) { el = null; }
+      if (!el) return finish(false);
+      el.onerror = function () { finish(false); };
+      el.src = src;
+    });
+  }
+
+  // Sound and art for the alert overlay. `kinds` are the alert kinds in use; base is the folder the files live in.
+  // play(kind) returns what it did: 'off', 'file', 'tone' or 'blocked' (no Web Audio, or the page may not play sound).
+  function createAlertMedia(s, kinds, base) {
+    base = base || 'alerts/';
+    var volume = Math.max(0, Math.min(100, Number(s.uyariSesSeviye) || 0)) / 100;
+    var soundOn = s.uyariSes === true && volume > 0;
+    var sounds = {}, art = {};
+    var ctx = null, playing = null;
+
+    async function first(kind, exts, typeOf) {
+      for (var i = 0; i < exts.length; i++) {
+        var src = base + kind + '.' + exts[i];
+        var type = typeOf(exts[i]);
+        if (await probeMedia(src, type)) return { src: src, video: type === 'video' };
+      }
+      return null;
+    }
+
+    var ready = Promise.all((kinds || []).filter(function (k) { return Object.prototype.hasOwnProperty.call(ALERT_TONES, k); }).map(function (k) {
+      return Promise.all([
+        soundOn ? first(k, ALERT_SOUND_EXT, function () { return 'audio'; }) : null,
+        first(k, ALERT_ART_EXT, function (ext) { return ext === 'webm' ? 'video' : 'image'; })
+      ]).then(function (r) { sounds[k] = r[0]; art[k] = r[1]; });
+    }));
+
+    function tone(kind) {
+      var AC = global.AudioContext || global.webkitAudioContext;
+      if (!AC) return false;
+      try {
+        if (!ctx) ctx = new AC();
+        if (ctx.state === 'suspended' && ctx.resume) ctx.resume().catch(function () {});
+        var t0 = ctx.currentTime + 0.02;
+        var master = ctx.createGain();
+        master.gain.value = volume * 0.35;   // the tones are pure; this keeps 100 % near a normal alert's loudness
+        master.connect(ctx.destination);
+        ALERT_TONES[kind].forEach(function (n) {
+          var o = ctx.createOscillator(), g = ctx.createGain(), st = t0 + n[1], end = st + n[2];
+          o.type = ALERT_WAVE[kind];
+          o.frequency.value = n[0];
+          g.gain.setValueAtTime(0.0001, st);
+          g.gain.exponentialRampToValueAtTime(1, st + 0.012);
+          g.gain.exponentialRampToValueAtTime(0.0001, end);
+          o.connect(g);
+          g.connect(master);
+          o.start(st);
+          o.stop(end + 0.02);
+        });
+        return true;
+      } catch (e) { return false; }
+    }
+
+    function play(kind) {
+      if (!soundOn || !Object.prototype.hasOwnProperty.call(ALERT_TONES, kind)) return 'off';
+      if (playing) { try { playing.pause(); } catch (e) { /* already stopped */ } playing = null; }
+      if (sounds[kind] && typeof global.Audio === 'function') {
+        try {
+          var a = new global.Audio(sounds[kind].src);
+          a.volume = volume;
+          var p = a.play();
+          if (p && typeof p.catch === 'function') p.catch(function () {});
+          playing = a;
+          return 'file';
+        } catch (e) { /* fall back to the tone */ }
+      }
+      return tone(kind) ? 'tone' : 'blocked';
+    }
+
+    return {
+      ready: ready,
+      play: play,
+      art: function (kind) { return art[kind] || null; }
+    };
+  }
+
   // ---- Live chat from the local relay (relay/server.js). ----
 
   var ES_CLOSED = 2;
@@ -989,6 +1108,8 @@
     kick: { channel: kickChannel },
     official: { token: appToken, channel: officialChannel, clearToken: clearToken },
     createSubscriberSource: createSubscriberSource,
-    connectRelay: connectRelay
+    connectRelay: connectRelay,
+    alertTones: ALERT_TONES,
+    createAlertMedia: createAlertMedia
   };
 })(typeof window !== 'undefined' ? window : globalThis);

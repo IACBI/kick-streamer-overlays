@@ -38,6 +38,14 @@ const LOOPBACK_HOST = /^(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/i;
 const LOOPBACK_NAME = /^(?:127\.0\.0\.1|localhost|\[::1\])$/i;
 // Alert bodies carry no id of their own; the signed delivery id is unique, so it becomes the overlay's dedupe key.
 const ALERT_KINDS = new Set(['follow', 'sub', 'gift', 'kicks']);
+const TEST_GAP_MS = 1500;               // test alerts are for setup; a stuck button must not flood the stream
+// Fixed samples, so a test request cannot put any text of its own on stream.
+const TEST_ALERTS = {
+  follow: { kind: 'follow', username: 'TestFollower' },
+  sub: { kind: 'sub', username: 'TestSubscriber', months: 1, renewal: false },
+  gift: { kind: 'gift', username: 'TestGifter', count: 5, anonymous: false },
+  kicks: { kind: 'kicks', username: 'TestKicks', amount: 100, giftName: 'Test', message: '' }
+};
 
 function send(res, status, body, extra) {
   if (res.headersSent || res.destroyed) { try { res.end(); } catch (e) { /* already gone */ } return; }
@@ -386,6 +394,18 @@ function createRelay(opts) {
     return send(res, 502, { ok: false, error: 'upstream' });
   }
 
+  // ---- /test-alert: a sample alert to every connected page, for setting up sound and art ----
+  let lastTestAt = -Infinity, testSeq = 0;
+  function handleTestAlert(res, kind) {
+    if (!Object.hasOwn(TEST_ALERTS, kind)) return send(res, 400, { ok: false, error: 'bad kind' });
+    const now = o.now();
+    if (now - lastTestAt < TEST_GAP_MS) return send(res, 429, { ok: false, error: 'rate' }, { 'Retry-After': '2' });
+    lastTestAt = now;
+    testSeq += 1;
+    broadcast(Object.assign({ id: `test-${now}-${testSeq}`, test: true }, TEST_ALERTS[kind]));
+    return send(res, 200, { ok: true, kind, clients: clients.size });
+  }
+
   // ---- events listener (local only, for the overlay page) ----
   async function handleEvents(req, res) {
     // Only loopback names are served, so a web page cannot reach this port through DNS rebinding.
@@ -400,19 +420,21 @@ function createRelay(opts) {
     if (req.method === 'OPTIONS') {
       const asked = req.headers['access-control-request-headers'];
       res.writeHead(204, {
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': typeof asked === 'string' ? asked.slice(0, 200) : 'Content-Type, Accept',
         'Access-Control-Max-Age': '600',
         'Cache-Control': 'no-store'
       });
       return res.end();
     }
-    if (req.method !== 'GET') return send(res, 405, { error: 'method not allowed' }, { Allow: 'GET, OPTIONS' });
-
     let url;
     try { url = new URL(req.url, 'http://localhost'); } catch (e) { return send(res, 400, { error: 'bad request' }); }
-    if (!keyOk(url.searchParams.get('key'))) return send(res, 401, { ok: false, error: 'bad key' });
     const p = url.pathname;
+    // POST is only for the one route with a side effect; everything else is read-only GET.
+    const method = p === '/test-alert' ? 'POST' : 'GET';
+    if (req.method !== method) return send(res, 405, { error: 'method not allowed' }, { Allow: method + ', OPTIONS' });
+    if (!keyOk(url.searchParams.get('key'))) return send(res, 401, { ok: false, error: 'bad key' });
+    if (p === '/test-alert') return handleTestAlert(res, url.searchParams.get('kind') || '');
 
     if (p === '/health') {
       return send(res, 200, {

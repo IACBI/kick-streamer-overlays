@@ -22,6 +22,10 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - `bilgiBaslik` (`infoShowTitle`): shows the stream title as a tag on the info panel's bottom edge. It comes from Kick's public data and is updated at once by title changes through the relay. Off by default.
 - `/health` reports `features.live`, so the info panel connects only to a relay that sends stream events.
 - An alerts preview GIF in the README, and the info panel GIF shows the title tag.
+- Alert sounds: each kind plays its own short tone, synthesized in the page so the pack ships no sound files. `uyariSes` (`alertSound`, on by default) and `uyariSesSeviye` (`alertVolume`, 0–100, default 60). Previews and sample mode stay silent.
+- Custom alert sound and art from the new `alerts/` folder: `follow`, `sub`, `gift` or `kicks` as `.mp3`/`.ogg`/`.wav` for the sound and `.webm`/`.png`/`.gif`/`.webp` for the card. Only these fixed local names are tried; nothing is loaded from a URL.
+- `POST /test-alert?kind=…` on the relay's events port sends a fixed sample alert to the open alerts pages. Same key, Host and origin checks as the other routes, at most one every 1.5 s, and no request text reaches the stream.
+- Studio: a sound switch, a volume field, **Play the sound here**, and one test alert button per kind.
 - A logo (`branding/logo.svg`, with a 512 px PNG): a camera viewfinder framing a live dot and a goal bar. It heads the README and is the studio's tab icon.
 
 ## [2.4.0] - 2026-11-03

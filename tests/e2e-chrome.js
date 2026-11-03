@@ -39,7 +39,7 @@ const CHROME = process.env.CHROME_PATH || [
 // Errors caused by the sandbox, not by the pack: the optional local file and offline fonts.
 // Optional badge art in badges/ is requested first and falls back to a drawn symbol when missing.
 // K.relayInfo probes the default relay's /health once per page; with no relay running that is a refused connection.
-const BENIGN = [/AYARLAR\.local\.js/, /AYARLAR\.relay\.js/, /fonts\.(googleapis|gstatic)\.com/, /127\.0\.0\.1:8790\/health\b/, /badges\/[\w.-]+\.(svg|png|webp|gif|jpe?g)/];
+const BENIGN = [/AYARLAR\.local\.js/, /AYARLAR\.relay\.js/, /fonts\.(googleapis|gstatic)\.com/, /127\.0\.0\.1:8790\/health\b/, /badges\/[\w.-]+\.(svg|png|webp|gif|jpe?g)/, /alerts\/(follow|sub|gift|kicks)\.(mp3|ogg|wav|webm|png|gif|webp)/];
 
 const results = [];
 function check(name, ok, detail) {
@@ -605,6 +605,7 @@ async function relayChecks() {
     check('relay chat: a ban removes that user\'s messages', stillThere === false);
 
     await alertRelayChecks(copy, webhookPort, privateKey);
+    await testAlertChecks(copy, eventsPort, accessKey);
     await infoRelayChecks(copy, webhookPort, privateKey);
     await studioRelayChecks(copy, eventsPort);
 
@@ -732,6 +733,27 @@ async function alertRelayChecks(copy, webhookPort, privateKey) {
     check('relay alerts: a raid keeps the queue at 25 and counts every dropped arrival', /queued: 25$/m.test(dbg) && /dropped: 5$/m.test(dbg), JSON.stringify(dbg));
   } finally {
     await raid.close();
+  }
+}
+
+// The studio's test buttons: POST /test-alert reaches the open alerts page, with art from alerts/ and a sound.
+async function testAlertChecks(copy, eventsPort, accessKey) {
+  fs.mkdirSync(path.join(copy, 'alerts'), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'branding', 'logo-512.png'), path.join(copy, 'alerts', 'follow.png'));
+  const al = await openPageFrom(copy, 'alerts.html', '?uyariSn=3&debug=1&dil=en', [640, 200]);
+  try {
+    await sleep(2500);
+    const res = await fetch(`http://127.0.0.1:${eventsPort}/test-alert?kind=follow&key=${accessKey}`, { method: 'POST' });
+    check('test alert: the relay accepts it for the connected page', res.status === 200 && (await res.json()).clients >= 1, `status=${res.status}`);
+    await sleep(1000);
+    const card = await al.eval(`(() => { const c = document.querySelector('.ko-alert:not(.is-out)'); const m = c && c.querySelector('.ko-alert-media');
+      return { name: c ? c.querySelector('.ko-alert-name').textContent : '', media: m ? m.getAttribute('src') : '', icon: !!(c && c.querySelector('.ko-alert-icon')),
+        loaded: !!(m && m.complete && m.naturalWidth > 0), debug: (document.querySelector('.ko-debug') || {}).textContent || '' }; })()`);
+    check('test alert: the sample shows with the art from alerts/ in place of the icon', card.name === 'TestFollower' && card.media === 'alerts/follow.png' && !card.icon && card.loaded, JSON.stringify(card));
+    check('test alert: a live alert plays a sound (built-in tone without a file)', /sound: tone$/m.test(card.debug), JSON.stringify(card.debug));
+    check('test alert: no unexpected errors', unexpected(al.logs).length === 0, short(unexpected(al.logs)));
+  } finally {
+    await al.close();
   }
 }
 

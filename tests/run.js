@@ -37,7 +37,8 @@ const DEFAULTS = {
   yenilemeSn: 30, sohbetMaksMesaj: 8, geriSayimDk: 5, geriSayimBaslik: '', duyuruMetinleri: '', duyuruSn: 6,
   geriSayimSaat: '', sohbetKomutGizle: false, sohbetGizliKullanicilar: '', sohbetSilinmeSn: 0,
   hataNotu: true, hedefKutlama: true, bilgiBaslik: false,
-  uyariSn: 6, uyariTakip: true, uyariAbone: true, uyariHediye: true, uyariKicks: true
+  uyariSn: 6, uyariTakip: true, uyariAbone: true, uyariHediye: true, uyariKicks: true,
+  uyariSes: true, uyariSesSeviye: 60
 };
 const RELAY = 'http://127.0.0.1:8790';
 
@@ -421,6 +422,30 @@ async function testReadSettings() {
     eqFields(K.normalize({ uyariSn: 1 }), { uyariSn: 3 }, '');
     eqFields(K.normalize({ uyariSn: '12' }), { uyariSn: 12 }, '');
     eqFields(K.normalize({ uyariSn: 600, uyariKicks: '0', uyariHediye: 'yes' }), { uyariSn: 30, uyariKicks: false, uyariHediye: true }, '');
+  });
+
+  await check('alert sound settings: volume is clamped to 0..100; alertSound and alertVolume are aliases', () => {
+    const { K } = loadCore();
+    eqFields(K.normalize({ uyariSesSeviye: -5 }), { uyariSesSeviye: 0 }, '');
+    eqFields(K.normalize({ uyariSesSeviye: '250', uyariSes: '0' }), { uyariSesSeviye: 100, uyariSes: false }, '');
+    eqFields(K.normalize({ alertVolume: 35, alertSound: 'false' }), { uyariSesSeviye: 35, uyariSes: false }, '');
+  });
+
+  await check('createAlertMedia: no sound when off or at 0; built-in tone when no file; unknown kinds are ignored', async () => {
+    const { K } = loadCore();
+    const off = K.createAlertMedia(K.normalize({ uyariSes: false }), ['follow']);
+    await off.ready;
+    eq(off.play('follow'), 'off', 'sound off');
+    const zero = K.createAlertMedia(K.normalize({ uyariSesSeviye: 0 }), ['follow']);
+    await zero.ready;
+    eq(zero.play('follow'), 'off', 'volume 0');
+    const on = K.createAlertMedia(K.normalize({}), ['follow', 'nope']);
+    await on.ready;
+    eq(on.play('nope'), 'off', 'unknown kind');
+    eq(on.art('follow'), null, 'no art without a file');
+    // The test sandbox has no Web Audio, so the tone path reports it could not play.
+    eq(on.play('follow'), 'blocked', 'no Web Audio');
+    eq(Object.keys(K.alertTones).sort(), ['follow', 'gift', 'kicks', 'sub'], 'one tone per alert kind');
   });
 
   await check('readSettings: URL values are normalized like file values', () => {

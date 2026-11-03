@@ -99,6 +99,11 @@ window.KICK_OVERLAY_AYARLAR = {
   uyariHediye: true,
   uyariKicks: true,
 
+  // Play a short sound with each alert, and its volume (0–100).
+  // A file in alerts/ (follow.mp3, sub.mp3, gift.mp3, kicks.mp3) replaces the built-in sound; see alerts/OKU-README.txt.
+  uyariSes: true,
+  uyariSesSeviye: 60,
+
   // Only needed if you changed the relay's port (see relay/). Default: "http://127.0.0.1:8790"
   // The relay's access key is read from AYARLAR.relay.js automatically; nothing to set here.
   // relayAdresi: "http://127.0.0.1:8790",
