@@ -576,6 +576,7 @@ async function relayChecks() {
   fs.copyFileSync(path.join(ROOT, 'alerts.html'), path.join(copy, 'alerts.html'));
   fs.copyFileSync(path.join(ROOT, 'info-panel.html'), path.join(copy, 'info-panel.html'));
   fs.copyFileSync(path.join(ROOT, 'studio.html'), path.join(copy, 'studio.html'));
+  fs.copyFileSync(path.join(ROOT, 'dock.html'), path.join(copy, 'dock.html'));
   fs.cpSync(path.join(ROOT, 'shared'), path.join(copy, 'shared'), { recursive: true });
   fs.cpSync(path.join(ROOT, 'branding'), path.join(copy, 'branding'), { recursive: true });
   // chat.html loads only AYARLAR.js (it needs no credentials); relayAdresi is allowed there.
@@ -624,6 +625,7 @@ async function relayChecks() {
 
     await alertRelayChecks(copy, webhookPort, privateKey);
     await testAlertChecks(copy, eventsPort, accessKey);
+    await dockChecks(copy);
     await infoRelayChecks(copy, webhookPort, privateKey);
     await studioRelayChecks(copy, eventsPort);
 
@@ -771,6 +773,39 @@ async function testAlertChecks(copy, eventsPort, accessKey) {
     check('test alert: a live alert plays a sound (built-in tone without a file)', /sound: tone$/m.test(card.debug), JSON.stringify(card.debug));
     check('test alert: no unexpected errors', unexpected(al.logs).length === 0, short(unexpected(al.logs)));
   } finally {
+    await al.close();
+  }
+}
+
+// The OBS dock drives the open alerts page through the relay: pause holds alerts back, resume lets them through.
+async function dockChecks(copy) {
+  const al = await openPageFrom(copy, 'alerts.html', '?uyariSn=3&debug=1&dil=en', [640, 200]);
+  const dock = await openPageFrom(copy, 'dock.html', '?dil=en', [320, 520]);
+  const card = () => al.eval(`(document.querySelector('.ko-alert:not(.is-out) .ko-alert-name') || {}).textContent || ''`);
+  try {
+    await sleep(4500);   // the earlier test alert leaves the screen
+    const st = await dock.eval(`({ text: document.getElementById('status-text').textContent, dot: document.getElementById('dot').className, enabled: !document.getElementById('pause').disabled })`);
+    check('dock: shows the relay as running with an overlay connected', /^Running · v/.test(st.text) && st.dot === 'ok' && st.enabled, JSON.stringify(st));
+    await dock.eval(`document.getElementById('pause').click()`);
+    await sleep(2000);
+    await dock.eval(`Array.from(document.querySelectorAll('#tests button')).find((b) => b.textContent === 'Gift').click()`);
+    await sleep(1200);
+    const held = await al.eval(`({ name: (document.querySelector('.ko-alert:not(.is-out) .ko-alert-name') || {}).textContent || '', debug: (document.querySelector('.ko-debug') || {}).textContent || '' })`);
+    const pauseLabel = await dock.eval(`document.getElementById('pause').textContent`);
+    check('dock: pause holds a new alert back on the alerts page', held.name === '' && /paused: true/.test(held.debug) && /queued: 1/.test(held.debug) && pauseLabel === 'Resume', JSON.stringify({ held, pauseLabel }));
+    await dock.eval(`document.getElementById('pause').click()`);
+    await sleep(1200);
+    check('dock: resume shows the held alert', (await card()) === 'TestGifter');
+    await dock.eval(`document.getElementById('skip').click()`);
+    await sleep(900);
+    check('dock: skip takes the alert off screen early', (await card()) === '');
+    await sleep(800);
+    await dock.eval(`document.getElementById('replay').click()`);
+    await sleep(1200);
+    check('dock: replay shows the last alert again', (await card()) === 'TestGifter');
+    check('dock: no unexpected errors', unexpected(dock.logs).length === 0 && unexpected(al.logs).length === 0, short(unexpected(dock.logs).concat(unexpected(al.logs))));
+  } finally {
+    await dock.close();
     await al.close();
   }
 }

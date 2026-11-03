@@ -56,6 +56,7 @@
   let dwellTimer = null, outTimer = null, previewTimer = null, downTimer = null;
   let stopRelay = null;
   let shown = 0, dropped = 0;
+  let paused = false;        // set from the OBS dock: alerts keep queueing but none starts
   // Preview and sample mode stay silent, so opening the studio or a test page never makes noise.
   const SILENT = PREVIEW || !S.kanal;
   const media = K.createAlertMedia(SILENT ? Object.assign({}, S, { uyariSes: false }) : S,
@@ -194,6 +195,7 @@
   }
 
   function showNext(){
+    if (paused) { K.debug({ paused: true, queued: queue.length }); return; }
     const ev = queue.shift();
     if (!ev) { K.debug({ queued: 0 }); return; }
     current = build(ev);
@@ -216,6 +218,24 @@
       el.remove();
       setTimeout(() => { if (!current && outTimer === null) showNext(); }, motionOff() ? 0 : GAP_MS);
     }, outMs(el));
+  }
+
+  // Buttons of the OBS dock (dock.html), sent by the relay to every alerts page.
+  function control(action){
+    if (action === 'pause') paused = true;
+    else if (action === 'resume') {
+      paused = false;
+      K.debug({ paused: null });
+      if (!current && outTimer === null) showNext();
+    } else if (action === 'skip' && current) {
+      if (dwellTimer !== null) { clearTimeout(dwellTimer); dwellTimer = null; }
+      leave();
+    }
+  }
+
+  function onRelay(ev){
+    if (ev.kind === 'control') control(ev.action);
+    else enqueue(ev);
   }
 
   function onStatus(st){
@@ -264,7 +284,7 @@
 
   // Alerts come only from the local relay, which receives Kick's signed webhooks (see relay/).
   if (PREVIEW || !S.kanal) startPreview(!S.kanal && !PREVIEW);
-  else stopRelay = K.connectRelay(S.relayAdresi + '/events', { onMessage: enqueue, onStatus: onStatus });
+  else stopRelay = K.connectRelay(S.relayAdresi + '/events', { onMessage: onRelay, onStatus: onStatus });
 })();
 </script>
 </body>

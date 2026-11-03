@@ -733,6 +733,13 @@
         </button>
       </div>
       <p class="st-note" data-i18n="obs.how"></p>
+      <div class="st-actions">
+        <button type="button" id="dockKopyala" class="st-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
+          <span data-i18n="dock.copy"></span>
+        </button>
+      </div>
+      <p class="st-note" data-i18n="dock.how"></p>
       <p class="st-note" data-i18n="s4.again"></p>
 
       <details class="st-group" style="margin-top:16px">
@@ -1050,6 +1057,8 @@
       'obs.how': 'Tek seferde kurulum: indirdiğin dosyayı OBS’te Sahne Koleksiyonu → İçe Aktar ile ekle, sonra aynı menüden seç. Tüm overlay’ler 1920 × 1080 tuval için yerleştirilmiş tek bir sahnede gelir; birleşik çubuk ve geri sayım gizli eklenir. Ayar değiştirirsen dosyayı yeniden indir.',
       'obs.saved': 'Sahne koleksiyonu indirildi.',
       'obs.scene': 'Kick Overlay’ler',
+      'dock.copy': 'OBS kontrol paneli linkini kopyala',
+      'dock.how': 'Kontrol paneli: OBS’te Paneller → Özel Tarayıcı Panelleri’ni aç, bir ad yaz ve bu linki URL olarak yapıştır. Bildirimleri duraklatır, geçer, sonuncuyu tekrarlar ve test bildirimi gönderir. Relay’in çalışması gerekir.',
       'links.copyAllDone': 'Tüm bağlantılar kopyalandı.',
       'copy.done': 'Kopyalandı ✓',
       'card.linkAria': '{name} bağlantısı',
@@ -1272,6 +1281,8 @@
       'obs.how': 'One-step setup: in OBS, add the downloaded file with Scene Collection → Import, then pick it from the same menu. Every overlay arrives in one scene laid out for a 1920 × 1080 canvas; the combined bar and countdown are added hidden. Download it again after changing settings.',
       'obs.saved': 'Scene collection downloaded.',
       'obs.scene': 'Kick Overlays',
+      'dock.copy': 'Copy the OBS control dock link',
+      'dock.how': 'Control dock: in OBS open Docks → Custom Browser Docks, type a name and paste this link as the URL. It pauses, skips and replays alerts and sends test alerts. The relay must be running.',
       'links.copyAllDone': 'All links copied.',
       'copy.done': 'Copied ✓',
       'card.linkAria': '{name} link',
@@ -1854,6 +1865,19 @@
     alerts: { x: 640, y: 60 }
   };
 
+  async function copyDockLink() {
+    var s = currentSettings();
+    var url = new URL('dock.html', window.location.href);
+    if (s.dil !== K.normalize({}).dil) url.search = 'dil=' + encodeURIComponent(s.dil);
+    url.hash = '';
+    try {
+      await navigator.clipboard.writeText(url.href);
+      flashCopied($('dockKopyala'));
+    } catch (e) {
+      toast(t('toast.linkFail'), true);
+    }
+  }
+
   function downloadObsCollection() {
     var s = currentSettings();
     var collection = K.obsSceneCollection({
@@ -2315,6 +2339,7 @@
     $('pv-canli').addEventListener('click', toggleLive);
     $('hepsiniKopyala').addEventListener('click', copyAllLinks);
     $('obsIndir').addEventListener('click', downloadObsCollection);
+    $('dockKopyala').addEventListener('click', copyDockLink);
     $('relayKontrol').addEventListener('click', checkRelay);
     $('sesDene').addEventListener('click', trySound);
     Array.prototype.forEach.call(document.querySelectorAll('[data-test-alert]'), function (b) {

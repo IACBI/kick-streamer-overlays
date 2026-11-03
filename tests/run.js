@@ -1005,7 +1005,7 @@ async function testChatFeed() {
     const { K } = loadCore({});
     const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
     const badge = (name) => { const m = readme.match(new RegExp('badge/' + name + '-([0-9]+)-')); return m ? Number(m[1]) : null; };
-    const overlays = fs.readdirSync(ROOT).filter((f) => f.endsWith('.html') && f !== 'studio.html').length;
+    const overlays = fs.readdirSync(ROOT).filter((f) => f.endsWith('.html') && f !== 'studio.html' && f !== 'dock.html').length;
     eq(badge('themes'), K.enums('stil').length, 'themes badge');
     eq(badge('overlays'), overlays, 'overlays badge');
   });
