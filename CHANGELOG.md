@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-11-04
+
 ### Added
 
 - Overlay labels in Spanish (`es`), Brazilian Portuguese (`pt`), German (`de`) and Arabic (`ar`), next to Turkish, English and `both`. Arabic lays every overlay out right to left: bars fill from the right, rows and lists are mirrored, and the ticker runs the other way.
