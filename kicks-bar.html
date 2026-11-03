@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<!-- OBS Browser source (Local file): 520 x 90. Kicks goal bar for this stream. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kick Kicks Goal Bar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="shared/themes.css">
+<script src="AYARLAR.js"></script>
+<script src="AYARLAR.relay.js"></script>
+<script src="shared/kick-core.js"></script>
+<style>
+  html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
+  body {
+    position: relative; box-sizing: border-box; padding: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font); -webkit-font-smoothing: antialiased;
+  }
+  .ko-bar { width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="ko-bar" id="bar">
+  <div class="ko-fill" id="fill"></div>
+  <div class="ko-row">
+    <span class="ko-cur"><span id="cur">0</span><span class="ko-chip" id="pct" hidden></span></span>
+    <span class="ko-label"><span id="lbl"></span></span>
+    <span class="ko-goal" id="goal"></span>
+  </div>
+</div>
+<div class="ko-note is-hidden" id="note" aria-live="polite"></div>
+<script>
+(function(){
+  const K = window.KickOverlay;
+  const S = K.readSettings();
+  const PREVIEW = K.isPreview();
+  K.applyLook(S);
+  K.loadFont(S);
+  const T = K.text(S);
+
+  const elBar = document.getElementById('bar');
+  const elNote = document.getElementById('note');
+  const RELAY_DOWN_MS = 5000;
+  let stopRelay = null, downTimer = null, last = null;
+
+  document.getElementById('lbl').textContent = 'Kicks';
+  const bar = K.createGoalBar({
+    bar: elBar,
+    fill: document.getElementById('fill'),
+    val: document.getElementById('cur'),
+    pct: document.getElementById('pct'),
+    delta: null,
+    goal: document.getElementById('goal')
+  }, S.kicksHedefi, S);
+
+  function show(total){
+    if (total === last) return;
+    last = total;
+    bar.set(total);
+    K.debug({ kicks: total });
+  }
+
+  function onStatus(st){
+    K.debug({ relay: st });
+    if (st === 'blocked') { K.note(elNote, S, K.relayBlockedNote(S)); return; }
+    if (st === 'open') {
+      if (downTimer !== null) { clearTimeout(downTimer); downTimer = null; }
+      K.note(elNote, S, '');
+    } else if (downTimer === null) {
+      downTimer = setTimeout(() => { downTimer = null; K.note(elNote, S, K.label(S, 'Bildirim köprüsü çalışmıyor', 'Alert relay not running')); }, RELAY_DOWN_MS);
+    }
+  }
+
+  window.addEventListener('pagehide', function(){
+    if (downTimer !== null) clearTimeout(downTimer);
+    if (stopRelay) stopRelay();
+    bar.destroy();
+  });
+
+  // The total comes from the local relay's stream stats (relay/stats.js) and starts over when the stream goes live.
+  if (PREVIEW) { show(K.sample.kicks); K.debug({ mode: 'preview' }); return; }
+  if (!S.kanal) {
+    show(K.sample.kicks);
+    const h = document.createElement('div');
+    h.className = 'ko-hint';
+    h.textContent = T.hint;
+    elBar.appendChild(h);
+    K.debug({ mode: 'no channel' });
+    return;
+  }
+  show(0);
+  stopRelay = K.connectRelay(S.relayAdresi + '/events', {
+    onMessage: (ev) => { if (ev.kind === 'stats') show(K.parseStats(ev).totals.kicks); },
+    onStatus: onStatus
+  });
+})();
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 
 Free OBS overlays for [Kick](https://kick.com): goal bars, a viewer and uptime panel, a chat overlay, follow, subscription, gift and Kicks alerts, a "starting soon" countdown, a rotating announcement bar, and a studio that gives you a ready link for each overlay. The basic setup needs no server and no account.
 
-[![CI](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml/badge.svg)](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml) ![License](https://img.shields.io/badge/license-MIT-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Overlays](https://img.shields.io/badge/overlays-10-0ea5e9)
+[![CI](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml/badge.svg)](https://github.com/IACBI/kick-streamer-overlays/actions/workflows/ci.yml) ![License](https://img.shields.io/badge/license-MIT-53fc18) ![OBS](https://img.shields.io/badge/OBS-Browser%20source-111) ![Themes](https://img.shields.io/badge/themes-13-7c3aed) ![Overlays](https://img.shields.io/badge/overlays-12-0ea5e9)
 
 <p align="center"><img src="screenshots/hero.png" alt="Goal bars, a countdown, an announcement bar, an info panel and chat in one theme family" width="860"></p>
 
@@ -37,11 +37,12 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 - 13 themes: `glass`, `vivid`, `soft`, `cinema`, `neon`, `minimal`, `pastel`, `terminal`, `aurora`, `holo`, `ember`, `paper`, `retro`
 - Corner shapes (`pill`, `rounded`, `square`), four fonts (only the one you pick is loaded), labels in Turkish, English or both, three motion levels, and an optional percentage. Reduced-motion settings are respected everywhere
 - A session gain next to the subscriber count, such as "+3 this stream". It survives an OBS refresh for 12 hours
-- Goal bars pulse at 25, 50 and 75 %, and show a goal-reached state at 100 % (`hedefKutlama`)
+- Goal bars pulse at 25, 50 and 75 %, and show a goal-reached state at 100 % (`hedefKutlama`). With `hedefArtis` a reached goal moves up by a set step instead
 - A countdown to a length in minutes or to a clock time (`geriSayimSaat`), and an announcement bar that rotates your lines. Both work without any Kick data
 - Chat filters: hide `!` commands and named users such as bots, and fade messages out after a set time
 - An info panel with viewers, uptime, peak viewers and, optionally, the stream title (`bilgiBaslik`). With the relay it switches the moment the stream starts or ends
 - An alerts overlay for new followers, new and renewed subscriptions, gifted subscriptions, Kicks and channel point rewards. One card at a time; during a raid the queue keeps at most 25 and drops the oldest follows first. Each alert type can be turned off. Each type plays its own short sound, and your own sound and image or video can replace it
+- A Kicks goal bar and a sub train (subscriptions in a row, with the time left to keep it going) for the current stream
 - A recent events list and a leaderboard (top gifters or top Kicks senders) for the current stream. The numbers start over when the stream goes live, survive a relay restart, and can be cleared from the dock. The relay also writes them as plain text files for OBS Text sources
 - Preview mode (`?onizleme=1`) with sample numbers and no network calls, and a status box with `?debug=1`
 - Studio in Turkish and English: live preview with a tab per overlay, quick looks, a copy-link button for each overlay or all of them, JSON export and import of the look (credentials are never included), the `AYARLAR.js` file as an alternative, a step-by-step relay check, and a connection test for your Kick app
@@ -89,6 +90,8 @@ A link holds only your public settings, never your Kick app credentials. The sub
 | `ticker.html` | Announcement bar that rotates your lines | 760 × 80 |
 | `events.html` | Recent follows, subscriptions, gifts and Kicks of this stream (needs the relay) | 420 × 400 |
 | `leaderboard.html` | Top gifters or top Kicks senders of this stream (needs the relay) | 380 × 400 |
+| `kicks-bar.html` | Kicks goal for this stream (needs the relay) | 520 × 90 |
+| `sub-train.html` | Sub train: subscriptions in a row and the time left; hidden while no train runs (needs the relay) | 520 × 90 |
 | `studio.html` | Studio: previews, settings and links. Open it in a browser, not in OBS | — |
 
 These previews use sample data (`?onizleme=1`), so they show the design and make no request to Kick.
@@ -264,6 +267,9 @@ Every setting lives in `AYARLAR.js`, and the studio writes the same settings int
 | `olaySayisi` | `eventsCount` | Recent events (`events.html`): how many events to show (3–10) | `5` |
 | `liderTur` | `leaderboardType` | Leaderboard (`leaderboard.html`): `gift` ranks gifted subscriptions, `kicks` ranks Kicks | `gift` |
 | `liderSayisi` | `leaderboardCount` | People on the leaderboard (3–10) | `5` |
+| `kicksHedefi` | `kicksGoal` | Kicks goal bar (`kicks-bar.html`): Kicks to reach this stream | `1000` |
+| `trenSn` | `subTrainSeconds` | Sub train (`sub-train.html`): seconds a new subscription has to keep the train going (30–600) | `120` |
+| `hedefArtis` | `goalStep` | Goal auto-step for the follower, subscriber and Kicks bars: a reached goal rises by this much. `0` = off | `0` |
 
 Settings that are only for the local machine. They are never read from a link:
 
@@ -346,11 +352,12 @@ Without the relay, the subscriber bars request and renew their own access token 
 - 13 tema: `glass`, `vivid`, `soft`, `cinema`, `neon`, `minimal`, `pastel`, `terminal`, `aurora`, `holo`, `ember`, `paper`, `retro`
 - Köşe şekilleri (`pill`, `rounded`, `square`), dört yazı tipi (yalnızca seçtiğin yüklenir), Türkçe, İngilizce ya da ikisi birden etiketler, üç hareket seviyesi ve isteğe bağlı yüzde gösterimi. Hareket azaltma ayarları her yerde geçerlidir
 - Abone sayısının yanında "bu yayında +3" gibi yayın içi artış. OBS'te kaynağı yenilesen de 12 saat boyunca korunur
-- Hedef çubukları yüzde 25, 50 ve 75'te nabız atar, yüzde 100'de "hedefe ulaşıldı" durumuna geçer (`hedefKutlama`)
+- Hedef çubukları yüzde 25, 50 ve 75'te nabız atar, yüzde 100'de "hedefe ulaşıldı" durumuna geçer (`hedefKutlama`). `hedefArtis` ile ulaşılan hedef belirlenen adım kadar yükselir
 - Dakika cinsinden ya da saat olarak (`geriSayimSaat`) geri sayım ve satırlarını döndüren duyuru çubuğu. İkisi de Kick verisi olmadan çalışır
 - Sohbet filtreleri: `!` ile başlayan komutları ve bot gibi adı verilen kullanıcıları gizle, mesajları belli bir süre sonra soluklaştır
 - İzleyici, yayın süresi, en yüksek izleyici sayısı ve istersen yayın başlığını (`bilgiBaslik`) gösteren bir yayın paneli. Relay açıksa yayın başlar başlamaz ya da biter bitmez değişir
 - Yeni takipçi, yeni ve yenilenen abonelik, hediye abonelik, Kicks ve kanal puanı ödülleri için bildirim overlay'i. Kartlar tek tek gelir; raid sırasında sırada en çok 25 bildirim tutulur ve önce en eski takip bildirimleri atılır. Her bildirim türü ayrı ayrı kapatılabilir. Her tür kendi kısa sesini çalar; yerine kendi sesini ve görselini ya da videonu koyabilirsin
+- O yayın için Kicks hedef çubuğu ve abone treni (art arda gelen abonelikler ve treni sürdürmek için kalan süre)
 - O yayının son olayları ve liderlik tablosu (en çok hediye eden ya da Kicks gönderenler). Sayılar yayın başlayınca sıfırlanır, relay yeniden başlasa da korunur ve panelden elle sıfırlanabilir. Relay bunları OBS Metin kaynakları için düz metin dosyalarına da yazar
 - Önizleme modu (`?onizleme=1`): ağ çağrısı yapmadan örnek sayılar gösterir. `?debug=1` ile küçük bir durum kutusu açılır
 - Türkçe ve İngilizce stüdyo: her overlay için sekmeli canlı önizleme, hazır görünümler, her overlay için ya da hepsi için bağlantı kopyalama, görünümü JSON olarak dışa ve içe aktarma (kimlik bilgileri hiçbir zaman dahil edilmez), alternatif olarak `AYARLAR.js` dosyası, adım adım relay denetimi ve Kick uygulaman için bağlantı testi
@@ -398,6 +405,8 @@ Bağlantı yalnızca herkese açık ayarlarını taşır, Kick uygulaman bilgile
 | `ticker.html` | Satırlarını sırayla gösteren duyuru çubuğu | 760 × 80 |
 | `events.html` | Bu yayının son takip, abonelik, hediye ve Kicks olayları (relay gerektirir) | 420 × 400 |
 | `leaderboard.html` | Bu yayında en çok hediye eden ya da Kicks gönderenler (relay gerektirir) | 380 × 400 |
+| `kicks-bar.html` | Bu yayının Kicks hedefi (relay gerektirir) | 520 × 90 |
+| `sub-train.html` | Abone treni: art arda gelen abonelikler ve kalan süre; tren yokken gizlenir (relay gerektirir) | 520 × 90 |
 | `studio.html` | Stüdyo: önizleme, ayarlar ve bağlantılar. OBS'de değil, tarayıcıda aç | — |
 
 Buradaki tüm animasyonlar örnek veri kullanır (`?onizleme=1`); yani tasarımı gösterir ve Kick'e istek yapmaz.
@@ -573,6 +582,9 @@ Tüm ayarlar `AYARLAR.js` içindedir; stüdyo aynı ayarları verdiği bağlant�
 | `olaySayisi` | `eventsCount` | Son olaylar (`events.html`): gösterilecek olay sayısı (3–10) | `5` |
 | `liderTur` | `leaderboardType` | Liderlik tablosu (`leaderboard.html`): `gift` hediye aboneliklere, `kicks` Kicks'e göre sıralar | `gift` |
 | `liderSayisi` | `leaderboardCount` | Tablodaki kişi sayısı (3–10) | `5` |
+| `kicksHedefi` | `kicksGoal` | Kicks hedef çubuğu (`kicks-bar.html`): bu yayında ulaşılacak Kicks | `1000` |
+| `trenSn` | `subTrainSeconds` | Abone treni (`sub-train.html`): treni sürdürmek için yeni aboneliğin gelmesi gereken süre, saniye (30–600) | `120` |
+| `hedefArtis` | `goalStep` | Takipçi, abone ve Kicks çubukları için hedef otomatik artışı: ulaşılan hedef bu kadar yükselir. `0` = kapalı | `0` |
 
 Yalnızca yerel makinede geçerli olan anahtarlar. Bağlantıdan asla okunmazlar:
 

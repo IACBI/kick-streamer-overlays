@@ -47,14 +47,14 @@
   const elNote = document.getElementById('note');
 
   elLbl.textContent = K.label(S, 'Takipçi', 'Follower');
-  elGoal.textContent = K.fmt(S.takipciHedefi);
 
   const bar = K.createGoalBar({
     bar: elBar,
     fill: document.getElementById('fill'),
     val: document.getElementById('cur'),
     pct: document.getElementById('pct'),
-    delta: null
+    delta: null,
+    goal: elGoal
   }, S.takipciHedefi, S);
 
   let lastGood = null;    // last value Kick returned; kept when a poll fails

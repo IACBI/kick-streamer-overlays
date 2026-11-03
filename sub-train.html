@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<!-- OBS Browser source (Local file): 520 x 90. Sub train: subscriptions in a row, with the time left to keep it going. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kick Sub Train</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="shared/themes.css">
+<script src="AYARLAR.js"></script>
+<script src="AYARLAR.relay.js"></script>
+<script src="shared/kick-core.js"></script>
+<style>
+  html, body { height: 100%; margin: 0; background: transparent; overflow: hidden; }
+  body {
+    position: relative; box-sizing: border-box; padding: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font); -webkit-font-smoothing: antialiased;
+  }
+  .ko-bar { width: 100%; transition: opacity var(--ko-dur-out, .35s) ease; }
+  /* No train: the bar steps out of the scene instead of showing an empty bar. */
+  .ko-bar.is-idle { opacity: 0; }
+  .ko-goal { font-variant-numeric: tabular-nums; }
+  /* The fill drains in small linear steps, one per tick, so it never jumps and always shows the time left. */
+  #fill { transition: transform 250ms linear; }
+  body.motion-off #fill { transition: none; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="ko-bar is-idle" id="bar">
+  <div class="ko-fill" id="fill"></div>
+  <div class="ko-row">
+    <span class="ko-cur"><span id="count">0</span></span>
+    <span class="ko-label"><span id="lbl"></span></span>
+    <span class="ko-goal" id="left"></span>
+  </div>
+</div>
+<div class="ko-note is-hidden" id="note" aria-live="polite"></div>
+<script>
+(function(){
+  const K = window.KickOverlay;
+  const S = K.readSettings();
+  const PREVIEW = K.isPreview();
+  K.applyLook(S);
+  K.loadFont(S);
+  const T = K.text(S);
+
+  const elBar = document.getElementById('bar');
+  const elFill = document.getElementById('fill');
+  const elCount = document.getElementById('count');
+  const elLeft = document.getElementById('left');
+  const elNote = document.getElementById('note');
+  const WINDOW_MS = S.trenSn * 1000;
+  const TICK_MS = 250;
+  const RELAY_DOWN_MS = 5000;
+  let times = [];
+  let train = null;           // { count, endsAt } while a train runs
+  let tickTimer = null, stopRelay = null, downTimer = null, sampleMode = false;
+
+  document.getElementById('lbl').textContent = K.label(S, 'Abone treni', 'Sub train');
+
+  const clock = (ms) => {
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  };
+
+  function tick(){
+    const now = Date.now();
+    if (!train || now >= train.endsAt) {
+      train = null;
+      elBar.classList.add('is-idle');
+      if (tickTimer !== null) { clearInterval(tickTimer); tickTimer = null; }
+      K.debug({ train: 'none' });
+      if (sampleMode) setTimeout(sample, 1500);
+      return;
+    }
+    const left = clock(train.endsAt - now);
+    if (elLeft.textContent !== left) elLeft.textContent = left;
+    elFill.style.setProperty('--fill', String(Math.max(0, Math.min(1, (train.endsAt - now) / WINDOW_MS)).toFixed(4)));
+  }
+
+  function update(){
+    const next = K.subTrain(times, WINDOW_MS, Date.now());
+    const changed = !train || !next || next.count !== train.count || next.endsAt !== train.endsAt;
+    const grew = train && next && next.count > train.count;
+    train = next;
+    if (!train) { tick(); return; }
+    if (changed) {
+      elCount.textContent = '×' + K.fmt(train.count);
+      elBar.classList.remove('is-idle');
+      if (grew) { elBar.classList.remove('ko-bump'); void elBar.offsetWidth; elBar.classList.add('ko-bump'); }
+    }
+    if (tickTimer === null) tickTimer = setInterval(tick, TICK_MS);
+    tick();
+    K.debug({ train: train.count, ends: new Date(train.endsAt).toLocaleTimeString() });
+  }
+
+  // Previews and sample mode: a running sample train, sized to trenSn, that starts again a moment after it ends.
+  function sample(){
+    const now = Date.now();
+    times = [{ at: now - WINDOW_MS * 0.6, n: 1 }, { at: now - WINDOW_MS * 0.45, n: 5 }, { at: now - WINDOW_MS * 0.3, n: 1 }];
+    update();
+  }
+
+  function onStatus(st){
+    K.debug({ relay: st });
+    if (st === 'blocked') { K.note(elNote, S, K.relayBlockedNote(S)); return; }
+    if (st === 'open') {
+      if (downTimer !== null) { clearTimeout(downTimer); downTimer = null; }
+      K.note(elNote, S, '');
+    } else if (downTimer === null) {
+      downTimer = setTimeout(() => { downTimer = null; K.note(elNote, S, K.label(S, 'Bildirim köprüsü çalışmıyor', 'Alert relay not running')); }, RELAY_DOWN_MS);
+    }
+  }
+
+  window.addEventListener('pagehide', function(){
+    if (tickTimer !== null) clearInterval(tickTimer);
+    if (downTimer !== null) clearTimeout(downTimer);
+    if (stopRelay) stopRelay();
+  });
+
+  if (PREVIEW || !S.kanal) {
+    sampleMode = true;
+    if (!S.kanal && !PREVIEW) {
+      const h = document.createElement('div');
+      h.className = 'ko-hint';
+      h.textContent = T.hint;
+      document.body.appendChild(h);
+    }
+    sample();
+    return;
+  }
+  stopRelay = K.connectRelay(S.relayAdresi + '/events', {
+    onMessage: (ev) => { if (ev.kind === 'stats') { times = K.parseStats(ev).subTimes; update(); } },
+    onStatus: onStatus
+  });
+})();
+</script>
+</body>
+</html>

@@ -1193,6 +1193,16 @@ function statusOf(port, p, headers) {
     check('stats: the sub train sees subscriptions and gifted subscriptions', snap.subTimes.reduce((a, t) => a + t.n, 0) === 12, JSON.stringify(snap.subTimes));
     clock.advance(SUB_WINDOW_MS + 1000);
     check('stats: sub train entries expire after the window', st.snapshot().subTimes.length === 0);
+    {
+      const tc = mkClock();
+      const tr = createStats({ now: tc.now, logger: quietLogger() });
+      for (let i = 0; i < 4; i++) { tr.record({ kind: 'sub', username: 'u' + i }); tc.advance(SUB_WINDOW_MS - 60000); }
+      check('stats: a long sub train keeps every link of its chain', tr.snapshot().subTimes.length === 4, String(tr.snapshot().subTimes.length));
+      tc.advance(SUB_WINDOW_MS);
+      tr.record({ kind: 'gift', username: 'g', count: 3 });
+      const left = tr.snapshot().subTimes;
+      check('stats: a gap longer than the window starts a new chain', left.length === 1 && left[0].n === 3, JSON.stringify(left));
+    }
     for (let i = 0; i < 30; i++) st.record({ kind: 'follow', username: 'f' + i });
     check('stats: recent events are capped at 20', st.snapshot().recent.length === 20);
     const lab = st.labels();

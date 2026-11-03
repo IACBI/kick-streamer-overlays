@@ -18,7 +18,7 @@ const CORE_FILE = path.join(ROOT, 'shared', 'kick-core.js');
 const CSS_FILE = path.join(ROOT, 'shared', 'themes.css');
 const SETTINGS_FILE = path.join(ROOT, 'AYARLAR.js');
 const FIXTURE_DIR = path.join(__dirname, 'fixtures');
-const OVERLAY_PAGES = ['follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html', 'countdown.html', 'ticker.html', 'alerts.html', 'events.html', 'leaderboard.html'];
+const OVERLAY_PAGES = ['follower-bar.html', 'subscriber-bar.html', 'combined-bar.html', 'info-panel.html', 'chat.html', 'countdown.html', 'ticker.html', 'alerts.html', 'events.html', 'leaderboard.html', 'kicks-bar.html', 'sub-train.html'];
 // The studio is a configurator: it generates AYARLAR.js, so it does not load the settings scripts.
 const STUDIO_PAGE = 'studio.html';
 
@@ -39,7 +39,7 @@ const DEFAULTS = {
   hataNotu: true, hedefKutlama: true, bilgiBaslik: false,
   uyariSn: 6, uyariTakip: true, uyariAbone: true, uyariHediye: true, uyariKicks: true, uyariOdul: true,
   uyariSes: true, uyariSesSeviye: 60, uyariOdulGizle: '', uyariTts: false, uyariTtsUzunluk: 120, uyariTtsYasak: '',
-  olaySayisi: 5, liderTur: 'gift', liderSayisi: 5
+  olaySayisi: 5, liderTur: 'gift', liderSayisi: 5, hedefArtis: 0, kicksHedefi: 1000, trenSn: 120
 };
 const RELAY = 'http://127.0.0.1:8790';
 
@@ -495,6 +495,43 @@ async function testReadSettings() {
     eq(p.subTimes.length, 1, 'sub times');
     const many = K.parseStats({ recent: Array.from({ length: 40 }, (_, i) => ({ kind: 'follow', name: 'u' + i, at: i })) });
     eq(many.recent.length, 20, 'recent capped');
+  });
+
+  await check('stepGoal: off at 0; a reached goal rises by whole steps past the total', () => {
+    const { K } = loadCore();
+    eq(K.stepGoal(1000, 0, 5000), 1000, 'step 0 = off');
+    eq(K.stepGoal(1000, 250, 999), 1000, 'not reached');
+    eq(K.stepGoal(1000, 250, 1000), 1250, 'reached exactly');
+    eq(K.stepGoal(1000, 250, 1749), 1750, 'several steps');
+    eq(K.stepGoal(1000, 250, 1750), 2000, 'on a step');
+    eq(K.normalize({ goalStep: 50, kicksGoal: 2000, subTrainSeconds: 45 }).hedefArtis, 50, 'alias goalStep');
+    eqFields(K.normalize({ hedefArtis: -3, kicksHedefi: 0, trenSn: 9999 }), { hedefArtis: 0, kicksHedefi: 1, trenSn: 600 }, 'clamped ');
+  });
+
+  await check('createGoalBar: with hedefArtis the shown goal steps up and the percentage follows it', () => {
+    const { K } = loadCore();
+    const mk = () => ({ textContent: '', hidden: false, style: { setProperty() {} }, classList: { add() {}, remove() {}, contains() { return false; }, toggle() {} } });
+    const els = { fill: mk(), pct: mk(), goal: mk() };
+    const bar = K.createGoalBar(els, 100, K.normalize({ hedefArtis: 50, yuzdeGoster: true, animasyon: 'off' }));
+    eq(els.goal.textContent, '100', 'initial goal');
+    bar.set(40);
+    eq(els.pct.textContent, '40%', 'below the goal');
+    bar.set(120);
+    eq(els.goal.textContent + ' ' + els.pct.textContent, '150 80%', 'stepped once');
+    bar.set(260);
+    eq(els.goal.textContent, '300', 'stepped past the total');
+    bar.destroy();
+  });
+
+  await check('subTrain: counts the chain of subscriptions inside the window, ends after it', () => {
+    const { K } = loadCore();
+    const W = 60000;
+    eq(K.subTrain([], W, 1000), null, 'no subs');
+    eq(K.subTrain(null, W, 1000), null, 'bad input');
+    const t = [{ at: 0, n: 1 }, { at: 100000, n: 2 }, { at: 130000, n: 5 }, { at: 170000, n: 1 }];
+    eq(JSON.parse(JSON.stringify(K.subTrain(t, W, 180000))), { count: 8, endsAt: 230000 }, 'the chain after the 100 s gap');
+    eq(K.subTrain(t, W, 230000), null, 'ended at the window');
+    eq(K.subTrain([{ at: 'x', n: 1 }, { at: 10, n: 0 }], W, 20), null, 'odd entries ignored');
   });
 
   await check('eventText and sampleStats: labels per kind and language; the sample fills both overlays', () => {
@@ -2617,7 +2654,7 @@ async function testThemesAndPages() {
     for (const m of html.matchAll(/data-i18n(?:-ph|-aria)?="([^"]+)"/g)) used.add(m[1]);
     for (const m of html.matchAll(/\bt\('([^']+)'/g)) used.add(m[1]);
     // Keys built from an id at run time.
-    ['follower', 'subscriber', 'combined', 'info', 'countdown', 'ticker', 'chat', 'alerts', 'events', 'leaderboard'].forEach((id) => { used.add('ov.' + id); used.add('ov.' + id + '.d'); });
+    ['follower', 'subscriber', 'combined', 'info', 'countdown', 'ticker', 'chat', 'alerts', 'events', 'leaderboard', 'kicks', 'train'].forEach((id) => { used.add('ov.' + id); used.add('ov.' + id + '.d'); });
     ['minimal', 'neon', 'pastel', 'gece', 'kagit'].forEach((id) => used.add('preset.' + id));
     ['checker', 'dark', 'light', 'scene'].forEach((id) => used.add('bg.' + id));
     for (let n = 1; n <= 4; n++) used.add('help.c' + n);

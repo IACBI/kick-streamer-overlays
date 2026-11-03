@@ -11,8 +11,8 @@ const path = require('path');
 const RECENT_MAX = 20;
 const TOP_MAX = 10;
 const USERS_MAX = 5000;            // leaderboard entries per stream; past this, new names are not added
-const SUB_WINDOW_MS = 10 * 60 * 1000;   // the longest sub train window the overlay offers
-const SUB_TIMES_MAX = 200;
+const SUB_WINDOW_MS = 10 * 60 * 1000;   // the longest sub train window the overlay offers (trenSn max)
+const SUB_TIMES_MAX = 500;
 const SAVE_DELAY_MS = 1000;
 const NAME_MAX = 60;
 
@@ -57,8 +57,8 @@ function fromSaved(raw, now) {
   s.gifters = board(raw.gifters, 'count');
   s.kickers = board(raw.kickers, 'amount');
   if (Array.isArray(raw.subTimes)) {
-    s.subTimes = raw.subTimes.filter((t) => t && num(t.at, 0) !== null && num(t.n, 1) !== null && now - t.at < SUB_WINDOW_MS)
-      .map((t) => ({ at: t.at, n: t.n })).slice(-SUB_TIMES_MAX);
+    s.subTimes = trainTimes(raw.subTimes.filter((t) => t && num(t.at, 0) !== null && num(t.n, 1) !== null && t.at <= now)
+      .map((t) => ({ at: t.at, n: t.n })).sort((a, b) => a.at - b.at), now);
   }
   return s;
 }
@@ -74,6 +74,15 @@ function cleanEntry(e) {
   if (e.kind === 'kicks') out.amount = num(e.amount, 0) || 0;
   if (e.kind === 'sub') out.months = num(e.months, 1) || 1;
   return out;
+}
+
+// The sub times the sub train can still use: the last chain of entries less than SUB_WINDOW_MS apart, kept only
+// while its newest entry is inside the window. A long train keeps all of its entries (up to SUB_TIMES_MAX).
+function trainTimes(list, now) {
+  if (!list.length || now - list[list.length - 1].at >= SUB_WINDOW_MS) return [];
+  let i = list.length - 1;
+  while (i > 0 && list[i].at - list[i - 1].at < SUB_WINDOW_MS) i--;
+  return list.slice(Math.max(i, list.length - SUB_TIMES_MAX));
 }
 
 function top(board, field) {
@@ -105,7 +114,7 @@ function createStats(opts) {
       recent: state.recent.slice(),
       topGifters: top(state.gifters, 'count'),
       topKicks: top(state.kickers, 'amount'),
-      subTimes: state.subTimes.filter((t) => now - t.at < SUB_WINDOW_MS)
+      subTimes: trainTimes(state.subTimes, now)
     };
   }
 
@@ -181,7 +190,7 @@ function createStats(opts) {
       if (!e.anonymous) bump(state.gifters, e.name, 'count', e.count);
     }
     if (e.kind === 'kicks') { t.kicks += e.amount; bump(state.kickers, e.name, 'amount', e.amount); }
-    while (state.subTimes.length > SUB_TIMES_MAX || (state.subTimes.length && at - state.subTimes[0].at >= SUB_WINDOW_MS)) state.subTimes.shift();
+    if (e.kind === 'sub' || e.kind === 'gift') state.subTimes = trainTimes(state.subTimes, at);
     state.latest[e.kind] = e;
     state.recent.unshift(e);
     if (state.recent.length > RECENT_MAX) state.recent.length = RECENT_MAX;

@@ -46,6 +46,7 @@
     hataNotu:          { t: 'bool', d: true },
     bilgiBaslik:       { t: 'bool', d: false },
     hedefKutlama:      { t: 'bool', d: true },
+    hedefArtis:        { t: 'int', d: 0, min: 0, max: 100000000 },
     uyariSn:           { t: 'int', d: 6, min: 3, max: 30 },
     uyariTakip:        { t: 'bool', d: true },
     uyariAbone:        { t: 'bool', d: true },
@@ -59,6 +60,8 @@
     uyariTtsUzunluk:   { t: 'int', d: 120, min: 20, max: 200 },
     uyariTtsYasak:     { t: 'str', d: '', max: 400 },
     olaySayisi:        { t: 'int', d: 5, min: 3, max: 10 },
+    kicksHedefi:       { t: 'int', d: 1000, min: 1, max: 100000000 },
+    trenSn:            { t: 'int', d: 120, min: 30, max: 600 },
     liderTur:          { t: 'enum', key: 'liderTur', d: 'gift' },
     liderSayisi:       { t: 'int', d: 5, min: 3, max: 10 }
   };
@@ -79,6 +82,7 @@
     alertKicks: 'uyariKicks', alertRewards: 'uyariOdul', alertSound: 'uyariSes', alertVolume: 'uyariSesSeviye',
     alertRewardsHidden: 'uyariOdulGizle', alertTts: 'uyariTts', alertTtsMaxLength: 'uyariTtsUzunluk',
     alertTtsBlockedWords: 'uyariTtsYasak',
+    goalStep: 'hedefArtis', kicksGoal: 'kicksHedefi', subTrainSeconds: 'trenSn',
     eventsCount: 'olaySayisi', leaderboardType: 'liderTur', leaderboardCount: 'liderSayisi',
     relayAddress: 'relayAdresi'
   };
@@ -245,6 +249,7 @@
 
   var SAMPLE = {
     followers: 1234,
+    kicks: 650,
     subs: 42,
     delta: 3,
     viewers: 2048,
@@ -274,6 +279,30 @@
     if (typeof Intl === 'undefined') return v.toLocaleString(numLocale);
     var f = fmtCache[numLocale] || (fmtCache[numLocale] = new Intl.NumberFormat(numLocale));
     return f.format(v);
+  }
+
+  // The goal after auto-steps: the first goal + k × step above the total, or the goal itself when step is 0.
+  function stepGoal(goal, step, total) {
+    goal = Number(goal) || 0;
+    step = Number(step) || 0;
+    total = Number(total) || 0;
+    if (!(step > 0) || !(goal > 0) || total < goal) return goal;
+    return goal + step * (Math.floor((total - goal) / step) + 1);
+  }
+
+  // The running sub train from the relay's sub times ({ at, n }, oldest first): subscriptions that each came
+  // within windowMs of the one before. Returns { count, endsAt } while it runs, or null once it has ended.
+  function subTrain(times, windowMs, now) {
+    var list = (Array.isArray(times) ? times : []).filter(function (t) { return t && isFinite(t.at) && t.n >= 1; });
+    if (!list.length || !(windowMs > 0)) return null;
+    var lastAt = list[list.length - 1].at;
+    if (now - lastAt >= windowMs) return null;
+    var count = 0;
+    for (var i = list.length - 1; i >= 0; i--) {
+      if (i < list.length - 1 && list[i + 1].at - list[i].at >= windowMs) break;
+      count += Math.floor(list[i].n);
+    }
+    return { count: count, endsAt: lastAt + windowMs };
   }
 
   function pct(current, goal) {
@@ -441,7 +470,9 @@
   function createGoalBar(els, goal, s) {
     els = els || {};
     s = s || {};
+    var baseGoal = goal;
     var shown = 0, last = null, lastPct = 0, cancel = null, valNode = null, valText = null;
+    if (els.goal) els.goal.textContent = fmt(goal);
     function restart(el, cls) {
       el.classList.remove(cls);
       void el.offsetWidth;
@@ -475,6 +506,15 @@
     }
     function set(total, delta) {
       total = Number(total) || 0;
+      // Auto-step (hedefArtis): a reached goal moves up by the step. Reaching it live is still celebrated once.
+      var stepped = stepGoal(baseGoal, s.hedefArtis, total);
+      if (stepped !== goal) {
+        var celebrate = last !== null && stepped > goal && !!s.hedefKutlama && !!els.bar;
+        goal = stepped;
+        lastPct = 0;
+        if (els.goal) setText(els.goal, fmt(goal));
+        if (celebrate) once(els.bar, 'ko-goal-pulse', 1100, slots.pulse);
+      }
       var p = pct(total, goal);
       var increased = last !== null && total > last;
       var crossed = !!els.bar && !!s.hedefKutlama && last !== null &&
@@ -1073,7 +1113,7 @@
       topKicks: board(raw.topKicks, 'amount'),
       subTimes: (Array.isArray(raw.subTimes) ? raw.subTimes : []).filter(function (x) {
         return x && statNum(x.at, 0) !== null && statNum(x.n, 1) !== null;
-      }).map(function (x) { return { at: x.at, n: x.n }; }).slice(-200)
+      }).map(function (x) { return { at: x.at, n: x.n }; }).slice(-500)
     };
   }
 
@@ -1325,6 +1365,8 @@
     createAlertMedia: createAlertMedia,
     rewardHidden: rewardHidden,
     alertIcon: alertIcon,
+    stepGoal: stepGoal,
+    subTrain: subTrain,
     parseStats: parseStats,
     eventText: eventText,
     sampleStats: sampleStats,

@@ -284,6 +284,25 @@ async function offlineChecks() {
     await pg.close();
   }
 
+  const kb = await openPage('kicks-bar.html', '?dil=en', [520, 90]);
+  await sleep(1500);
+  const kbInfo = await kb.eval(`({ hint: !!document.querySelector('.ko-hint'), cur: document.getElementById('cur').textContent, goal: document.getElementById('goal').textContent })`);
+  check('kicks-bar.html: with no channel, the sample total shows against kicksHedefi under the setup hint', kbInfo.hint && kbInfo.cur === '650' && kbInfo.goal === '1,000', JSON.stringify(kbInfo));
+  check('kicks-bar.html: no unexpected errors', unexpected(kb.logs).length === 0, short(unexpected(kb.logs)));
+  await kb.shot('kicks-bar.png');
+  await kb.close();
+  const kbStep = await openPage('kicks-bar.html', '?onizleme=1&kicksHedefi=500&hedefArtis=200', [520, 90]);
+  await sleep(1500);
+  check('kicks-bar.html: hedefArtis raises a reached goal past the total (650 of 500, step 200 -> 700)', (await kbStep.eval(`document.getElementById('goal').textContent`)) === '700');
+  await kbStep.close();
+  const trn = await openPage('sub-train.html', '?dil=en&trenSn=60', [520, 90]);
+  await sleep(1500);
+  const trnInfo = await trn.eval(`({ idle: document.getElementById('bar').classList.contains('is-idle'), count: document.getElementById('count').textContent, left: document.getElementById('left').textContent })`);
+  check('sub-train.html: the sample train runs with its count and time left', !trnInfo.idle && trnInfo.count === '×7' && /^0:[0-5]\d$/.test(trnInfo.left), JSON.stringify(trnInfo));
+  check('sub-train.html: no unexpected errors', unexpected(trn.logs).length === 0, short(unexpected(trn.logs)));
+  await trn.shot('sub-train.png');
+  await trn.close();
+
   const ch = await openPage('chat.html', '', [460, 760]);
   await sleep(5000);
   const chInfo = await ch.eval(`({ msgs: document.querySelectorAll('.ko-msg:not(.is-leaving)').length })`);
@@ -317,8 +336,8 @@ async function offlineChecks() {
       local: browsers.every((x) => /^file:\\/\\/\\//.test(x.settings.url)), audio: browsers.filter((x) => x.settings.reroute_audio).map((x) => x.settings.url.split('?')[0].split('/').pop()),
       hidden: c.sources[0].settings.items.filter((i) => !i.visible).length };
   })()`);
-  check('studio: the OBS scene collection holds all ten overlays as Browser sources with their file links',
-    obs.count === 10 && obs.files.includes('chat.html') && obs.files.includes('events.html') && obs.local && obs.hidden === 4 && obs.audio.join() === 'alerts.html', JSON.stringify(obs));
+  check('studio: the OBS scene collection holds all twelve overlays as Browser sources with their file links',
+    obs.count === 12 && obs.files.includes('chat.html') && obs.files.includes('events.html') && obs.files.includes('sub-train.html') && obs.local && obs.hidden === 6 && obs.audio.join() === 'alerts.html', JSON.stringify(obs));
   check('studio: no unexpected errors', unexpected(st.logs).length === 0, short(unexpected(st.logs)));
   await st.shot('studio.png');
   // The new-version notice, fed from the daily cache so the check needs no network: a newer tag shows it,
@@ -337,7 +356,7 @@ async function offlineChecks() {
   // Studio behaviour: links, tabs, presets, language, reset.
   const urlOf = (id) => `document.querySelector('[data-url="${id}"]').value`;
   const base = await st.eval(`({ follower: ${urlOf('follower')}, tabs: document.querySelectorAll('[role=tab]').length, cards: document.querySelectorAll('[data-card]').length, warn: !document.querySelector('[data-card="follower"] .st-card-warn').hidden })`);
-  check('studio: ten overlay tabs and ten link cards', base.tabs === 10 && base.cards === 10, JSON.stringify(base));
+  check('studio: twelve overlay tabs and twelve link cards', base.tabs === 12 && base.cards === 12, JSON.stringify(base));
   check('studio: default link has no query string', /follower-bar\.html$/.test(base.follower), base.follower);
   check('studio: card warns when the channel is empty', base.warn);
 
@@ -604,6 +623,8 @@ async function relayChecks() {
   fs.copyFileSync(path.join(ROOT, 'ticker.html'), path.join(copy, 'ticker.html'));
   fs.copyFileSync(path.join(ROOT, 'events.html'), path.join(copy, 'events.html'));
   fs.copyFileSync(path.join(ROOT, 'leaderboard.html'), path.join(copy, 'leaderboard.html'));
+  fs.copyFileSync(path.join(ROOT, 'kicks-bar.html'), path.join(copy, 'kicks-bar.html'));
+  fs.copyFileSync(path.join(ROOT, 'sub-train.html'), path.join(copy, 'sub-train.html'));
   fs.cpSync(path.join(ROOT, 'shared'), path.join(copy, 'shared'), { recursive: true });
   fs.cpSync(path.join(ROOT, 'branding'), path.join(copy, 'branding'), { recursive: true });
   // chat.html loads only AYARLAR.js (it needs no credentials); relayAdresi is allowed there.
@@ -897,6 +918,8 @@ async function statsChecks(copy, webhookPort, privateKey) {
   const forUs = (obj) => JSON.stringify(Object.assign(obj, { broadcaster: Object.assign(obj.broadcaster, { user_id: 113812015 }) }));
   const ev = await openPageFrom(copy, 'events.html', '?dil=en&olaySayisi=3', [420, 400]);
   const lb = await openPageFrom(copy, 'leaderboard.html', '?dil=en&liderTur=kicks&liderSayisi=3', [380, 400]);
+  const kb = await openPageFrom(copy, 'kicks-bar.html', '?dil=en&animasyon=off', [520, 90]);
+  const trn = await openPageFrom(copy, 'sub-train.html', '?dil=en&trenSn=300', [520, 90]);
   const dock = await openPageFrom(copy, 'dock.html', '?dil=en', [320, 760]);
   const rows = `Array.from(document.querySelectorAll('.ko-item')).map((r) => r.textContent.trim())`;
   try {
@@ -910,9 +933,19 @@ async function statsChecks(copy, webhookPort, privateKey) {
     check('events: the new gift is on top and the list keeps olaySayisi rows', evRows.length === 3 && /^stats_whale\s*99,999 Kicks$/.test(evRows[0]), JSON.stringify(evRows));
     const lbRows = await lb.eval(rows);
     check('leaderboard: the Kicks board ranks the new sender first', lbRows.length >= 1 && lbRows.length <= 3 && /^1\s*stats_whale\s*99,999 Kicks$/.test(lbRows[0]), JSON.stringify(lbRows));
+    const kbVal = Number((await kb.eval(`document.getElementById('cur').textContent`)).replace(/,/g, ''));
+    check('kicks-bar: the bar shows the Kicks total of the stream from the relay', kbVal >= 99999, String(kbVal));
+    const sub = fixture('subscription-new');
+    sub.subscriber.username = 'train_rider';
+    await relayPost(webhookPort, 'e2e-train-1', forUs(sub), privateKey, 'channel.subscription.new');
+    await sleep(1500);
+    const trInfo = await trn.eval(`({ idle: document.getElementById('bar').classList.contains('is-idle'), count: document.getElementById('count').textContent, left: document.getElementById('left').textContent })`);
+    check('sub-train: a subscription starts or extends the train with the full time left', !trInfo.idle && /^×\d+$/.test(trInfo.count) && /^(5:00|4:5\d)$/.test(trInfo.left), JSON.stringify(trInfo));
+    await kb.shot('kicks-bar-relay.png');
+    await trn.shot('sub-train-relay.png');
     const late = await openPageFrom(copy, 'events.html', '?dil=en', [420, 400]);
     await sleep(2000);
-    check('events: a page opened later gets the list from the relay at once', /^stats_whale/.test((await late.eval(rows))[0] || ''));
+    check('events: a page opened later gets the list from the relay at once', (await late.eval(rows)).some((r) => /^stats_whale/.test(r)));
     await late.close();
     await ev.shot('events-relay.png');
     await lb.shot('leaderboard-relay.png');
@@ -926,9 +959,13 @@ async function statsChecks(copy, webhookPort, privateKey) {
     const empty = await ev.eval(`({ rows: document.querySelectorAll('.ko-item').length, empty: (document.querySelector('.ko-empty') || {}).textContent || '' })`);
     check('events: a confirmed reset from the dock empties the list', empty.rows === 0 && empty.empty === 'No events yet', JSON.stringify(empty));
     check('leaderboard: the reset empties the board too', (await lb.eval(`(document.querySelector('.ko-empty') || {}).textContent || ''`)) === 'No one yet');
-    check('stats overlays: no unexpected errors', [ev, lb, dock].every((p) => unexpected(p.logs).length === 0), short([ev, lb, dock].flatMap((p) => unexpected(p.logs))));
+    check('kicks-bar: the reset takes the bar back to 0', (await kb.eval(`document.getElementById('cur').textContent`)) === '0');
+    check('sub-train: the reset ends the train', await trn.eval(`document.getElementById('bar').classList.contains('is-idle')`));
+    check('stats overlays: no unexpected errors', [ev, lb, kb, trn, dock].every((p) => unexpected(p.logs).length === 0), short([ev, lb, kb, trn, dock].flatMap((p) => unexpected(p.logs))));
   } finally {
     await dock.close();
+    await trn.close();
+    await kb.close();
     await lb.close();
     await ev.close();
   }

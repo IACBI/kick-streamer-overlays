@@ -50,10 +50,8 @@
   const FINE = { ok: 1, manual: 1, 'no-data': 1, 'no-channel': 1 };
 
   $('lbl').textContent = K.label(S, 'Abone', 'Subscriber');
-  $('goal').textContent = K.fmt(GOAL);
-
   const bar = K.createGoalBar({
-    bar: $('bar'), fill: $('fill'), val: $('val'), pct: $('pct'), delta: $('delta')
+    bar: $('bar'), fill: $('fill'), val: $('val'), pct: $('pct'), delta: $('delta'), goal: $('goal')
   }, GOAL, S);
 
   // total is null until the first real value; the note then says Kick could not be reached, not "last value".
