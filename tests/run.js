@@ -2773,15 +2773,33 @@ async function testThemesAndPages() {
     ok(hrefs.includes('shared/themes.css'), 'shared/themes.css link missing');
     ok(srcs.includes('shared/kick-core.js'), 'shared/kick-core.js script missing');
   });
-  await check('studio texts: Turkish and English have the same keys, and every key used in the page exists', () => {
+  await check('studio texts: every language file has the English keys, slots and labels, and every key used in the page exists', () => {
     const html = pageHtml(STUDIO_PAGE);
-    const start = html.indexOf('var I18N = ');
-    const end = html.indexOf('// Enum labels per language');
-    ok(start > 0 && end > start, 'I18N table not found');
-    const I18N = new vm.Script('(' + html.slice(start + 11, end).trim().replace(/;\s*$/, '') + ')').runInNewContext({});
-    const tr = Object.keys(I18N.tr), en = Object.keys(I18N.en);
-    eq(tr.filter((k) => !en.includes(k)), [], 'keys only in tr');
-    eq(en.filter((k) => !tr.includes(k)), [], 'keys only in en');
+    const g = {};
+    LANGS.forEach((l) => {
+      const f = path.join(ROOT, 'shared', 'lang', 'studio', l + '.js');
+      ok(html.includes('<script src="shared/lang/studio/' + l + '.js"></script>'), 'studio does not load ' + l);
+      vm.runInNewContext(fs.readFileSync(f, 'utf8'), g, { filename: f });
+    });
+    const P = g.KICK_STUDIO_LANG;
+    const en = Object.keys(P.en.ui);
+    const tr = en;
+    const I18N = { tr: P.tr.ui, en: P.en.ui };
+    const { K } = loadCore();
+    LANGS.forEach((l) => {
+      const keys = Object.keys(P[l].ui);
+      eq(keys.filter((k) => !en.includes(k)), [], 'keys only in ' + l);
+      eq(en.filter((k) => !keys.includes(k)), [], 'keys missing in ' + l);
+      en.forEach((k) => {
+        const v = P[l].ui[k];
+        ok(typeof v === 'string' && v.trim() !== '', 'empty text: ' + l + '.' + k);
+        eq([...slots(v)].sort(), [...slots(P.en.ui[k])].sort(), 'slots of ' + l + '.' + k);
+      });
+      Object.keys(P.en.labels).forEach((name) => K.enums(name).forEach((v) =>
+        ok(typeof P[l].labels[name][v] === 'string' && P[l].labels[name][v].trim(), 'label ' + l + '.' + name + '.' + v)));
+      eq(P[l].labels.dil, P.en.labels.dil, l + ': language names are the same in every file');
+    });
+    eq([...html.matchAll(/data-lang="(\w+)"/g)].map((m) => m[1]), LANGS, 'language buttons');
     const used = new Set();
     for (const m of html.matchAll(/data-i18n(?:-ph|-aria)?="([^"]+)"/g)) used.add(m[1]);
     for (const m of html.matchAll(/\bt\('([^']+)'/g)) used.add(m[1]);
