@@ -85,7 +85,7 @@ The pack covers the widgets streamers usually add from other tools.
 
 **Done when:** each new overlay has a preview mode, a studio tab and e2e coverage, like the existing ones.
 
-**Status (2026-11-04):** the recent events list, both leaderboards, the plain-text labels, the Kicks goal bar, the sub train and goal auto-step are done, fed by stream stats the relay keeps.
+**Status (2026-11-04):** the recent events list, both leaderboards, the plain-text labels, the Kicks goal bar, the sub train and goal auto-step are done, fed by stream stats the relay keeps. Custom CSS, larger emote-only messages and the horizontal chat are done; chat already used Kick's name colors. 7TV emotes wait until 7TV's public API is confirmed to support Kick channels.
 
 ## v3.0 — International
 

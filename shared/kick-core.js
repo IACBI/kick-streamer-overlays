@@ -43,6 +43,8 @@
     sohbetKomutGizle:  { t: 'bool', d: false },
     sohbetGizliKullanicilar: { t: 'str', d: '', max: 300 },
     sohbetSilinmeSn:   { t: 'int', d: 0, min: 0, max: 600 },
+    sohbetYatay:       { t: 'bool', d: false },
+    ozelCss:           { t: 'css', d: '', max: 2000 },
     hataNotu:          { t: 'bool', d: true },
     bilgiBaslik:       { t: 'bool', d: false },
     hedefKutlama:      { t: 'bool', d: true },
@@ -75,7 +77,7 @@
     subscriberCount: 'aboneSayisi', showSessionGain: 'oturumFarkiGoster', showPercent: 'yuzdeGoster',
     goalCelebration: 'hedefKutlama', statusNote: 'hataNotu', infoShowTitle: 'bilgiBaslik', refreshSeconds: 'yenilemeSn',
     chatMaxMessages: 'sohbetMaksMesaj', chatHideCommands: 'sohbetKomutGizle', chatHiddenUsers: 'sohbetGizliKullanicilar',
-    chatFadeSeconds: 'sohbetSilinmeSn',
+    chatFadeSeconds: 'sohbetSilinmeSn', chatHorizontal: 'sohbetYatay', customCss: 'ozelCss',
     countdownMinutes: 'geriSayimDk', countdownTime: 'geriSayimSaat', countdownTitle: 'geriSayimBaslik',
     announcements: 'duyuruMetinleri', announcementSeconds: 'duyuruSn',
     alertSeconds: 'uyariSn', alertFollows: 'uyariTakip', alertSubs: 'uyariAbone', alertGifts: 'uyariHediye',
@@ -105,6 +107,15 @@
     if (typeof v !== 'string') return d;
     var s = v.trim();
     return s.length > max ? s.slice(0, max) : s;
+  }
+  // Custom CSS (ozelCss) can come from a link, so it may only restyle the page: anything that could load a file or
+  // a font from elsewhere, or hide such a load behind an escape, rejects the whole value. Comments are removed first,
+  // so "u/**/rl(" cannot slip through. Too long is rejected too, since half a stylesheet would break the look.
+  var CSS_BLOCKED = /@import|@namespace|@font-face|url\s*\(|image-set|\bsrc\s*\(|expression\s*\(|javascript:|behavior\s*:|-moz-binding|\\|</i;
+  function asCss(v, d, max) {
+    if (typeof v !== 'string') return d;
+    var s = v.replace(/\/\*[\s\S]*?\*\//g, ' ').trim();
+    return s.length > max || CSS_BLOCKED.test(s) ? d : s;
   }
   function asEnum(v, list, d) {
     var s = typeof v === 'string' ? v.trim().toLowerCase() : '';
@@ -146,6 +157,7 @@
   function coerce(spec, v) {
     switch (spec.t) {
       case 'str': return asStr(v, spec.d, spec.max || 200);
+      case 'css': return asCss(v, spec.d, spec.max);
       case 'enum': return asEnum(v, ENUMS[spec.key], spec.d);
       case 'hex': return asHex(v, spec.d);
       case 'int': return asInt(v, spec.min, spec.max, spec.d);
@@ -360,6 +372,22 @@
     root.style.setProperty('--chip-bg', s.renk);
     root.style.setProperty('--chip-fill', cbg === rgb ? s.renk : 'rgb(' + cbg.join(' ') + ')');
     root.style.setProperty('--chip-text', ct);
+    // The page's own look only: the studio passes its preview root as el and keeps its UI free of custom CSS.
+    if (!el || el === global.document.body) customCss(s.ozelCss);
+  }
+
+  // One <style> at the end of <head>, so custom rules win over themes.css. Set as text: never parsed as markup.
+  function customCss(css) {
+    var doc = global.document;
+    if (!doc || !doc.head) return;
+    var st = doc.getElementById('ko-custom-css');
+    if (!css) { if (st) st.parentNode.removeChild(st); return; }
+    if (!st) {
+      st = doc.createElement('style');
+      st.id = 'ko-custom-css';
+      doc.head.appendChild(st);
+    }
+    if (st.textContent !== css) st.textContent = css;
   }
 
   function reducedMotion() {

@@ -39,7 +39,8 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 - A session gain next to the subscriber count, such as "+3 this stream". It survives an OBS refresh for 12 hours
 - Goal bars pulse at 25, 50 and 75 %, and show a goal-reached state at 100 % (`hedefKutlama`). With `hedefArtis` a reached goal moves up by a set step instead
 - A countdown to a length in minutes or to a clock time (`geriSayimSaat`), and an announcement bar that rotates your lines. Both work without any Kick data
-- Chat filters: hide `!` commands and named users such as bots, and fade messages out after a set time
+- Chat filters: hide `!` commands and named users such as bots, and fade messages out after a set time. A message of emotes alone shows them larger, and `sohbetYatay` puts the chat in one row for a strip along the screen edge
+- Custom CSS for every overlay (`ozelCss`), checked so it can only restyle the page and never load anything from elsewhere
 - An info panel with viewers, uptime, peak viewers and, optionally, the stream title (`bilgiBaslik`). With the relay it switches the moment the stream starts or ends
 - An alerts overlay for new followers, new and renewed subscriptions, gifted subscriptions, Kicks and channel point rewards. One card at a time; during a raid the queue keeps at most 25 and drops the oldest follows first. Each alert type can be turned off. Each type plays its own short sound, and your own sound and image or video can replace it
 - A Kicks goal bar and a sub train (subscriptions in a row, with the time left to keep it going) for the current stream
@@ -232,6 +233,7 @@ Every setting lives in `AYARLAR.js`, and the studio writes the same settings int
 | `dil` | `language` | `tr` · `en` · `both` | `both` |
 | `animasyon` | `motion` | `normal` · `low` · `off` | `normal` |
 | `renk` | `accent` | Accent color, hex (e.g. `#53fc18`) | `#53fc18` |
+| `ozelCss` | `customCss` | Custom CSS applied over the theme on every overlay, up to 2000 characters. A value with `url(`, `@import`, `@font-face`, `image-set` or a backslash is ignored as a whole | *(empty)* |
 | `yayinciYazisi` | `streamerLabel` | Label next to your name in chat (chat only) | `Streamer` |
 | `takipciHedefi` | `followerGoal` | Follower goal | `1000` |
 | `takipciYedek` | `followerFallback` | Follower count shown when Kick cannot be reached | `0` |
@@ -247,6 +249,7 @@ Every setting lives in `AYARLAR.js`, and the studio writes the same settings int
 | `sohbetKomutGizle` | `chatHideCommands` | Hide chat messages that start with `!` | `false` |
 | `sohbetGizliKullanicilar` | `chatHiddenUsers` | Usernames hidden from chat, comma-separated, not case-sensitive (up to 300 characters) | *(empty)* |
 | `sohbetSilinmeSn` | `chatFadeSeconds` | Seconds before a chat message fades out (0–600). `0` keeps it until newer messages push it out | `0` |
+| `sohbetYatay` | `chatHorizontal` | Chat in one horizontal row, newest on the right, for a strip such as a 1280 × 80 source | `false` |
 | `geriSayimDk` | `countdownMinutes` | Countdown length in minutes (1–720) | `5` |
 | `geriSayimSaat` | `countdownTime` | Countdown target as a 24-hour clock time, `HH:MM` (e.g. `20:30`). Overrides `geriSayimDk`; if the time has already passed today, it counts to tomorrow | *(empty)* |
 | `geriSayimBaslik` | `countdownTitle` | Countdown title. Empty shows "Starting soon" in your label language | *(empty)* |
@@ -354,7 +357,8 @@ Without the relay, the subscriber bars request and renew their own access token 
 - Abone sayısının yanında "bu yayında +3" gibi yayın içi artış. OBS'te kaynağı yenilesen de 12 saat boyunca korunur
 - Hedef çubukları yüzde 25, 50 ve 75'te nabız atar, yüzde 100'de "hedefe ulaşıldı" durumuna geçer (`hedefKutlama`). `hedefArtis` ile ulaşılan hedef belirlenen adım kadar yükselir
 - Dakika cinsinden ya da saat olarak (`geriSayimSaat`) geri sayım ve satırlarını döndüren duyuru çubuğu. İkisi de Kick verisi olmadan çalışır
-- Sohbet filtreleri: `!` ile başlayan komutları ve bot gibi adı verilen kullanıcıları gizle, mesajları belli bir süre sonra soluklaştır
+- Sohbet filtreleri: `!` ile başlayan komutları ve bot gibi adı verilen kullanıcıları gizle, mesajları belli bir süre sonra soluklaştır. Yalnızca emote'tan oluşan mesajda emote'lar büyük görünür; `sohbetYatay` sohbeti ekran kenarındaki bir şerit için tek satıra dizer
+- Tüm overlay'ler için özel CSS (`ozelCss`): yalnızca görünümü değiştirebilir, dışarıdan hiçbir şey yükleyemez
 - İzleyici, yayın süresi, en yüksek izleyici sayısı ve istersen yayın başlığını (`bilgiBaslik`) gösteren bir yayın paneli. Relay açıksa yayın başlar başlamaz ya da biter bitmez değişir
 - Yeni takipçi, yeni ve yenilenen abonelik, hediye abonelik, Kicks ve kanal puanı ödülleri için bildirim overlay'i. Kartlar tek tek gelir; raid sırasında sırada en çok 25 bildirim tutulur ve önce en eski takip bildirimleri atılır. Her bildirim türü ayrı ayrı kapatılabilir. Her tür kendi kısa sesini çalar; yerine kendi sesini ve görselini ya da videonu koyabilirsin
 - O yayın için Kicks hedef çubuğu ve abone treni (art arda gelen abonelikler ve treni sürdürmek için kalan süre)
@@ -547,6 +551,7 @@ Tüm ayarlar `AYARLAR.js` içindedir; stüdyo aynı ayarları verdiği bağlant�
 | `dil` | `language` | `tr` · `en` · `both` | `both` |
 | `animasyon` | `motion` | `normal` · `low` · `off` | `normal` |
 | `renk` | `accent` | Vurgu rengi, hex (ör. `#53fc18`) | `#53fc18` |
+| `ozelCss` | `customCss` | Her overlay'de temanın üzerine uygulanan özel CSS, en çok 2000 karakter. `url(`, `@import`, `@font-face`, `image-set` ya da ters eğik çizgi içeren değer tümüyle yok sayılır | *(boş)* |
 | `yayinciYazisi` | `streamerLabel` | Sohbette senin adının yanındaki etiket (yalnızca sohbet) | `Streamer` |
 | `takipciHedefi` | `followerGoal` | Takipçi hedefi | `1000` |
 | `takipciYedek` | `followerFallback` | Kick'e ulaşılamadığında gösterilecek takipçi sayısı | `0` |
@@ -562,6 +567,7 @@ Tüm ayarlar `AYARLAR.js` içindedir; stüdyo aynı ayarları verdiği bağlant�
 | `sohbetKomutGizle` | `chatHideCommands` | `!` ile başlayan sohbet mesajlarını gizle | `false` |
 | `sohbetGizliKullanicilar` | `chatHiddenUsers` | Sohbetten gizlenecek kullanıcı adları, virgülle ayrılmış, büyük/küçük harf duyarsız (en çok 300 karakter) | *(boş)* |
 | `sohbetSilinmeSn` | `chatFadeSeconds` | Bir sohbet mesajının soluklaşmadan önceki süresi, saniye (0–600). `0` yeni mesajlar itene kadar bırakır | `0` |
+| `sohbetYatay` | `chatHorizontal` | Sohbeti tek yatay satıra dizer, en yenisi sağda; örneğin 1280 × 80 boyutunda bir şerit için | `false` |
 | `geriSayimDk` | `countdownMinutes` | Geri sayım süresi, dakika (1–720) | `5` |
 | `geriSayimSaat` | `countdownTime` | Geri sayımın hedef saati, 24 saatlik `SS:DD` (ör. `20:30`). `geriSayimDk`'nın yerine geçer; saat bugün geçtiyse yarına sayar | *(boş)* |
 | `geriSayimBaslik` | `countdownTitle` | Geri sayım başlığı. Boşsa etiket dilinde "Birazdan başlıyoruz" yazar | *(boş)* |

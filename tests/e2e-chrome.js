@@ -303,6 +303,23 @@ async function offlineChecks() {
   await trn.shot('sub-train.png');
   await trn.close();
 
+  const row = await openPage('chat.html', '?onizleme=1&sohbetYatay=1', [1280, 80]);
+  await sleep(6000);
+  const rowInfo = await row.eval(`(() => { const m = Array.from(document.querySelectorAll('.ko-msg:not(.is-leaving)')); const tops = new Set(m.map((x) => Math.round(x.getBoundingClientRect().top))); return { cls: document.body.classList.contains('chat-row'), n: m.length, rows: tops.size, newestRight: m.length > 1 && m[m.length - 1].getBoundingClientRect().left > m[0].getBoundingClientRect().left }; })()`);
+  check('chat: sohbetYatay lays the messages out in one row, newest on the right', rowInfo.cls && rowInfo.n >= 2 && rowInfo.rows === 1 && rowInfo.newestRight, JSON.stringify(rowInfo));
+  check('chat: horizontal layout has no unexpected errors', unexpected(row.logs).length === 0, short(unexpected(row.logs)));
+  await row.shot('chat-row.png');
+  await row.close();
+
+  const cssOk = await openPage('follower-bar.html', '?onizleme=1&ozelCss=' + encodeURIComponent('.ko-label { letter-spacing: 7px; }'), [520, 90]);
+  await sleep(800);
+  check('ozelCss: a plain custom rule is applied over the theme', (await cssOk.eval(`getComputedStyle(document.querySelector('.ko-label')).letterSpacing`)) === '7px');
+  await cssOk.close();
+  const cssBad = await openPage('follower-bar.html', '?onizleme=1&ozelCss=' + encodeURIComponent('.ko-label { letter-spacing: 7px; background: url(https://evil.example/x.png); }'), [520, 90]);
+  await sleep(800);
+  check('ozelCss: a value that loads from elsewhere is ignored as a whole', (await cssBad.eval(`!document.getElementById('ko-custom-css') && getComputedStyle(document.querySelector('.ko-label')).letterSpacing !== '7px'`)) === true);
+  await cssBad.close();
+
   const ch = await openPage('chat.html', '', [460, 760]);
   await sleep(5000);
   const chInfo = await ch.eval(`({ msgs: document.querySelectorAll('.ko-msg:not(.is-leaving)').length })`);
@@ -315,7 +332,7 @@ async function offlineChecks() {
   const st = await openPage('studio.html', '', [1280, 900]);
   await sleep(2500);
   const stInfo = await st.eval(`({
-    settings: (document.querySelector('textarea') || {}).value || '',
+    settings: (document.getElementById('cikti') || {}).value || '',
     themeHits: Array.from(document.querySelectorAll('button,label,[role=radio],[role=button]')).filter((e) => /neon/i.test(e.textContent)).length
   })`);
   check('studio: generated settings file contains KICK_OVERLAY_AYARLAR', /KICK_OVERLAY_AYARLAR/.test(stInfo.settings));

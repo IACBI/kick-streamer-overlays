@@ -39,7 +39,8 @@ const DEFAULTS = {
   hataNotu: true, hedefKutlama: true, bilgiBaslik: false,
   uyariSn: 6, uyariTakip: true, uyariAbone: true, uyariHediye: true, uyariKicks: true, uyariOdul: true,
   uyariSes: true, uyariSesSeviye: 60, uyariOdulGizle: '', uyariTts: false, uyariTtsUzunluk: 120, uyariTtsYasak: '',
-  olaySayisi: 5, liderTur: 'gift', liderSayisi: 5, hedefArtis: 0, kicksHedefi: 1000, trenSn: 120
+  olaySayisi: 5, liderTur: 'gift', liderSayisi: 5, hedefArtis: 0, kicksHedefi: 1000, trenSn: 120,
+  sohbetYatay: false, ozelCss: ''
 };
 const RELAY = 'http://127.0.0.1:8790';
 
@@ -495,6 +496,26 @@ async function testReadSettings() {
     eq(p.subTimes.length, 1, 'sub times');
     const many = K.parseStats({ recent: Array.from({ length: 40 }, (_, i) => ({ kind: 'follow', name: 'u' + i, at: i })) });
     eq(many.recent.length, 20, 'recent capped');
+  });
+
+  await check('ozelCss: plain rules pass; anything that can load from elsewhere rejects the whole value', () => {
+    const { K } = loadCore();
+    const css = (v) => K.normalize({ customCss: v }).ozelCss;
+    eq(css('  .ko-label { letter-spacing: 2px; } /* note */ '), '.ko-label { letter-spacing: 2px; }', 'plain rule kept, comment dropped');
+    eq(css('.ko-bar{background:linear-gradient(#000,#111)}'), '.ko-bar{background:linear-gradient(#000,#111)}', 'gradients are fine');
+    for (const bad of [
+      '.a{background:url(https://evil.example/x.png)}', '.a{background:URL ( //evil.example/x )}', '@import "https://evil.example/x.css";',
+      '@font-face{font-family:x}', '.a{background-image:image-set("https://evil.example/a.png" 1x)}', '.a{background:-webkit-image-set("x" 1x)}',
+      '.a{content:"\\75 rl(x)"}', '.a{background:url/**/(x)}', '.a{x:expression(alert(1))}', '@namespace x url(y);',
+      '</style><script>', '.a{behavior:url(x.htc)}', 'x'.repeat(2001)
+    ]) eq(css(bad), '', 'rejected: ' + bad.slice(0, 40));
+    eq(css(42), '', 'not a string');
+  });
+
+  await check('sohbetYatay: off by default, alias chatHorizontal', () => {
+    const { K } = loadCore();
+    eq(K.normalize({}).sohbetYatay, false, 'default');
+    eq(K.normalize({ chatHorizontal: 'on' }).sohbetYatay, true, 'alias');
   });
 
   await check('stepGoal: off at 0; a reached goal rises by whole steps past the total', () => {
