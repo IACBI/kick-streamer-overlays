@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-11-03
+
 ### Added
 
 - Text-to-speech for Kicks and reward messages, off by default: `uyariTts` (`alertTts`), a length limit `uyariTtsUzunluk` (`alertTtsMaxLength`, 20–200, default 120) and blocked words `uyariTtsYasak` (`alertTtsBlockedWords`): a message with one of them is not read at all, and links are never read. The card stays until the reading is likely done; **Skip** in the dock stops it. Checked in OBS 33 on Windows: its browser has the system voices (Turkish and English) and speaks. The speech plays on the computer's default output, not through the OBS source.
