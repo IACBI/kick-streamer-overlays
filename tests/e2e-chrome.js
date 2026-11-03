@@ -39,7 +39,7 @@ const CHROME = process.env.CHROME_PATH || [
 // Errors caused by the sandbox, not by the pack: the optional local file and offline fonts.
 // Optional badge art in badges/ is requested first and falls back to a drawn symbol when missing.
 // K.relayInfo probes the default relay's /health once per page; with no relay running that is a refused connection.
-const BENIGN = [/AYARLAR\.local\.js/, /AYARLAR\.relay\.js/, /fonts\.(googleapis|gstatic)\.com/, /127\.0\.0\.1:8790\/health\b/, /badges\/[\w.-]+\.(svg|png|webp|gif|jpe?g)/, /alerts\/(follow|sub|gift|kicks|reward)\.(mp3|ogg|wav|webm|png|gif|webp)/];
+const BENIGN = [/AYARLAR\.local\.js/, /AYARLAR\.relay\.js/, /fonts\.(googleapis|gstatic)\.com/, /api\.github\.com\/repos\/IACBI\/kick-streamer-overlays\/releases\/latest/, /127\.0\.0\.1:8790\/health\b/, /badges\/[\w.-]+\.(svg|png|webp|gif|jpe?g)/, /alerts\/(follow|sub|gift|kicks|reward)\.(mp3|ogg|wav|webm|png|gif|webp)/];
 
 const results = [];
 function check(name, ok, detail) {
@@ -310,6 +310,18 @@ async function offlineChecks() {
     obs.count === 8 && obs.files.includes('chat.html') && obs.files.includes('alerts.html') && obs.local && obs.hidden === 2 && obs.audio.join() === 'alerts.html', JSON.stringify(obs));
   check('studio: no unexpected errors', unexpected(st.logs).length === 0, short(unexpected(st.logs)));
   await st.shot('studio.png');
+  // The new-version notice, fed from the daily cache so the check needs no network: a newer tag shows it,
+  // the running version does not.
+  const notice = async (tag) => {
+    await st.eval(`localStorage.setItem('kickOverlayStudio.surum', JSON.stringify({ tag: ${JSON.stringify(tag)}, at: Date.now() })); location.reload()`);
+    await sleep(2000);
+    return st.eval(`({ hidden: document.getElementById('guncelleme').hidden, text: document.getElementById('guncelleme-metin').textContent, href: document.getElementById('guncelleme-link').href })`);
+  };
+  const up = await notice('v99.0.0');
+  check('studio: a newer release shows the update notice with the fixed releases link', up.hidden === false && /99\.0\.0/.test(up.text) && up.href === 'https://github.com/IACBI/kick-streamer-overlays/releases/latest', JSON.stringify(up));
+  const same = await notice('v' + require('../package.json').version);
+  check('studio: the running version shows no update notice', same.hidden === true, JSON.stringify(same));
+  await st.eval(`localStorage.removeItem('kickOverlayStudio.surum')`);
 
   // Studio behaviour: links, tabs, presets, language, reset.
   const urlOf = (id) => `document.querySelector('[data-url="${id}"]').value`;

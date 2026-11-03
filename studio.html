@@ -455,6 +455,8 @@
   </div>
 </div>
 
+<p class="st-warnline st-warnbox" id="guncelleme" role="status" hidden><span id="guncelleme-metin"></span> <a id="guncelleme-link" href="https://github.com/IACBI/kick-streamer-overlays/releases/latest" target="_blank" rel="noopener noreferrer" data-i18n="update.link"></a></p>
+
 <ol class="st-how" data-i18n-aria="how.aria">
   <li><b>1</b><span data-i18n="how.1"></span></li>
   <li><b>2</b><span data-i18n="how.2"></span></li>
@@ -862,6 +864,8 @@
     tr: {
       'skip': 'İçeriğe geç',
       'brand.title': 'Kick Overlay Stüdyo',
+      'update.text': 'Yeni sürüm var: {latest} (sende {current}).',
+      'update.link': 'Sürüm notları ve indirme',
       'brand.lead': 'Görünümü seç, önizle, bağlantıyı kopyala ve OBS’e yapıştır.',
       'lang.aria': 'Dil',
       'how.1': 'Kanalını ve görünümü seç',
@@ -1086,6 +1090,8 @@
     en: {
       'skip': 'Skip to content',
       'brand.title': 'Kick Overlay Studio',
+      'update.text': 'A new version is out: {latest} (you have {current}).',
+      'update.link': 'Release notes and download',
       'brand.lead': 'Pick a look, preview it, copy the link and paste it into OBS.',
       'lang.aria': 'Language',
       'how.1': 'Choose your channel and look',
@@ -2384,6 +2390,50 @@
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fitPreview).observe(stage);
   }
 
+  // ---- New version notice -----------------------------------------------------
+
+  // One request to GitHub's public API a day at most; the answer is cached here. Only a version number is read
+  // from it, and the link is fixed, so nothing in the response can steer the page.
+  var UPDATE_KEY = 'kickOverlayStudio.surum';
+  var UPDATE_EVERY_MS = 24 * 60 * 60 * 1000;
+  var UPDATE_URL = 'https://api.github.com/repos/IACBI/kick-streamer-overlays/releases/latest';
+  var SEMVER = /^v?(\d{1,4})\.(\d{1,4})\.(\d{1,4})$/;
+
+  function newer(a, b) {
+    var x = SEMVER.exec(a), y = SEMVER.exec(b);
+    if (!x || !y) return false;
+    for (var i = 1; i <= 3; i++) if (Number(x[i]) !== Number(y[i])) return Number(x[i]) > Number(y[i]);
+    return false;
+  }
+
+  function showUpdate(latest) {
+    if (!newer(latest, K.version)) return;
+    $('guncelleme-metin').textContent = t('update.text', { latest: latest.replace(/^v/, ''), current: K.version });
+    $('guncelleme').hidden = false;
+  }
+
+  async function checkUpdate() {
+    if (!/^https?:|^file:/.test(window.location.protocol)) return;
+    var cached = null;
+    try { cached = JSON.parse(localStorage.getItem(UPDATE_KEY) || 'null'); } catch (e) { cached = null; }
+    if (cached && typeof cached.tag === 'string' && Date.now() - Number(cached.at) < UPDATE_EVERY_MS) { showUpdate(cached.tag); return; }
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 5000);
+    try {
+      var res = await fetch(UPDATE_URL, { signal: ctl.signal, cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', headers: { Accept: 'application/vnd.github+json' } });
+      if (!res.ok) return;
+      var data = await res.json();
+      var tag = data && typeof data.tag_name === 'string' && SEMVER.test(data.tag_name) ? data.tag_name : '';
+      if (!tag) return;
+      try { localStorage.setItem(UPDATE_KEY, JSON.stringify({ tag: tag, at: Date.now() })); } catch (e) { /* optional */ }
+      showUpdate(tag);
+    } catch (e) {
+      // Offline or rate-limited: no notice, try again next time.
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // ---- Init -----------------------------------------------------------------
 
   loadUi();
@@ -2399,6 +2449,7 @@
   selectTab(activeId, false);
   update();
   fitPreview();
+  checkUpdate();
 })();
 </script>
 </body>

@@ -45,6 +45,7 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 - Preview mode (`?onizleme=1`) with sample numbers and no network calls, and a status box with `?debug=1`
 - Studio in Turkish and English: live preview with a tab per overlay, quick looks, a copy-link button for each overlay or all of them, JSON export and import of the look (credentials are never included), the `AYARLAR.js` file as an alternative, a step-by-step relay check, and a connection test for your Kick app
 - Every setting also has an English name (`channel`, `theme`, `followerGoal` …), in `AYARLAR.js` and in links
+- The studio tells you when a newer release is out (one request to GitHub a day at most)
 - Built for OBS: animations use `transform` and `opacity`. Polls back off when Kick is slow or limits requests, pause while the page is hidden, and never overlap. Chat reconnects by itself, and no Kick data is ever inserted as HTML
 
 ### Requirements
@@ -330,6 +331,7 @@ Without the relay, the subscriber bars request and renew their own access token 
 - Önizleme modu (`?onizleme=1`): ağ çağrısı yapmadan örnek sayılar gösterir. `?debug=1` ile küçük bir durum kutusu açılır
 - Türkçe ve İngilizce stüdyo: her overlay için sekmeli canlı önizleme, hazır görünümler, her overlay için ya da hepsi için bağlantı kopyalama, görünümü JSON olarak dışa ve içe aktarma (kimlik bilgileri hiçbir zaman dahil edilmez), alternatif olarak `AYARLAR.js` dosyası, adım adım relay denetimi ve Kick uygulaman için bağlantı testi
 - Her ayarın İngilizce bir adı da var (`channel`, `theme`, `followerGoal` …); `AYARLAR.js` dosyasında da bağlantılarda da çalışır
+- Stüdyo yeni bir sürüm çıktığında haber verir (GitHub'a günde en fazla bir istek)
 - OBS için tasarlandı: animasyonlar `transform` ve `opacity` kullanır. Kick yavaşladığında ya da istek sınırı koyduğunda sorgular geri çekilir, sayfa gizliyken durur ve hiçbir zaman üst üste binmez. Sohbet kendiliğinden yeniden bağlanır; Kick verisi hiçbir zaman HTML olarak eklenmez
 
 ### Gereksinimler

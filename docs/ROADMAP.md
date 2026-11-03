@@ -48,8 +48,10 @@ Setting up all overlays in OBS takes one import instead of eight manual sources.
 
 - Studio export of an OBS scene collection JSON: one scene with every chosen overlay as a Browser source, at the right size and with the current link.
 - An OBS control dock (a page for **Docks → Custom Browser Docks**): test alerts, replay the last alert, pause alerts, change the countdown and announcement lines live.
-- Accept `settings.js` as an English-named alternative to `AYARLAR.js`.
+- ~~Accept `settings.js` as an English-named alternative to `AYARLAR.js`.~~ Dropped: every setting already has an English name inside `AYARLAR.js`, and a second optional file would make every overlay request a missing file on each load.
 - The studio checks the latest GitHub release and shows a notice when a newer version exists.
+
+**Status (2026-11-03):** scene collection export (checked by loading it in OBS 33 on Windows), the control dock and the update notice are done. Changing the countdown and announcement lines live from the dock is still open.
 
 **Done when:** a fresh OBS install gets every overlay from one import, tested on Windows OBS.
 
