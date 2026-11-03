@@ -37,7 +37,7 @@ const DEFAULTS = {
   yenilemeSn: 30, sohbetMaksMesaj: 8, geriSayimDk: 5, geriSayimBaslik: '', duyuruMetinleri: '', duyuruSn: 6,
   geriSayimSaat: '', sohbetKomutGizle: false, sohbetGizliKullanicilar: '', sohbetSilinmeSn: 0,
   hataNotu: true, hedefKutlama: true, bilgiBaslik: false,
-  uyariSn: 6, uyariTakip: true, uyariAbone: true, uyariHediye: true, uyariKicks: true,
+  uyariSn: 6, uyariTakip: true, uyariAbone: true, uyariHediye: true, uyariKicks: true, uyariOdul: true,
   uyariSes: true, uyariSesSeviye: 60
 };
 const RELAY = 'http://127.0.0.1:8790';
@@ -445,7 +445,7 @@ async function testReadSettings() {
     eq(on.art('follow'), null, 'no art without a file');
     // The test sandbox has no Web Audio, so the tone path reports it could not play.
     eq(on.play('follow'), 'blocked', 'no Web Audio');
-    eq(Object.keys(K.alertTones).sort(), ['follow', 'gift', 'kicks', 'sub'], 'one tone per alert kind');
+    eq(Object.keys(K.alertTones).sort(), ['follow', 'gift', 'kicks', 'reward', 'sub'], 'one tone per alert kind');
   });
 
   await check('readSettings: URL values are normalized like file values', () => {

@@ -50,6 +50,7 @@
     uyariAbone:        { t: 'bool', d: true },
     uyariHediye:       { t: 'bool', d: true },
     uyariKicks:        { t: 'bool', d: true },
+    uyariOdul:         { t: 'bool', d: true },
     uyariSes:          { t: 'bool', d: true },
     uyariSesSeviye:    { t: 'int', d: 60, min: 0, max: 100 }
   };
@@ -67,7 +68,7 @@
     countdownMinutes: 'geriSayimDk', countdownTime: 'geriSayimSaat', countdownTitle: 'geriSayimBaslik',
     announcements: 'duyuruMetinleri', announcementSeconds: 'duyuruSn',
     alertSeconds: 'uyariSn', alertFollows: 'uyariTakip', alertSubs: 'uyariAbone', alertGifts: 'uyariHediye',
-    alertKicks: 'uyariKicks', alertSound: 'uyariSes', alertVolume: 'uyariSesSeviye',
+    alertKicks: 'uyariKicks', alertRewards: 'uyariOdul', alertSound: 'uyariSes', alertVolume: 'uyariSesSeviye',
     relayAddress: 'relayAdresi'
   };
 
@@ -906,9 +907,10 @@
     follow: [[659.25, 0, 0.2], [880, 0.13, 0.42]],
     sub: [[523.25, 0, 0.16], [659.25, 0.1, 0.16], [783.99, 0.2, 0.18], [1046.5, 0.3, 0.5]],
     gift: [[1318.5, 0, 0.12], [1568, 0.07, 0.12], [1760, 0.14, 0.12], [2093, 0.21, 0.45]],
-    kicks: [[987.77, 0, 0.09], [1318.5, 0.08, 0.5]]
+    kicks: [[987.77, 0, 0.09], [1318.5, 0.08, 0.5]],
+    reward: [[783.99, 0, 0.14], [987.77, 0.11, 0.14], [1174.66, 0.22, 0.4]]
   };
-  var ALERT_WAVE = { follow: 'sine', sub: 'sine', gift: 'triangle', kicks: 'triangle' };
+  var ALERT_WAVE = { follow: 'sine', sub: 'sine', gift: 'triangle', kicks: 'triangle', reward: 'sine' };
   // Only fixed names in the local alerts/ folder are tried. Nothing is ever loaded from a URL in the settings,
   // so a link cannot make an overlay fetch remote content.
   var ALERT_SOUND_EXT = ['mp3', 'ogg', 'wav'];
@@ -1019,7 +1021,7 @@
 
   var ES_CLOSED = 2;
   // Event names the relay streams (relay/server.js). Each page acts on the kinds it shows and ignores the rest.
-  var RELAY_EVENTS = ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks', 'live', 'meta'];
+  var RELAY_EVENTS = ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks', 'reward', 'live', 'meta'];
 
   // Server-Sent Events: the relay sends chat, ban, alert and stream frames (RELAY_EVENTS) already in the overlay's shape.
   // h = { onMessage(event), onStatus(status) }. Status: 'connecting', 'open', 'reconnecting'.

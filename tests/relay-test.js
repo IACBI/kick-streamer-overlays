@@ -196,6 +196,18 @@ function statusOf(port, p, headers) {
       [0, -5, 1.5, 'lots', undefined].every((amount) => W.normalizeEvent('kicks.gifted', Object.assign({}, kf, { gift: Object.assign({}, kf.gift, { amount }) })) === null));
     const longMsg = W.normalizeEvent('kicks.gifted', Object.assign({}, kf, { gift: Object.assign({}, kf.gift, { message: 'y'.repeat(900), name: 'n'.repeat(90) }) }));
     check('alerts: a long Kicks message and gift name are capped', longMsg.message.length === 200 && longMsg.giftName.length === 40);
+    const rf = fixture('reward-redemption');
+    const reward = W.normalizeEvent('channel.reward.redemption.updated', rf);
+    check('rewards: a pending redemption carries the reward, cost, input and redemption id', eqJson(reward, { kind: 'reward', redemptionId: '01KBHE78QE4HZY1617DK5FC7YD', broadcasterId: '333', userId: '123', username: 'redeemer_name', title: 'Pick the next game', cost: 500, message: 'Play Valorant next', createdAt: '2025-12-02T22:54:19.323Z' }), JSON.stringify(reward));
+    check('rewards: accepted is shown, rejected and unknown statuses are not',
+      W.normalizeEvent('channel.reward.redemption.updated', Object.assign({}, rf, { status: 'accepted' })) !== null &&
+      ['rejected', 'canceled', undefined].every((status) => W.normalizeEvent('channel.reward.redemption.updated', Object.assign({}, rf, { status })) === null));
+    check('rewards: a missing redeemer, reward title or redemption id is rejected',
+      W.normalizeEvent('channel.reward.redemption.updated', Object.assign({}, rf, { redeemer: null })) === null &&
+      W.normalizeEvent('channel.reward.redemption.updated', Object.assign({}, rf, { reward: { cost: 5 } })) === null &&
+      W.normalizeEvent('channel.reward.redemption.updated', Object.assign({}, rf, { id: '' })) === null);
+    const longReward = W.normalizeEvent('channel.reward.redemption.updated', Object.assign({}, rf, { user_input: 'z'.repeat(900), reward: Object.assign({}, rf.reward, { title: 't'.repeat(90), cost: -3 }) }));
+    check('rewards: long text is capped and a bad cost becomes 0', longReward.message.length === 200 && longReward.title.length === 60 && longReward.cost === 0);
     check('alerts: a payload under the wrong type is rejected',
       W.normalizeEvent('channel.followed', fixture('subscription-new')) === null &&
       W.normalizeEvent('channel.subscription.new', fixture('channel-followed')) === null &&
@@ -204,7 +216,7 @@ function statusOf(port, p, headers) {
       W.normalizeEvent('channel.followed', { follower: 'bob' }) === null &&
       W.normalizeEvent('channel.followed', Object.assign(fixture('channel-followed'), { broadcaster: 5 })) === null &&
       W.normalizeEvent('channel.followed', { follower: { username: '   ' } }) === null);
-    check('EVENT_TYPES lists chat, bans, the five alert events and the two stream events, each once', W.EVENT_TYPES.length === 9 && new Set(W.EVENT_TYPES).size === 9 && W.EVENT_TYPES.includes('kicks.gifted') && W.EVENT_TYPES.includes('livestream.status.updated') && W.EVENT_TYPES.includes('livestream.metadata.updated'));
+    check('EVENT_TYPES lists chat, bans, the six alert events and the two stream events, each once', W.EVENT_TYPES.length === 10 && new Set(W.EVENT_TYPES).size === 10 && W.EVENT_TYPES.includes('kicks.gifted') && W.EVENT_TYPES.includes('channel.reward.redemption.updated') && W.EVENT_TYPES.includes('livestream.status.updated') && W.EVENT_TYPES.includes('livestream.metadata.updated'));
 
     const { subscribedEvents, subscriptionBody, EVENTS } = require(path.join(__dirname, '..', 'relay', 'subscribe.js'));
     const subBody = subscriptionBody([{ name: 'chat.message.sent', version: 1 }], '113812015');
@@ -284,7 +296,7 @@ function statusOf(port, p, headers) {
   check('a signed ban reaches the overlay stream', banRes.status === 200 && stream.frames.some((f) => f.event === 'ban' && f.data.username === 'spambot'));
 
   const unknown = JSON.stringify({ foo: 1 });
-  const unk = await post(webhookPort, { id: 'x-1', ts, body: unknown, sig: sign('x-1', ts, unknown, privateKey), type: 'channel.reward.redemption.updated' });
+  const unk = await post(webhookPort, { id: 'x-1', ts, body: unknown, sig: sign('x-1', ts, unknown, privateKey), type: 'channel.poll.started' });
   await sleep(100);
   check('an event type the overlays do not show is acknowledged and not streamed', unk.status === 200 && !stream.frames.some((f) => f.data.id === 'x-1'));
 
@@ -313,6 +325,16 @@ function statusOf(port, p, headers) {
   await post(webhookPort, { id: 'al-other', ts, body: otherFollow, sig: sign('al-other', ts, otherFollow, privateKey), type: 'channel.followed' });
   await sleep(100);
   check('an alert for another broadcaster is not shown', !stream.frames.some((f) => f.data.id === 'al-other'));
+
+  // Rewards: Kick sends the redemption again when it is accepted; the overlay must see one alert, not two.
+  for (const [id, status] of [['rw-1', 'pending'], ['rw-2', 'accepted'], ['rw-3', 'rejected']]) {
+    const b = JSON.stringify(Object.assign(fixture('reward-redemption'), { status, broadcaster: { user_id: 113812015 } }));
+    await post(webhookPort, { id, ts, body: b, sig: sign(id, ts, b, privateKey), type: 'channel.reward.redemption.updated' });
+  }
+  await sleep(150);
+  const rw = stream.frames.filter((f) => f.event === 'reward');
+  check('a reward redemption streams under one id for pending and accepted; rejected is not streamed',
+    rw.length === 2 && rw.every((f) => f.data.id === 'reward-01KBHE78QE4HZY1617DK5FC7YD') && rw[0].data.title === 'Pick the next game', JSON.stringify(rw.map((f) => f.data.id)));
 
   // Stream events: a signed start and a title change reach the stream as live and meta frames.
   for (const [file, type, id] of [

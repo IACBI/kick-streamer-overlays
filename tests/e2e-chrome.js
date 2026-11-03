@@ -39,7 +39,7 @@ const CHROME = process.env.CHROME_PATH || [
 // Errors caused by the sandbox, not by the pack: the optional local file and offline fonts.
 // Optional badge art in badges/ is requested first and falls back to a drawn symbol when missing.
 // K.relayInfo probes the default relay's /health once per page; with no relay running that is a refused connection.
-const BENIGN = [/AYARLAR\.local\.js/, /AYARLAR\.relay\.js/, /fonts\.(googleapis|gstatic)\.com/, /127\.0\.0\.1:8790\/health\b/, /badges\/[\w.-]+\.(svg|png|webp|gif|jpe?g)/, /alerts\/(follow|sub|gift|kicks)\.(mp3|ogg|wav|webm|png|gif|webp)/];
+const BENIGN = [/AYARLAR\.local\.js/, /AYARLAR\.relay\.js/, /fonts\.(googleapis|gstatic)\.com/, /127\.0\.0\.1:8790\/health\b/, /badges\/[\w.-]+\.(svg|png|webp|gif|jpe?g)/, /alerts\/(follow|sub|gift|kicks|reward)\.(mp3|ogg|wav|webm|png|gif|webp)/];
 
 const results = [];
 function check(name, ok, detail) {
