@@ -18,6 +18,7 @@ const { HEADER, verifySignature, isFresh, ReplayGuard, TokenBucket, normalizeEve
 const { loadConfig, fetchTimeout, loadRelayKey, parsePort } = require('./config.js');
 const { createKickApi, retryAfterSec } = require('./kick-api.js');
 const { createLogger } = require('./log.js');
+const { startTunnel, cloudflaredPath } = require('./tunnel.js');
 
 const { version: VERSION } = require('../package.json');
 const KEY_TTL_MS = 60 * 60 * 1000;
@@ -184,6 +185,23 @@ function createRelay(opts) {
     logger: console,
     now: () => Date.now()
   }, opts || {});
+
+  // The last few warnings and errors, for the studio's relay check. Messages are the relay's own log lines,
+  // which never contain secrets (see log.js).
+  const RECENT_MAX = 10;
+  const recentErrors = [];
+  const baseLogger = o.logger;
+  o.logger = Object.assign({}, baseLogger, {
+    warn: (...a) => { remember('warn', a); baseLogger.warn(...a); },
+    error: (...a) => { remember('error', a); baseLogger.error(...a); }
+  });
+  function remember(level, args) {
+    const msg = args.map((x) => (typeof x === 'string' ? x : x && x.message ? x.message : String(x))).join(' ').slice(0, 200);
+    // Wall-clock time on purpose: this runs inside error handlers, where an injected clock may be what failed.
+    recentErrors.push({ at: Date.now(), level, msg });
+    if (recentErrors.length > RECENT_MAX) recentErrors.shift();
+  }
+  let tunnelUrl = null;
 
   const accessKey = o.accessKey === undefined ? loadRelayKey() : String(o.accessKey);
   const keyOk = (given) => {
@@ -472,7 +490,8 @@ function createRelay(opts) {
       return send(res, 200, {
         ok: true, version: VERSION, clients: clients.size, lastEventAt,
         features: { chat: chatReady(), alerts: chatReady(), live: chatReady(), channel: true, subscribers: api.hasCredentials() },
-        alertsPaused, lastAlert: lastAlert ? lastAlert.kind : null
+        alertsPaused, lastAlert: lastAlert ? lastAlert.kind : null,
+        tunnel: tunnelUrl ? tunnelUrl + '/kick/webhook' : null, recentErrors: recentErrors.slice()
       });
     }
     if (p === '/channel' || p === '/subscribers') {
@@ -513,6 +532,8 @@ function createRelay(opts) {
 
   return {
     webhook, events, clients, broadcast,
+    logger: o.logger,
+    setTunnel(url) { tunnelUrl = typeof url === 'string' && /^https:\/\//.test(url) ? url : null; },
     chatReady,
     async start() {
       const webhookPort = await listen(webhook, o.webhookPort);
@@ -535,7 +556,7 @@ function createRelay(opts) {
 
 // ---- command line ----
 // Also the entry of the single-file executable (relay/sea-main.js), where require.main is not this module.
-function main(env = process.env) {
+function main(env = process.env, argv = process.argv.slice(2)) {
   let log;
   try { log = createLogger(env.RELAY_LOG_FORMAT); } catch (e) {
     console.error('Could not start the relay:', e.message);
@@ -557,13 +578,29 @@ function main(env = process.env) {
     process.exit(1);
   }
   // Ctrl+C or a service stop closes the sockets and ends open overlay streams before the process exits.
-  const shutdown = (sig) => { log.log(`Kick relay stopping (${sig}).`); relay.stop(); process.exit(0); };
+  let tunnel = null;
+  const shutdown = (sig) => { log.log(`Kick relay stopping (${sig}).`); if (tunnel) tunnel.stop(); relay.stop(); process.exit(0); };
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));
   log.log(`Kick relay ${VERSION} starting...`);
   relay.start().then(({ webhookPort, eventsPort, chat }) => {
     log.log('Kick relay running.');
     log.log(`  Webhook (expose this through a tunnel): http://127.0.0.1:${webhookPort}/kick/webhook`);
+    if (argv.includes('--tunnel') || env.RELAY_TUNNEL === '1') {
+      log.log('  Starting a Cloudflare quick tunnel...');
+      tunnel = startTunnel({
+        port: webhookPort, bin: cloudflaredPath(env), logger: relay.logger,
+        onUrl: (url) => {
+          relay.setTunnel(url);
+          if (url) {
+            log.log('');
+            log.log(`  Webhook URL for your Kick app: ${url}/kick/webhook`);
+            log.log('  Paste it at kick.com/settings/developer -> your app -> Webhook URL. A new tunnel means a new URL.');
+            log.log('');
+          }
+        }
+      });
+    }
     log.log(`  Overlay events (local only):            http://127.0.0.1:${eventsPort}/events`);
     if (chat) {
       if (env.RELAY_ALLOW_ANY_BROADCASTER === '1' && !env.RELAY_BROADCASTER_ID) log.log('  Chat and alerts: accepting events for ANY broadcaster (RELAY_ALLOW_ANY_BROADCASTER=1).');

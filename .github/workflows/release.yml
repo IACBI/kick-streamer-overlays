@@ -1,7 +1,7 @@
 name: Release
 
 # Pushing a tag vX.Y.Z publishes the GitHub release: the overlay folder as a zip, the relay
-# executables for Windows and Linux, SHA256SUMS.txt, and the CHANGELOG.md section as notes.
+# executables for Windows, Linux and macOS, SHA256SUMS.txt, and the CHANGELOG.md section as notes.
 on:
   push:
     tags: ['v*.*.*']
@@ -44,7 +44,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -78,7 +78,7 @@ jobs:
       - name: Checksums
         working-directory: out
         run: |
-          chmod +x kick-relay-linux-x64
+          chmod +x kick-relay-linux-x64 kick-relay-macos-*
           sha256sum -- * > SHA256SUMS.txt
           cat SHA256SUMS.txt
       - name: Publish the release

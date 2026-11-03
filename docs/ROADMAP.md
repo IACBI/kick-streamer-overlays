@@ -66,6 +66,8 @@ Live chat and alerts work without the streamer knowing what a tunnel or a webhoo
 
 **Done when:** a new user goes from a downloaded executable to working chat by following the wizard alone.
 
+**Status (2026-11-03):** `--tunnel` (the relay runs cloudflared and prints the Webhook URL), tunnel and recent errors in the studio's relay check (used as the status page, so the access key never has to be printed), the macOS executable, and the SmartScreen and checksum notes are done. Kick has no API for setting an app's Webhook URL, so pasting it stays a manual step; an interactive credentials prompt is still open.
+
 ## v2.9 — More overlays
 
 The pack covers the widgets streamers usually add from other tools.

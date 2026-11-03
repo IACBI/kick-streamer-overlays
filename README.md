@@ -152,6 +152,8 @@ Kick sends chat messages, bans, follows, subscriptions, gifted subscriptions, Ki
    ```
 
    Use the HTTPS address the tunnel prints, with `/kick/webhook` added at the end.
+
+   **Shortcut:** with [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) installed, start the relay with `--tunnel` instead (`node relay/server.js --tunnel`, or `kick-relay-win-x64.exe --tunnel`). The relay runs the quick tunnel itself, prints the full **Webhook URL for your Kick app**, starts the tunnel again if it stops, and closes it when the relay stops. A quick tunnel gets a new address each time it starts, so paste the new one into Kick when it changes. The studio's **Check relay** shows the current Webhook URL and the relay's latest warnings. If cloudflared is not on `PATH`, set `RELAY_CLOUDFLARED` to its full path.
 5. Go to [kick.com/settings/developer](https://kick.com/settings/developer), click **Edit** on your app, turn on **Enable Webhooks**, and paste the address into the **Webhook URL** box. Kick's [event introduction](https://github.com/KickEngineering/KickDevDocs/blob/main/events/introduction.md) describes these steps.
 6. Subscribe to the events (chat, bans, follows, subscriptions, renewals, gifted subscriptions, Kicks, channel point rewards, and stream status and title). Reward alerts need the **Read Channel points rewards** scope on your Kick app. If you subscribed with an older version, run this again; it adds only the missing events:
 
@@ -182,7 +184,7 @@ Every request must carry the access key from `AYARLAR.relay.js` as a `key` query
 
 When Kick limits the relay, it answers `429` with `Retry-After`. Without credentials `/subscribers` answers `503`, and a rejected login answers `401`.
 
-**Relay without Node.js.** Each release has a relay executable: `kick-relay-win-x64.exe` for Windows and `kick-relay-linux-x64` for Linux. Put it in the overlay folder, next to `AYARLAR.js`, and run it in place of `node relay/server.js`; it reads and writes the same files there. Compare its checksum with `SHA256SUMS.txt` from the same release. The executable is not code-signed, so Windows SmartScreen may warn on the first start. On macOS, use Node.js.
+**Relay without Node.js.** Each release has a relay executable: `kick-relay-win-x64.exe` for Windows, `kick-relay-linux-x64` for Linux and `kick-relay-macos-arm64` for macOS on Apple silicon. Put it in the overlay folder, next to `AYARLAR.js`, and run it in place of `node relay/server.js`; it reads and writes the same files there. Compare its checksum with `SHA256SUMS.txt` from the same release. The executables are not code-signed. On Windows, SmartScreen may say "Windows protected your PC" on the first start: check the checksum first, then choose **More info → Run anyway**. On macOS, make the file runnable and clear the download quarantine once (`chmod +x kick-relay-macos-arm64 && xattr -d com.apple.quarantine kick-relay-macos-arm64`), then start it from Terminal; on an Intel Mac, use Node.js.
 
 The subscriber bars need no client secret in the browser when the relay runs. Put the app credentials in `AYARLAR.local.js` or the environment and start the relay. The bars then get the total from `/subscribers`, and the page sends no request to Kick itself. If the relay is not running, the bars use `AYARLAR.local.js` directly. If that is missing too, they show `aboneSayisi`.
 
@@ -438,6 +440,8 @@ Kick; sohbet mesajlarını, yasakları, takipleri, abonelikleri, hediye abonelik
    ```
 
    Tünelin verdiği HTTPS adresinin sonuna `/kick/webhook` ekle.
+
+   **Kısa yol:** [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) kuruluysa relay'i `--tunnel` ile başlat (`node relay/server.js --tunnel` ya da `kick-relay-win-x64.exe --tunnel`). Relay hızlı tüneli kendisi çalıştırır, **Kick uygulaman için Webhook URL**'yi tam haliyle yazar, tünel durursa yeniden başlatır ve relay kapanınca tüneli de kapatır. Hızlı tünel her başladığında yeni bir adres alır; adres değişince yenisini Kick'e yapıştır. Stüdyodaki **Relay'i kontrol et** güncel Webhook URL'yi ve relay'in son uyarılarını gösterir. cloudflared `PATH` üzerinde değilse `RELAY_CLOUDFLARED` değerine tam yolunu yaz.
 5. [kick.com/settings/developer](https://kick.com/settings/developer) adresine git, uygulamanın yanındaki **Edit**'e tıkla, **Enable Webhooks** anahtarını aç ve adresi **Webhook URL** kutusuna yapıştır. Kick'in [olay tanıtım sayfası](https://github.com/KickEngineering/KickDevDocs/blob/main/events/introduction.md) bu adımları anlatır.
 6. Olaylara abone ol (sohbet, yasak, takip, abonelik, yenileme, hediye abonelik, Kicks, kanal puanı ödülleri, yayın durumu ve başlık). Ödül bildirimleri için Kick uygulamanda **Read Channel points rewards** izni açık olmalı. Daha eski bir sürümle abone olduysan bunu yeniden çalıştır; yalnızca eksik olayları ekler:
 
@@ -468,7 +472,7 @@ Her istek erişim anahtarını `key` sorgu parametresiyle taşımalıdır, örne
 
 Kick sınır koyarsa relay `429` ve `Retry-After` ile yanıt verir. Uygulama bilgisi yoksa `/subscribers` `503`, reddedilen giriş `401` döndürür.
 
-**Node.js olmadan relay.** Her sürümde bir relay programı var: Windows için `kick-relay-win-x64.exe`, Linux için `kick-relay-linux-x64`. Programı overlay klasörüne, `AYARLAR.js` dosyasının yanına koy ve `node relay/server.js` yerine onu çalıştır; aynı dosyaları orada okur ve yazar. Sağlama toplamını aynı sürümdeki `SHA256SUMS.txt` ile karşılaştır. Program kod imzalı değil, bu yüzden Windows SmartScreen ilk açılışta uyarabilir. macOS'ta Node.js kullan.
+**Node.js olmadan relay.** Her sürümde bir relay programı var: Windows için `kick-relay-win-x64.exe`, Linux için `kick-relay-linux-x64`, Apple işlemcili macOS için `kick-relay-macos-arm64`. Programı overlay klasörüne, `AYARLAR.js` dosyasının yanına koy ve `node relay/server.js` yerine onu çalıştır; aynı dosyaları orada okur ve yazar. Sağlama toplamını aynı sürümdeki `SHA256SUMS.txt` ile karşılaştır. Programlar kod imzalı değil. Windows'ta SmartScreen ilk açılışta "Windows bilgisayarınızı korudu" diyebilir: önce sağlama toplamını kontrol et, sonra **Ek bilgi → Yine de çalıştır**'ı seç. macOS'ta dosyayı bir kez çalıştırılabilir yap ve indirme karantinasını kaldır (`chmod +x kick-relay-macos-arm64 && xattr -d com.apple.quarantine kick-relay-macos-arm64`), sonra Terminal'den başlat; Intel Mac'te Node.js kullan.
 
 Relay çalışırken abone çubuklarının tarayıcıda istemci sırrına ihtiyacı yoktur. Uygulama bilgilerini `AYARLAR.local.js` dosyasına ya da ortama koy ve relay'i başlat. Çubuklar toplamı `/subscribers` üzerinden alır, sayfa Kick'e kendisi istek göndermez. Relay çalışmıyorsa çubuklar `AYARLAR.local.js` dosyasını doğrudan kullanır. O da yoksa `aboneSayisi` gösterilir.
 
