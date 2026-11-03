@@ -114,6 +114,7 @@ function loadCore(opts = {}) {
     WebSocket: opts.WebSocket,
     EventSource: opts.EventSource,
     document: opts.document,
+    crypto: opts.crypto,
     localStorage: opts.localStorage,
     location: { search: opts.search || '' },
     performance: { now: () => env.now },
@@ -446,6 +447,31 @@ async function testReadSettings() {
     // The test sandbox has no Web Audio, so the tone path reports it could not play.
     eq(on.play('follow'), 'blocked', 'no Web Audio');
     eq(Object.keys(K.alertTones).sort(), ['follow', 'gift', 'kicks', 'reward', 'sub'], 'one tone per alert kind');
+  });
+
+  await check('obsSceneCollection: an importable OBS collection with one Browser source per overlay', () => {
+    const { K } = loadCore({ crypto: require('crypto').webcrypto });
+    const c = K.obsSceneCollection({ name: 'Kick Overlay Pack', scene: 'Kick Overlays', items: [
+      { name: 'Kick · Chat', url: 'file:///C:/pack/chat.html?kanal=iacbi', width: 460, height: 760, x: 1420, y: 150 },
+      { name: 'Kick · Alerts', url: 'file:///C:/pack/alerts.html', width: 640, height: 200, x: 640, y: 60, audio: true },
+      { name: 'Kick · Countdown', url: 'file:///C:/pack/countdown.html', width: 520, height: 190, x: 700, y: 445, visible: false }
+    ] });
+    // OBS's importer refuses a file without name, current_scene and sources.
+    eq([c.name, c.current_scene, c.current_program_scene], ['Kick Overlay Pack', 'Kick Overlays', 'Kick Overlays'], 'header');
+    eq(c.scene_order, [{ name: 'Kick Overlays' }], 'scene order');
+    const scene = c.sources[0];
+    eq([scene.id, scene.name, c.sources.length], ['scene', 'Kick Overlays', 4], 'scene first, then the browser sources');
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    eq(c.sources.every((x) => UUID.test(x.uuid)), true, 'every uuid is a 36-character v4 UUID');
+    eq(new Set(c.sources.map((x) => x.uuid)).size, 4, 'uuids are unique');
+    const chat = c.sources[1];
+    eq([chat.id, chat.settings.is_local_file, chat.settings.url, chat.settings.width, chat.settings.height], ['browser_source', false, 'file:///C:/pack/chat.html?kanal=iacbi', 460, 760], 'browser source settings');
+    eq([chat.settings.reroute_audio, c.sources[2].settings.reroute_audio], [undefined, true], 'only the alerts source routes its audio through OBS');
+    const items = scene.settings.items;
+    eq(items.map((i) => i.source_uuid), c.sources.slice(1).map((x) => x.uuid), 'scene items point at their sources');
+    eq(items.map((i) => i.visible), [true, true, false], 'visibility');
+    eq([items[0].pos, items[0].scale, items[0].align], [{ x: 1420, y: 150 }, { x: 1, y: 1 }, 5], 'top-left aligned, pixel position, unscaled');
+    eq([scene.settings.id_counter, items.map((i) => i.id)], [3, [1, 2, 3]], 'item ids');
   });
 
   await check('readSettings: URL values are normalized like file values', () => {
