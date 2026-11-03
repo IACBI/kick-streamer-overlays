@@ -662,6 +662,7 @@ function statusOf(port, p, headers) {
     check('/overlay: a ticker update without lines gets 400', (await ov('target=ticker&lines=' + encodeURIComponent(' | | '))).status === 400);
     const start = clock.now();
     const cd = await ov('target=countdown&minutes=10&title=' + encodeURIComponent('  Back\nsoon  '));
+    const end = clock.now();   // the test clock runs with real time, so the deadline is checked within the request window
     check('/overlay: a countdown is accepted', cd.status === 200 && JSON.parse(cd.body).target === 'countdown', cd.body);
     check('/overlay: a second request inside the gap gets 429', (await eget(ep, '/overlay?target=ticker&lines=x', 'POST')).status === 429);
     const long = 'x'.repeat(500);
@@ -669,7 +670,7 @@ function statusOf(port, p, headers) {
     await sleep(150);
     const frames = st.frames.filter((f) => f.event === 'overlay');
     const c = frames[0] && frames[0].data, t = frames[1] && frames[1].data;
-    check('/overlay: the countdown frame carries the deadline, the length and a one-line title', c && c.target === 'countdown' && c.deadline === start + 400 + 600000 && c.total === 600000 && c.title === 'Back soon', JSON.stringify(c));
+    check('/overlay: the countdown frame carries the deadline, the length and a one-line title', c && c.target === 'countdown' && c.deadline >= start + 400 + 600000 && c.deadline <= end + 600000 && c.total === 600000 && c.title === 'Back soon', JSON.stringify(c));
     check('/overlay: ticker lines are trimmed, empty ones dropped, at most 12, within 400 characters in all', t && t.lines[0] === 'One' && t.lines[1] === 'Two' && t.lines.length === 12 && t.lines.join('|').length <= 400, JSON.stringify(t && t.lines.slice(0, 3)));
     const late = openSse(ep);
     await sleep(150);
