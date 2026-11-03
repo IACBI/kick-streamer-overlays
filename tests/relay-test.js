@@ -540,6 +540,45 @@ function statusOf(port, p, headers) {
   }
 
   // ======================================================================================
+  console.log('\n== relay: /control (OBS dock)');
+  {
+    const clock = mkClock();
+    const r = createRelay(baseOpts({ now: clock.now }));
+    const { eventsPort: ep } = await r.start();
+    const st = openSse(ep);
+    await sleep(100);
+    const ctl = async (action, headers) => { clock.advance(400); return eget(ep, '/control?action=' + action, 'POST', headers); };
+    check('/control: GET is refused (405)', (await eget(ep, '/control?action=pause')).status === 405);
+    check('/control: POST without the key gets 401', (await get(ep, '/control?action=pause', 'POST', { Origin: 'null' })).status === 401);
+    check('/control: a foreign origin is refused (403)', (await ctl('pause', { Origin: 'http://evil.example' })).status === 403);
+    check('/control: an unknown action gets 400', (await ctl('shutdown')).status === 400);
+    check('/control: replay before any alert gets 409', (await ctl('replay')).status === 409);
+
+    const p = await ctl('pause', { Origin: 'null' });
+    check('/control: pause from the dock (Origin null) is accepted and reported', p.status === 200 && JSON.parse(p.body).paused === true, p.body);
+    check('/control: a second request inside the gap gets 429', (await eget(ep, '/control?action=resume', 'POST')).status === 429);
+    check('/health reports the paused state', JSON.parse((await eget(ep, '/health')).body).alertsPaused === true);
+    const late = openSse(ep);
+    await sleep(150);
+    check('/control: a page that connects while paused is told at once', late.frames.length === 1 && late.frames[0].event === 'control' && late.frames[0].data.action === 'pause', JSON.stringify(late.frames));
+    late.close();
+    await ctl('skip');
+    await ctl('resume');
+    clock.advance(2000);
+    await eget(ep, '/test-alert?kind=sub', 'POST');
+    const rp = await ctl('replay');
+    await sleep(150);
+    const controls = st.frames.filter((f) => f.event === 'control').map((f) => f.data.action);
+    check('/control: pause, skip and resume reach the stream in order', controls.join() === 'pause,skip,resume', controls.join());
+    const subs = st.frames.filter((f) => f.event === 'sub');
+    check('/control: replay sends the last alert again under a new id', rp.status === 200 && subs.length === 2 && subs[1].data.replay === true && subs[1].data.username === subs[0].data.username && subs[1].data.id !== subs[0].data.id && /^replay-/.test(subs[1].data.id), JSON.stringify(subs.map((f) => f.data.id)));
+    const h = JSON.parse((await eget(ep, '/health')).body);
+    check('/health reports resumed and the last alert kind', h.alertsPaused === false && h.lastAlert === 'sub', JSON.stringify(h));
+    st.close();
+    r.stop();
+  }
+
+  // ======================================================================================
   console.log('\n== relay: events access key');
   {
     const r = createRelay(baseOpts());

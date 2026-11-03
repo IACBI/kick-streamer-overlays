@@ -38,6 +38,8 @@ const LOOPBACK_HOST = /^(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/i;
 const LOOPBACK_NAME = /^(?:127\.0\.0\.1|localhost|\[::1\])$/i;
 // Alert bodies carry no id of their own; the signed delivery id is unique, so it becomes the overlay's dedupe key.
 const ALERT_KINDS = new Set(['follow', 'sub', 'gift', 'kicks', 'reward']);
+const CONTROL_GAP_MS = 300;             // dock buttons: fast enough for a double click, not for a flood
+const CONTROL_ACTIONS = new Set(['pause', 'resume', 'skip', 'replay']);
 const TEST_GAP_MS = 1500;               // test alerts are for setup; a stuck button must not flood the stream
 // Fixed samples, so a test request cannot put any text of its own on stream.
 const TEST_ALERTS = {
@@ -248,7 +250,12 @@ function createRelay(opts) {
     } catch (e) { dropClient(res); }
   }
 
+  // The last alert shown, real or test, so the dock can replay it; and whether alerts are paused, which a page
+  // that connects later must learn too.
+  let lastAlert = null, alertsPaused = false;
+
   function broadcast(ev) {
+    if (ALERT_KINDS.has(ev.kind)) lastAlert = ev;
     const frame = `event: ${ev.kind}\ndata: ${JSON.stringify(ev)}\n\n`;
     for (const res of Array.from(clients)) writeClient(res, frame);
   }
@@ -408,6 +415,28 @@ function createRelay(opts) {
     return send(res, 200, { ok: true, kind, clients: clients.size });
   }
 
+  // ---- /control: the OBS dock's buttons, as frames every alerts page obeys ----
+  const controlFrame = (action) => `event: control\ndata: ${JSON.stringify({ action })}\n\n`;
+  let lastControlAt = -Infinity, replaySeq = 0;
+  function handleControl(res, action) {
+    if (!CONTROL_ACTIONS.has(action)) return send(res, 400, { ok: false, error: 'bad action' });
+    const now = o.now();
+    if (now - lastControlAt < CONTROL_GAP_MS) return send(res, 429, { ok: false, error: 'rate' }, { 'Retry-After': '1' });
+    lastControlAt = now;
+    if (action === 'replay') {
+      if (!lastAlert) return send(res, 409, { ok: false, error: 'no alert yet' });
+      replaySeq += 1;
+      // A new id, or the page would drop it as already seen.
+      broadcast(Object.assign({}, lastAlert, { id: `replay-${now}-${replaySeq}`, replay: true }));
+    } else {
+      if (action === 'pause') alertsPaused = true;
+      if (action === 'resume') alertsPaused = false;
+      const frame = controlFrame(action);
+      for (const c of Array.from(clients)) writeClient(c, frame);
+    }
+    return send(res, 200, { ok: true, action, paused: alertsPaused, clients: clients.size });
+  }
+
   // ---- events listener (local only, for the overlay page) ----
   async function handleEvents(req, res) {
     // Only loopback names are served, so a web page cannot reach this port through DNS rebinding.
@@ -433,15 +462,17 @@ function createRelay(opts) {
     try { url = new URL(req.url, 'http://localhost'); } catch (e) { return send(res, 400, { error: 'bad request' }); }
     const p = url.pathname;
     // POST is only for the one route with a side effect; everything else is read-only GET.
-    const method = p === '/test-alert' ? 'POST' : 'GET';
+    const method = p === '/test-alert' || p === '/control' ? 'POST' : 'GET';
     if (req.method !== method) return send(res, 405, { error: 'method not allowed' }, { Allow: method + ', OPTIONS' });
     if (!keyOk(url.searchParams.get('key'))) return send(res, 401, { ok: false, error: 'bad key' });
     if (p === '/test-alert') return handleTestAlert(res, url.searchParams.get('kind') || '');
+    if (p === '/control') return handleControl(res, url.searchParams.get('action') || '');
 
     if (p === '/health') {
       return send(res, 200, {
         ok: true, version: VERSION, clients: clients.size, lastEventAt,
-        features: { chat: chatReady(), alerts: chatReady(), live: chatReady(), channel: true, subscribers: api.hasCredentials() }
+        features: { chat: chatReady(), alerts: chatReady(), live: chatReady(), channel: true, subscribers: api.hasCredentials() },
+        alertsPaused, lastAlert: lastAlert ? lastAlert.kind : null
       });
     }
     if (p === '/channel' || p === '/subscribers') {
@@ -458,6 +489,7 @@ function createRelay(opts) {
       Connection: 'keep-alive'
     });
     res.write(': connected\n\n');
+    if (alertsPaused) res.write(controlFrame('pause'));
     clients.add(res);
     const remove = () => clients.delete(res);
     res.on('close', remove);
