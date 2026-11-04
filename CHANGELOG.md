@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-11-04
+
 ### Changed
 
 - Pages opened from a web site (GitHub Pages) no longer try the local relay. The relay only answers `file://` and `127.0.0.1` pages, so the overlays and the dock now say the downloaded pack is needed, and the studio's relay check and test alert say why they cannot work there.
