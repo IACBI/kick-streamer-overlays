@@ -1,17 +1,17 @@
-# Roadmap
+ 3.0.0 | 2.7.0 | 2.5.0, 2.6.0 | 2.5.0, 2.6.0 | 2.5.0 | open: needs a live broadcast |# Roadmap
 
 Where the Kick Streamer Overlay Pack goes after v2.4.0. Each milestone ships as its own release, with tests and a CHANGELOG entry. Order is by value to streamers: first prove what exists, then remove setup pain, then add features.
 
-Maintained by 𝓐.𝓒.𝓑. Last updated 2026-11-03.
+Maintained by 𝓐.𝓒.𝓑. Last updated 2026-11-04. Milestone names are plans; the Release column says which version shipped each one.
 
-| Milestone | Theme | Size |
-|---|---|---|
-| [v2.5](#v25--proven-live) | Proven live | S |
-| [v2.6](#v26--alerts-with-sound-and-media) | Alerts with sound and media | M |
-| [v2.7](#v27--one-click-obs) | One-click OBS | M |
-| [v2.8](#v28--relay-without-the-hard-part) | Relay without the hard part | L |
-| [v2.9](#v29--more-overlays) | More overlays | L |
-| [v3.0](#v30--international) | International | L |
+| Milestone | Theme | Size | Release |
+|---|---|---|---|
+| [v2.5](#v25--proven-live) | Proven live | S | Open: the check on a live broadcast |
+| [v2.6](#v26--alerts-with-sound-and-media) | Alerts with sound and media | M | 2.5.0, 2.6.0 |
+| [v2.7](#v27--one-click-obs) | One-click OBS | M | 2.5.0, 2.6.0 |
+| [v2.8](#v28--relay-without-the-hard-part) | Relay without the hard part | L | 2.5.0, 2.6.0 |
+| [v2.9](#v29--more-overlays) | More overlays | L | 2.7.0 |
+| [v3.0](#v30--international) | International | L | 3.0.0 |
 
 Sizes: S = a few days, M = about a week, L = more than a week.
 
