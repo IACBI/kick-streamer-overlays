@@ -15,19 +15,25 @@ Thanks for helping make the pack better. This project is by 𝓐.𝓒.𝓑 and f
 
 | Path | What it is |
 |---|---|
-| `follower-bar.html`, `subscriber-bar.html`, `combined-bar.html`, `info-panel.html`, `chat.html`, `alerts.html`, `countdown.html`, `ticker.html` | The overlays. Each is a classic-script page that reads its settings with `K.readSettings()`. |
+| `follower-bar.html`, `subscriber-bar.html`, `combined-bar.html`, `info-panel.html`, `chat.html`, `alerts.html`, `countdown.html`, `ticker.html`, `events.html`, `leaderboard.html`, `kicks-bar.html`, `sub-train.html` | The overlays. Each is a classic-script page that reads its settings with `K.readSettings()`. |
+| `dock.html` | The OBS control dock: relay status, alert controls, countdown and announcement changes, stats reset. |
 | `studio.html` | The studio: previews, settings, links, and `AYARLAR.js` / `AYARLAR.local.js` downloads. Not an OBS source. |
 | `AYARLAR.js` | Public settings, shared by all overlays. |
 | `AYARLAR.local.js` | Your Kick app credentials. Git-ignored; you create it yourself. |
 | `shared/kick-core.js` | Settings schema and normalization, Kick and relay requests, pollers, goal bars and shared UI text. Also loaded under Node by the tests. |
 | `shared/themes.css` | Design tokens, themes and the `.ko-*` components. |
-| `relay/server.js` | The relay: webhook listener and local events, `/health`, `/channel` and `/subscribers`. |
+| `shared/lang/<code>.js` | Overlay and dock texts, one file per language (`tr`, `en`, `es`, `pt`, `de`, `ar`) with the keys of `en.js`. Read through `K.t()`. |
+| `shared/lang/studio/<code>.js` | Studio texts and choice labels, one file per language with the keys of `en.js`. |
+| `relay/server.js` | The relay: webhook listener and local events, `/health`, `/channel`, `/subscribers`, `/stats`, `/control` and `/overlay`. |
+| `relay/stats.js` | This stream's numbers (totals, recent events, leaderboards, sub train), saved to `kick-relay-stats.json` and written to `labels/`. |
+| `relay/setup.js` | Guided setup: asks for the channel and the Kick app, checks them, saves them. |
+| `relay/tunnel.js` | Runs and restarts the cloudflared quick tunnel for `--tunnel`. |
 | `relay/webhook.js` | Signature check, freshness, replay guard, rate limit and event normalization. |
 | `relay/kick-api.js` | Client for Kick's official API: app token and channel lookup. |
 | `relay/config.js` | Reads the credentials and the channel name from the environment or the settings files. |
 | `relay/subscribe.js` | Creates (or lists) the webhook subscriptions for your channel: chat, bans, follows, subscriptions, gifts and Kicks. |
 | `relay/log.js` | Text or JSON log lines (`RELAY_LOG_FORMAT`). |
-| `relay/sea-main.js` | Entry of the relay executable: starts the relay, or `subscribe`. |
+| `relay/sea-main.js` | Entry of the relay executable: starts the relay, or `subscribe` / `setup`. |
 | `tests/run.js` | Unit tests. They load the real `shared/kick-core.js` and check the overlay and studio pages. |
 | `tests/relay-test.js` | Relay tests. They run the relay against a local mock of Kick's API. |
 | `tests/e2e-chrome.js`, `tests/mock-kick-api.js`, `tests/fixtures/` | Browser tests, the local Kick mock, sample API responses and webhook bodies. |
@@ -38,7 +44,9 @@ Thanks for helping make the pack better. This project is by 𝓐.𝓒.𝓑 and f
 | `tools/record-previews.js` | Re-creates the images in `screenshots/`. |
 | `tools/visual-qa.js` | Screenshot grids of every overlay, theme and accent over light, dark and busy backgrounds, with measured text contrast. |
 | `tools/motion-qa.js` | Frame timing, layout and paint counts, and filmstrips of every animation, with optional CPU throttling. |
-| `badges/` | Optional badge art for chat. |
+| `badges/`, `alerts/` | Optional badge art for chat; optional alert sounds and art. |
+| `docs/` | Guides (setup, relay, settings, troubleshooting, FAQ) and the roadmap. English only. |
+| `.github/workflows/` | CI, CodeQL, the tag-driven release, and `pages.yml`, which publishes the page files to GitHub Pages. |
 
 ## Setup
 
@@ -62,14 +70,20 @@ Open `studio.html` to try a change in every overlay at once. Every overlay also 
 
 1. Add it to `SCHEMA` in `shared/kick-core.js` (type, default, limits). A key that must never come from a URL goes in `LOCAL_SCHEMA` instead.
 2. Add it to `AYARLAR.js` with a one-line comment.
-3. Add the input to `studio.html` and its entry to `ayarDoc()`.
+3. Add the input to `studio.html` and its entry to `ayarDoc()`. Its label and help text go into every `shared/lang/studio/<code>.js`.
 4. Give it an English name in `ALIASES` in `shared/kick-core.js`.
-5. Add it to the Configuration tables in `README.md`, in English and in Türkçe, with its English name.
+5. Add it to the table in `docs/settings.md`, with its English name.
 6. Add a test to `tests/run.js`.
 
 ## Adding an overlay
 
-Copy the structure of `follower-bar.html`: shared head, `K.readSettings()`, `K.applyLook(S)`, a preview branch, and a setup hint when it needs a setting that is empty. Register it in `tests/run.js` (`OVERLAY_PAGES`), in the studio's previews, and in the README table.
+Copy the structure of `follower-bar.html`: shared head (with the `shared/lang/*.js` scripts before `kick-core.js`), `K.readSettings()`, `K.applyLook(S)`, a preview branch, and a setup hint when it needs a setting that is empty. Visible text comes from `K.t(S, 'key')`, with the key in every `shared/lang/<code>.js`. Register it in `tests/run.js` (`OVERLAY_PAGES`), in the studio's previews, in `tools/visual-qa.js`, and in the README table.
+
+## Adding a language
+
+1. Copy `shared/lang/en.js` and `shared/lang/studio/en.js` to the new code, and translate the values. Keep `{slots}`; plural forms use `Intl.PluralRules` categories (`one`, `other`, and `zero`, `two`, `few`, `many` where the language has them).
+2. Add the code to `dil` in `shared/kick-core.js`, to `LOCALES` there, to the script tags of every page and the studio, to the studio's language buttons, and to `LANGS` in `tests/run.js`.
+3. Run `npm test` (it names any missing key or slot) and `node tools/visual-qa.js --out <dir> --only lang --gate`. For a right-to-left language, add it to `RTL` in `shared/kick-core.js` and look at the sheets.
 
 ## Refreshing the README images
 
@@ -84,7 +98,7 @@ It needs Node.js 22 or newer, Chrome or Edge, and `ffmpeg` on the PATH.
 
 ## Pull requests
 
-Keep a change focused, say what you checked, and keep the English and Türkçe README sections in step. Commit messages: a short imperative subject line. CI must pass: tests on Node.js 20, 22 and 24, lint, the type check, the Chrome tests, the visual contrast gate, the relay executable and CodeQL.
+Keep a change focused, say what you checked, and keep the English and Türkçe README sections in step. Text changes go into every language file. Commit messages: a short imperative subject line. CI must pass: tests on Node.js 20, 22 and 24, lint, the type check, the Chrome tests, the visual contrast and layout gate in every label language, the relay executable and CodeQL.
 
 ## Releasing
 
