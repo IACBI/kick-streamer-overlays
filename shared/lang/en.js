@@ -15,6 +15,7 @@
     'note.chatRelay': 'Chat relay not running',
     'note.alertRelay': 'Alert relay not running',
     'note.localFile': 'In OBS, use the studio link instead of “Local file”',
+    'note.hosted': 'Live features need the downloaded pack',
 
     'bar.follower': 'Follower',
     'bar.subscriber': 'Subscriber',

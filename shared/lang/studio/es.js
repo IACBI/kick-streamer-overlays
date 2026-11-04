@@ -244,6 +244,7 @@
       'h.relayAdresi': 'Cámbiala solo si ejecutas el relay en otra dirección. Si es distinta de la predeterminada, se escribe en AYARLAR.js. Solo se aceptan https, o http en 127.0.0.1 / localhost.',
       'relay.check': 'Comprobar relay',
       'relay.checking': 'Comprobando el relay…',
+      'relay.hosted': 'Este estudio se abre desde un sitio web, así que no puede llegar al relay de tu equipo. Para las funciones del relay, descarga el paquete y abre studio.html desde su carpeta.',
       'relay.ok': 'El relay está en marcha (v{v}, {n} overlays conectados).',
       'relay.d.version': 'El relay es {relay} y el paquete de overlays es {pack}. Ejecuta ambos desde la misma versión.',
       'relay.d.versionOk': 'El relay y el paquete de overlays tienen la misma versión.',

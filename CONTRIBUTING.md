@@ -17,7 +17,7 @@ Thanks for helping make the pack better. This project is by 𝓐.𝓒.𝓑 and f
 |---|---|
 | `follower-bar.html`, `subscriber-bar.html`, `combined-bar.html`, `info-panel.html`, `chat.html`, `alerts.html`, `countdown.html`, `ticker.html`, `events.html`, `leaderboard.html`, `kicks-bar.html`, `sub-train.html` | The overlays. Each is a classic-script page that reads its settings with `K.readSettings()`. |
 | `dock.html` | The OBS control dock: relay status, alert controls, countdown and announcement changes, stats reset. |
-| `studio.html` | The studio: previews, settings, links, and `AYARLAR.js` / `AYARLAR.local.js` downloads. Not an OBS source. |
+| `studio.html` | The studio: previews, settings, links, and `AYARLAR.js` / `AYARLAR.local.js` downloads. Not an OBS source. Its script is `shared/studio.js` and its styles `shared/studio.css`. |
 | `AYARLAR.js` | Public settings, shared by all overlays. |
 | `AYARLAR.local.js` | Your Kick app credentials. Git-ignored; you create it yourself. |
 | `shared/kick-core.js` | Settings schema and normalization, Kick and relay requests, pollers, goal bars and shared UI text. Also loaded under Node by the tests. |
@@ -34,7 +34,8 @@ Thanks for helping make the pack better. This project is by 𝓐.𝓒.𝓑 and f
 | `relay/subscribe.js` | Creates (or lists) the webhook subscriptions for your channel: chat, bans, follows, subscriptions, gifts and Kicks. |
 | `relay/log.js` | Text or JSON log lines (`RELAY_LOG_FORMAT`). |
 | `relay/sea-main.js` | Entry of the relay executable: starts the relay, or `subscribe` / `setup`. |
-| `tests/run.js` | Unit tests. They load the real `shared/kick-core.js` and check the overlay and studio pages. |
+| `tests/run.js` | Runs the unit tests in order and prints the summary. |
+| `tests/unit/` | The unit tests, one file per area (`lang`, `core`, `kick`, `core-v23`, `relay-client`, `pages`), and `harness.js` with the shared loader, fakes and checks. They load the real `shared/kick-core.js` and check the overlay and studio pages. |
 | `tests/relay-test.js` | Relay tests. They run the relay against a local mock of Kick's API. |
 | `tests/e2e-chrome.js`, `tests/mock-kick-api.js`, `tests/fixtures/` | Browser tests, the local Kick mock, sample API responses and webhook bodies. |
 | `tests/relay-binary-test.js` | Starts the built relay executable from an empty folder and checks it. |
@@ -70,19 +71,19 @@ Open `studio.html` to try a change in every overlay at once. Every overlay also 
 
 1. Add it to `SCHEMA` in `shared/kick-core.js` (type, default, limits). A key that must never come from a URL goes in `LOCAL_SCHEMA` instead.
 2. Add it to `AYARLAR.js` with a one-line comment.
-3. Add the input to `studio.html` and its entry to `ayarDoc()`. Its label and help text go into every `shared/lang/studio/<code>.js`.
+3. Add the input to `studio.html` and its entry to `ayarDoc()` in `shared/studio.js`. Its label and help text go into every `shared/lang/studio/<code>.js`.
 4. Give it an English name in `ALIASES` in `shared/kick-core.js`.
 5. Add it to the table in `docs/settings.md`, with its English name.
-6. Add a test to `tests/run.js`.
+6. Add a test to the matching `tests/unit/*.test.js`.
 
 ## Adding an overlay
 
-Copy the structure of `follower-bar.html`: shared head (with the `shared/lang/*.js` scripts before `kick-core.js`), `K.readSettings()`, `K.applyLook(S)`, a preview branch, and a setup hint when it needs a setting that is empty. Visible text comes from `K.t(S, 'key')`, with the key in every `shared/lang/<code>.js`. Register it in `tests/run.js` (`OVERLAY_PAGES`), in the studio's previews, in `tools/visual-qa.js`, and in the README table.
+Copy the structure of `follower-bar.html`: shared head (with the `shared/lang/*.js` scripts before `kick-core.js`), `K.readSettings()`, `K.applyLook(S)`, a preview branch, and a setup hint when it needs a setting that is empty. Visible text comes from `K.t(S, 'key')`, with the key in every `shared/lang/<code>.js`. Register it in `tests/unit/harness.js` (`OVERLAY_PAGES`), in the studio's previews, in `tools/visual-qa.js`, and in the README table.
 
 ## Adding a language
 
 1. Copy `shared/lang/en.js` and `shared/lang/studio/en.js` to the new code, and translate the values. Keep `{slots}`; plural forms use `Intl.PluralRules` categories (`one`, `other`, and `zero`, `two`, `few`, `many` where the language has them).
-2. Add the code to `dil` in `shared/kick-core.js`, to `LOCALES` there, to the script tags of every page and the studio, to the studio's language buttons, and to `LANGS` in `tests/run.js`.
+2. Add the code to `dil` in `shared/kick-core.js`, to `LOCALES` there, to the script tags of every page and the studio, to the studio's language buttons, and to `LANGS` in `tests/unit/harness.js`.
 3. Run `npm test` (it names any missing key or slot) and `node tools/visual-qa.js --out <dir> --only lang --gate`. For a right-to-left language, add it to `RTL` in `shared/kick-core.js` and look at the sheets.
 
 ## Refreshing the README images

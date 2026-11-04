@@ -105,6 +105,6 @@ Streamers outside Turkey and English-speaking countries can use the pack in thei
 
 ## Ongoing
 
-- Split `studio.html` into separate script and style files, and `tests/run.js` into one file per overlay.
+- Done in 3.0.1: the studio's script and styles live in `shared/studio.js` and `shared/studio.css`, and the unit tests in `tests/unit/`, one file per area.
 - Keep Dependabot and CodeQL green; keep actions pinned to commit hashes.
 - Quick QA pass on every PR; a full visual and motion sweep before each release.

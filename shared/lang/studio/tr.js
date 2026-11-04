@@ -244,6 +244,7 @@
       'h.relayAdresi': 'Yalnızca relay’i farklı bir adreste çalıştırıyorsan değiştir. Varsayılan dışındaysa AYARLAR.js dosyasına yazılır. Yalnızca https ya da 127.0.0.1 / localhost üzerinden http kabul edilir.',
       'relay.check': 'Relay’i kontrol et',
       'relay.checking': 'Relay kontrol ediliyor…',
+      'relay.hosted': 'Bu stüdyo bir web sitesinden açıldı, bu yüzden bilgisayarındaki relay’e ulaşamaz. Relay özellikleri için paketi indir ve studio.html dosyasını o klasörden aç.',
       'relay.ok': 'Relay çalışıyor (v{v}, {n} bağlı overlay).',
       'relay.d.version': 'Relay sürümü {relay}, overlay paketi {pack}. İkisini aynı sürümden çalıştır.',
       'relay.d.versionOk': 'Relay ve overlay paketi aynı sürümde.',

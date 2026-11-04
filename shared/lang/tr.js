@@ -12,6 +12,7 @@
     'note.chatRelay': 'Sohbet köprüsü çalışmıyor',
     'note.alertRelay': 'Bildirim köprüsü çalışmıyor',
     'note.localFile': 'OBS’te “Yerel dosya” yerine stüdyodaki bağlantıyı kullan',
+    'note.hosted': 'Canlı özellikler için indirilen paketi kullan',
 
     'bar.follower': 'Takipçi',
     'bar.subscriber': 'Abone',

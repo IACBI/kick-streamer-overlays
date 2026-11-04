@@ -4,6 +4,17 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+
+- Pages opened from a web site (GitHub Pages) no longer try the local relay. The relay only answers `file://` and `127.0.0.1` pages, so the overlays and the dock now say the downloaded pack is needed, and the studio's relay check and test alert say why they cannot work there.
+- The studio's script and styles moved to `shared/studio.js` and `shared/studio.css`; the script is now linted like the core.
+- The unit tests moved to `tests/unit/`, one file per area; `tests/run.js` runs them.
+- New studio screenshots with the six language buttons.
+
+### Security
+
+- `minimatch` (pulled in by ESLint, dev only) is pinned to 11.0.4 through `overrides`, which closes the Dependabot alert.
+
 ## [3.0.0] - 2026-11-04
 
 ### Added
