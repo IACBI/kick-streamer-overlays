@@ -12,6 +12,7 @@
     'note.chatRelay': 'El relay del chat no está activo',
     'note.alertRelay': 'El relay de alertas no está activo',
     'note.localFile': 'En OBS, usa el enlace del estudio en lugar de “Archivo local”',
+    'note.hosted': 'Las funciones en vivo necesitan el paquete descargado',
 
     'bar.follower': 'Seguidores',
     'bar.subscriber': 'Suscriptores',

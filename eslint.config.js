@@ -1,6 +1,7 @@
 'use strict';
 // Lints every tracked script: the Node relay, tests and tools as CommonJS, and the browser core as a classic script.
-// Inline <script> blocks in the HTML pages are not linted; the Chrome end-to-end run covers them.
+// Inline <script> blocks in the overlay pages are not linted; the Chrome end-to-end run covers them. The studio
+// script lives in shared/studio.js and is linted like the core.
 
 const js = require('@eslint/js');
 const globals = require('globals');

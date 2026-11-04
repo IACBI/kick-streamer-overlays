@@ -838,17 +838,27 @@
     return url + (url.indexOf('?') === -1 ? '?' : '&') + 'key=' + encodeURIComponent(key);
   }
 
-  // OBS 33 loads a "Local file" source from http://absolute/, and its browser (Chromium's Local Network Access)
-  // does not let such a page reach 127.0.0.1. The relay is then skipped, not retried: every attempt would fail and
-  // write the request, access key included, to OBS's log. A link pasted into the URL box is not affected.
-  function relayBlocked() {
+  // Why this page cannot use the local relay, or '' when it can:
+  //   'localFile' OBS 33 loads a "Local file" source from http://absolute/, and its browser (Chromium's Local Network
+  //               Access) does not let such a page reach 127.0.0.1. A link pasted into the URL box is not affected.
+  //   'hosted'    the page comes from a web site (GitHub Pages, say). The relay accepts only file:// and loopback
+  //               origins, and the access key file is never published, so every request would be refused.
+  // The relay is then skipped, not retried: each attempt would fail, and a public page should not probe 127.0.0.1.
+  function relayBlockReason() {
     var loc = global.location;
-    return !!(loc && loc.protocol === 'http:' && loc.hostname === 'absolute');
+    if (!loc || !loc.protocol) return '';
+    if (loc.protocol === 'http:' && loc.hostname === 'absolute') return 'localFile';
+    if ((loc.protocol === 'http:' || loc.protocol === 'https:') && !/^(?:127\.0\.0\.1|localhost|\[::1\])$/i.test(loc.hostname || '')) return 'hosted';
+    return '';
   }
 
-  // The overlay note for a page that cannot reach the relay because OBS loads it as a local file.
+  function relayBlocked() {
+    return relayBlockReason() !== '';
+  }
+
+  // The overlay note for a page that cannot reach the relay.
   function relayBlockedNote(s) {
-    return t(s, 'note.localFile');
+    return relayBlockReason() === 'hosted' ? t(s, 'note.hosted') : t(s, 'note.localFile');
   }
 
   // Asks the local relay what it can do. Memoized per page; a failed probe is retried at most every 5 minutes.

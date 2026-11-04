@@ -246,6 +246,7 @@
       'h.relayAdresi': 'Change it only if you run the relay at a different address. If it differs from the default it is written to AYARLAR.js. Only https, or http on 127.0.0.1 / localhost, is accepted.',
       'relay.check': 'Check relay',
       'relay.checking': 'Checking the relay…',
+      'relay.hosted': 'This studio runs from a web site, so it cannot reach the relay on your computer. For relay features, download the pack and open studio.html from its folder.',
       'relay.ok': 'Relay is running (v{v}, {n} overlays connected).',
       'relay.d.version': 'The relay is {relay} and the overlay pack is {pack}. Run both from the same release.',
       'relay.d.versionOk': 'The relay and the overlay pack are the same version.',

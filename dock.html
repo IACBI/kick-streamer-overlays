@@ -143,6 +143,7 @@
   }
 
   async function health(){
+    if (K.relayBlocked()) return showDown(K.relayBlockedNote(S));
     try {
       const r = await call('/health', 'GET');
       if (r.status === 401) return showDown(L('dock.keyBad'));

@@ -244,6 +244,7 @@
       'h.relayAdresi': 'Altere só se você roda o relay em outro endereço. Se for diferente do padrão, ele é gravado no AYARLAR.js. Só https, ou http em 127.0.0.1 / localhost, é aceito.',
       'relay.check': 'Verificar relay',
       'relay.checking': 'Verificando o relay…',
+      'relay.hosted': 'Este estúdio está aberto a partir de um site, então não consegue acessar o relay do seu computador. Para os recursos do relay, baixe o pacote e abra o studio.html pela pasta dele.',
       'relay.ok': 'O relay está rodando (v{v}, {n} overlays conectados).',
       'relay.d.version': 'O relay é {relay} e o pacote de overlays é {pack}. Rode os dois da mesma versão.',
       'relay.d.versionOk': 'O relay e o pacote de overlays são da mesma versão.',

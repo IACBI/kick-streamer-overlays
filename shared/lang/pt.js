@@ -12,6 +12,7 @@
     'note.chatRelay': 'O relay do chat não está rodando',
     'note.alertRelay': 'O relay de alertas não está rodando',
     'note.localFile': 'No OBS, use o link do estúdio em vez de “Arquivo local”',
+    'note.hosted': 'Os recursos ao vivo precisam do pacote baixado',
 
     'bar.follower': 'Seguidores',
     'bar.subscriber': 'Inscritos',

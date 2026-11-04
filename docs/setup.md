@@ -6,7 +6,7 @@ Everything beyond the four steps in the README: adding all overlays at once, the
 
 The studio and every overlay are published at **https://iacbi.github.io/kick-streamer-overlays/**. Copy a link from there into an OBS Browser source and it works without downloading anything: follower goal, viewers and uptime, the countdown and the announcement bar read only public data. Your settings travel in the link.
 
-Download the release instead when you want live chat, alerts, stream stats, the dock or the subscriber total: those need the relay on your computer, and a page served from the internet may not be allowed to reach `127.0.0.1`.
+Download the release instead when you want live chat, alerts, stream stats, the dock or the subscriber total: those need the relay on your computer, and the relay answers only pages opened from that computer (`file://` or `127.0.0.1`). The online overlays skip the relay and say so ("Live features need the downloaded pack"); the online studio says the same when you check the relay.
 
 ## OBS
 
