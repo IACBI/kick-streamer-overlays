@@ -25,6 +25,8 @@ Thanks for helping make the pack better. This project is by 𝓐.𝓒.𝓑 and f
 | `shared/lang/<code>.js` | Overlay and dock texts, one file per language (`tr`, `en`, `es`, `pt`, `de`, `ar`) with the keys of `en.js`. Read through `K.t()`. |
 | `shared/lang/studio/<code>.js` | Studio texts and choice labels, one file per language with the keys of `en.js`. |
 | `relay/server.js` | The relay: webhook listener and local events, `/health`, `/channel`, `/subscribers`, `/stats`, `/control` and `/overlay`. |
+| `relay/site.js` | Serves the pack's pages on the relay's local port and saves the studio's settings and credentials. |
+| `relay/record.js` | Record mode: redacted copies of verified webhooks in `recordings/`. |
 | `relay/stats.js` | This stream's numbers (totals, recent events, leaderboards, sub train), saved to `kick-relay-stats.json` and written to `labels/`. |
 | `relay/setup.js` | Guided setup: asks for the channel and the Kick app, checks them, saves them. |
 | `relay/tunnel.js` | Runs and restarts the cloudflared quick tunnel for `--tunnel`. |
@@ -43,6 +45,8 @@ Thanks for helping make the pack better. This project is by 𝓐.𝓒.𝓑 and f
 | `tools/sync-version.js` | Copies the `package.json` version into `shared/kick-core.js` (`--check` only compares). |
 | `tools/changelog-notes.js` | Prints one version's section of `CHANGELOG.md`, used as the release notes. |
 | `tools/record-previews.js` | Re-creates the images in `screenshots/`. |
+| `tools/check-recordings.js` | Runs recorded webhooks through the relay's event mapping and reports what changed. |
+| `tools/kick-drift.js` | Checks that Kick's public channel data and webhook key still parse; run daily by `.github/workflows/kick-drift.yml`. |
 | `tools/visual-qa.js` | Screenshot grids of every overlay, theme and accent over light, dark and busy backgrounds, with measured text contrast. |
 | `tools/motion-qa.js` | Frame timing, layout and paint counts, and filmstrips of every animation, with optional CPU throttling. |
 | `badges/`, `alerts/` | Optional badge art for chat; optional alert sounds and art. |

@@ -1398,6 +1398,34 @@ function statusOf(port, p, headers) {
     fsx.rmSync(cfg, { recursive: true, force: true });
   }
 
+  console.log('== relay: record mode');
+  {
+    const os = require('os');
+    const fsx = require('fs');
+    const { redact } = require(path.join(__dirname, '..', 'relay', 'record.js'));
+    const { checkFolder } = require(path.join(__dirname, '..', 'tools', 'check-recordings.js'));
+    const red = redact({ sender: { user_id: 555, username: 'Viewer_One', channel_slug: 'viewer_one', profile_picture: 'https://x/p.png' },
+      broadcaster: { user_id: 555, username: 'viewer_one' }, content: 'hello there', badges: [{ type: 'vip' }], amount: 100 });
+    check('record: names, ids, pictures and text are replaced; the same person keeps one placeholder',
+      red.sender.username === 'user_1' && red.broadcaster.username === 'user_1' && red.sender.user_id === 1001 && red.broadcaster.user_id === 1001
+      && red.content === 'redacted text (11 chars)' && red.sender.profile_picture.includes('redacted') && red.badges[0].type === 'vip' && red.amount === 100, JSON.stringify(red));
+    const dir = fsx.mkdtempSync(path.join(os.tmpdir(), 'kick-record-'));
+    const r = createRelay({ publicKeyPem: publicKey, accessKey: ACCESS_KEY, webhookPort: 0, eventsPort: 0, broadcasterUserId: '113812015', credentials: false, channelSlug: '', recordDir: dir, logger: quietLogger() });
+    const { webhookPort } = await r.start();
+    const ts = String(Math.floor(Date.now() / 1000));
+    const body = chatBody('rec-1', 'my secret message');
+    await post(webhookPort, { id: 'rec-1', ts, body, sig: sign('rec-1', ts, body, privateKey) });
+    await post(webhookPort, { id: 'rec-bad', ts, body, sig: sign('rec-bad', ts, body, otherKey.privateKey) });
+    const files = fsx.readdirSync(dir);
+    const text = files.length ? fsx.readFileSync(path.join(dir, files[0]), 'utf8') : '';
+    check('record: one file per verified webhook, none for a bad signature', files.length === 1 && /chat.message.sent.json$/.test(files[0]), files.join());
+    check('record: the saved file holds no name or message text', text && !text.includes('viewer_one') && !text.includes('my secret message') && text.includes('"type": "chat.message.sent"'));
+    const checked = checkFolder(dir);
+    check('check-recordings: a recorded chat message still maps to a chat event', checked.length === 1 && checked[0].status === 'ok' && checked[0].kind === 'chat', JSON.stringify(checked));
+    r.stop();
+    fsx.rmSync(dir, { recursive: true, force: true });
+  }
+
   const failed = results.filter((ok) => !ok).length;
   console.log(`\n${results.length - failed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
