@@ -4,6 +4,17 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.1.9] - 2026-11-05
+
+### Changed
+
+- Translations are now plain JSON in `i18n/overlay/` and `i18n/studio/`, ready for any editor or translation platform (Weblate, Crowdin, Tolgee). `npm run build:lang` writes the scripts in `shared/lang/` that the pages load from `file://`; CI fails when they differ.
+
+### Added
+
+- `npm run i18n:status` shows, per language, what is missing, still in English, or has a `{slot}` problem.
+- [docs/translating.md](docs/translating.md): how to fix or add a language.
+
 ## [3.1.8] - 2026-11-05
 
 ### Added

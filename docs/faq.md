@@ -13,7 +13,7 @@ The [online studio](https://iacbi.github.io/kick-streamer-overlays/) is the quic
 The `dil` setting picks the overlay labels: Turkish (`tr`), English (`en`), both together (`both`), Spanish (`es`), Brazilian Portuguese (`pt`), German (`de`) or Arabic (`ar`, laid out right to left). The studio itself comes in the same six languages. Names and messages from chat keep their own writing direction in every language.
 
 **Can I add a language?**
-Yes, as a small pull request: copy `shared/lang/en.js` (overlays and dock) and `shared/lang/studio/en.js` (studio), translate the values, and add the code to `dil` in `shared/kick-core.js`. The tests tell you if a key or a `{slot}` is missing.
+Yes. The texts are plain JSON files in `i18n/`: copy `i18n/overlay/en.json` (overlays and dock) and `i18n/studio/en.json` (studio), translate the values, and open a pull request. [Translating](translating.md) has the steps, and `npm run i18n:status` shows what is still missing in each language.
 
 **Does it work in Streamlabs Desktop or other software?**
 Anything that has a browser source and loads a web address should work. The pack is built and tested for OBS Studio.
