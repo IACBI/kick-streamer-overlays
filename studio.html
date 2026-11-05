@@ -63,6 +63,18 @@
 <!-- Without JavaScript the text table is not available, so both languages are written out. -->
 <noscript><p class="st-foot"><span lang="en">This studio needs JavaScript.</span> <span lang="tr">Bu stüdyo JavaScript gerektirir.</span></p></noscript>
 
+<!-- Server mode: the relay runs on a public address and never sends its key, so the owner enters it once. -->
+<section class="st-keygate" id="anahtarKutu" aria-labelledby="anahtar-baslik" hidden>
+  <h2 id="anahtar-baslik" data-i18n="key.title"></h2>
+  <p class="st-note" data-i18n="key.intro"></p>
+  <form id="anahtarForm" class="st-look" autocomplete="off">
+    <label class="st-sr" for="anahtarGir" data-i18n="key.label"></label>
+    <input id="anahtarGir" type="password" spellcheck="false" autocomplete="current-password" data-i18n-ph="key.label">
+    <button type="submit" class="st-btn st-btn--primary" data-i18n="key.enter"></button>
+  </form>
+  <p class="st-status" id="anahtar-durum" role="status" aria-live="polite"></p>
+</section>
+
 <main id="main" class="st-layout">
 
   <!-- Left column: settings -->
@@ -408,6 +420,7 @@
           <button type="button" id="relayKaydet" class="st-btn st-btn--primary" data-i18n="save.button"></button>
         </div>
         <p id="kaydet-durum" class="st-status" role="status"></p>
+        <p class="st-note" id="anahtarNot" hidden><span data-i18n="key.note"></span> <button type="button" class="st-linkbtn" id="anahtarUnut" data-i18n="key.forget"></button></p>
       </div>
       <p class="st-warnline st-warnbox" id="kanal-uyari" role="status" hidden><span data-i18n="links.needChannel"></span> <button type="button" class="st-linkbtn" id="kanalaGit" data-i18n="links.goChannel"></button></p>
       <div id="kartlar" class="st-cards"></div>

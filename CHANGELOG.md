@@ -4,6 +4,15 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-11-05
+
+### Added
+
+- Server mode: run the relay on an always-on server behind your own HTTPS address ([docs/cloud.md](docs/cloud.md)). Set `RELAY_PUBLIC_URL` and Kick posts straight to `https://your-address/kick/webhook` (no tunnel, no new URL after a restart), the studio and overlays come from that address, and chat and alerts keep working while the streaming PC is off.
+- A `Dockerfile` for server mode, with settings, key and stats in a `/data` volume and a health check; CI builds the image and checks it on every pull request.
+- In server mode the relay never sends its access key to a page: the studio asks for it once and keeps it in that browser (**Forget the key here** removes it), and overlay links carry it for OBS. Only the configured address is answered besides loopback.
+- [docs/translating.md](docs/translating.md) lists the exact settings for connecting the translations to Weblate.
+
 ## [3.1.9] - 2026-11-05
 
 ### Changed

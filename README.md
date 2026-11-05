@@ -73,6 +73,8 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 
 From then on, change anything in the studio and press **Save**: every overlay in OBS updates within a few seconds. Live chat, alerts and the subscriber total need a free Kick app and a tunnel on top. The studio's **Live features** checklist walks you through it, and the relay app starts the tunnel by itself once [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) is installed. Details: [docs/relay.md](docs/relay.md).
 
+**On your own server:** run the relay in Docker behind your HTTPS address, so chat and alerts keep working without a tunnel or the streaming PC: [docs/cloud.md](docs/cloud.md).
+
 **Without the relay:** open `studio.html` from the unpacked folder, pick a look, and copy the links. A link then carries your settings, so after a change copy it again.
 
 **All overlays at once, the control dock, and the Local file method:** see [docs/setup.md](docs/setup.md).
@@ -153,7 +155,7 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 - Pages must stay classic scripts so they work from `file://`. Use the shared `.ko-*` components and tokens in `shared/themes.css`, and prefer `transform` and `opacity` for new animations.
 - `node tools/record-previews.js` re-creates the images in `screenshots/` (needs Node.js 22 or newer, Chrome or Edge, and `ffmpeg`).
 - `node tools/visual-qa.js --out <dir>` and `node tools/motion-qa.js --out <dir>` check every theme for readability and every animation for smoothness before a change ships (Node.js 22 or newer, Chrome). Add `--only main,lang --gate` to fail on any text below its contrast target or any layout issue, in every label language, as CI does.
-- Guides: [setup](docs/setup.md), [relay](docs/relay.md), [settings](docs/settings.md), [theme gallery](docs/themes.md), [translating](docs/translating.md), [troubleshooting](docs/troubleshooting.md), [FAQ](docs/faq.md), [roadmap](docs/ROADMAP.md).
+- Guides: [setup](docs/setup.md), [relay](docs/relay.md), [server mode](docs/cloud.md), [settings](docs/settings.md), [theme gallery](docs/themes.md), [translating](docs/translating.md), [troubleshooting](docs/troubleshooting.md), [FAQ](docs/faq.md), [roadmap](docs/ROADMAP.md).
 - More in [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [changelog](CHANGELOG.md).
 
 ### License
@@ -227,6 +229,8 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 4. Bir overlay'in **Bağlantıyı kopyala** düğmesine bas. OBS'te **Kaynaklar → + → Tarayıcı** ekle, **Yerel dosya** kutusunu kapat, bağlantıyı (`http://127.0.0.1:8790/follower-bar.html`) **URL** kutusuna yapıştır ve boyutu kartta yazan değere ayarla.
 
 Bundan sonra stüdyoda neyi değiştirirsen değiştir, **Kaydet**'e basman yeter: OBS'teki tüm overlay'ler birkaç saniye içinde güncellenir. Canlı sohbet, bildirimler ve abone sayısı için ayrıca ücretsiz bir Kick uygulaması ve tünel gerekir. Stüdyodaki **Canlı özellikler** kontrol listesi seni adım adım götürür; [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) kuruluysa relay uygulaması tüneli kendisi açar. Ayrıntılar: [docs/relay.md](docs/relay.md) (İngilizce).
+
+**Kendi sunucunda:** relay'i Docker ile kendi HTTPS adresinin arkasında çalıştır; sohbet ve bildirimler tünel ya da yayın bilgisayarı olmadan da çalışır: [docs/cloud.md](docs/cloud.md) (İngilizce).
 
 **Relay olmadan:** açtığın klasördeki `studio.html` dosyasını aç, bir görünüm seç ve bağlantıları kopyala. Bu durumda bağlantı ayarlarını taşır; bir değişiklikten sonra yeniden kopyala.
 
@@ -308,7 +312,7 @@ Kendi bildirim seslerin ve görsellerin, rozet görselleri ve abone toplamı iç
 - Sayfalar `file://` üzerinden çalışabilmek için klasik script olarak kalmalı. Ortak `.ko-*` bileşenlerini ve `shared/themes.css` içindeki değişkenleri kullan, yeni animasyonlar için `transform` ve `opacity` tercih et.
 - `node tools/record-previews.js`, `screenshots/` içindeki görselleri yeniden üretir (Node.js 22 veya üstü, Chrome veya Edge ve `ffmpeg` gerekir).
 - `node tools/visual-qa.js --out <dir>` ve `node tools/motion-qa.js --out <dir>`, bir değişiklik yayınlanmadan önce her temanın okunabilirliğini ve her animasyonun akıcılığını ölçer (Node.js 22 veya üstü, Chrome). CI'daki gibi, her etiket dilinde kontrast hedefinin altındaki her metinde ya da her yerleşim sorununda hata vermesi için `--only main,lang --gate` ekle.
-- Rehberler (İngilizce): [kurulum](docs/setup.md), [relay](docs/relay.md), [ayarlar](docs/settings.md), [tema galerisi](docs/themes.md), [çeviri](docs/translating.md), [sorun giderme](docs/troubleshooting.md), [SSS](docs/faq.md), [yol haritası](docs/ROADMAP.md).
+- Rehberler (İngilizce): [kurulum](docs/setup.md), [relay](docs/relay.md), [sunucu modu](docs/cloud.md), [ayarlar](docs/settings.md), [tema galerisi](docs/themes.md), [çeviri](docs/translating.md), [sorun giderme](docs/troubleshooting.md), [SSS](docs/faq.md), [yol haritası](docs/ROADMAP.md).
 - Ayrıntılar: [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) ve [değişiklik günlüğü](CHANGELOG.md).
 
 ### Lisans

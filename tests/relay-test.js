@@ -1454,6 +1454,53 @@ function statusOf(port, p, headers) {
     fsx.rmSync(dir, { recursive: true, force: true });
   }
 
+  console.log('== relay: server mode (public https address)');
+  {
+    const os = require('os');
+    const fsx = require('fs');
+    let threw = 0;
+    for (const bad of ['http://overlays.example.test', 'https://overlays.example.test/sub', 'https://u:p@overlays.example.test', 'not a url']) {
+      try { createRelay({ publicUrl: bad, accessKey: ACCESS_KEY, credentials: false, channelSlug: '', logger: quietLogger() }); } catch (e) { threw++; }
+    }
+    check('server mode: only a plain https address is accepted', threw === 4, String(threw));
+    const cfg = fsx.mkdtempSync(path.join(os.tmpdir(), 'kick-server-'));
+    const PUB = 'https://overlays.example.test';
+    const r = createRelay({ publicUrl: PUB, publicKeyPem: publicKey, accessKey: ACCESS_KEY, webhookPort: 0, eventsPort: 0, broadcasterUserId: '113812015',
+      credentials: false, channelSlug: '', configRoot: cfg, siteRoot: path.join(__dirname, '..'), logger: quietLogger() });
+    const { eventsPort: ep } = await r.start();
+    const H = { Host: 'overlays.example.test' };
+    check('server mode: the public host is served', (await get(ep, '/studio.html', 'GET', H)).status === 200);
+    check('server mode: another host is refused', (await get(ep, '/studio.html', 'GET', { Host: 'evil.example.test' })).status === 403);
+    check('server mode: loopback still works', (await get(ep, '/studio.html')).status === 200);
+    const ks = await get(ep, '/AYARLAR.relay.js', 'GET', Object.assign({ 'Sec-Fetch-Site': 'same-origin' }, H));
+    check('server mode: the key script never contains the key', ks.status === 200 && !ks.body.includes(ACCESS_KEY) && ks.body.includes('KICK_RELAY_SELF = true'));
+    const ks2 = await get(ep, '/AYARLAR.relay.js');
+    check('server mode: not even on loopback', !ks2.body.includes(ACCESS_KEY));
+    const ok = await get(ep, withKey('/health'), 'GET', Object.assign({ Origin: PUB }, H));
+    const hb = ok.status === 200 ? JSON.parse(ok.body) : {};
+    check('server mode: the public origin may call the API with the key', ok.status === 200 && ok.headers['access-control-allow-origin'] === PUB);
+    check('server mode: /health gives the public webhook URL', hb.tunnel === PUB + '/kick/webhook' && hb.server === true, JSON.stringify({ t: hb.tunnel, s: hb.server }));
+    check('server mode: another origin is refused', (await get(ep, withKey('/health'), 'GET', Object.assign({ Origin: 'https://evil.example.test' }, H))).status === 403);
+    check('server mode: without the key the API answers 401', (await get(ep, '/health', 'GET', H)).status === 401);
+    const sse = openSse(ep);
+    await new Promise((res) => setTimeout(res, 100));
+    const ts = String(Math.floor(Date.now() / 1000));
+    const body = chatBody('srv-1', 'hello from the server');
+    const okPost = await post(ep, { id: 'srv-1', ts, body, sig: sign('srv-1', ts, body, privateKey), headers: H });
+    const badPost = await post(ep, { id: 'srv-2', ts, body, sig: sign('srv-2', ts, body, otherKey.privateKey), headers: H });
+    await new Promise((res) => setTimeout(res, 100));
+    check('server mode: Kick webhooks are taken on the same port, signature checked', okPost.status === 200 && badPost.status === 401, okPost.status + '/' + badPost.status);
+    check('server mode: a verified chat message reaches the overlay stream', sse.frames.some((f) => f.event === 'chat' && f.data.id === 'srv-1'));
+    sse.close();
+    r.stop();
+    const local = createRelay({ publicKeyPem: publicKey, accessKey: ACCESS_KEY, webhookPort: 0, eventsPort: 0, credentials: false, channelSlug: '', configRoot: cfg, siteRoot: path.join(__dirname, '..'), logger: quietLogger() });
+    const lp = (await local.start()).eventsPort;
+    check('local mode: the events port does not take webhooks', (await post(lp, { id: 'l-1', ts, body, sig: sign('l-1', ts, body, privateKey) })).status !== 200);
+    check('local mode: a public host name is refused', (await get(lp, '/studio.html', 'GET', H)).status === 403);
+    local.stop();
+    fsx.rmSync(cfg, { recursive: true, force: true });
+  }
+
   const failed = results.filter((ok) => !ok).length;
   console.log(`\n${results.length - failed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

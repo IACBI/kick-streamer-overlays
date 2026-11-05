@@ -43,3 +43,15 @@ To see the result, open `studio.html`, switch the interface language, and pick y
 ## Translation platforms
 
 The files are nested JSON with English as the template, which Weblate, Crowdin, Tolgee and similar tools read as they are. Plural categories that English does not have (`zero`, `two`, `few`, `many`) are not in the template, so for languages that need them, add those in the file itself.
+
+For maintainers, connecting Weblate (Hosted Weblate offers free hosting to open-source projects) takes two components with the same settings:
+
+| Field | Overlay texts | Studio texts |
+| --- | --- | --- |
+| Source code repository | `https://github.com/IACBI/kick-streamer-overlays.git` | same |
+| Repository branch | `main` | same |
+| File format | JSON nested structure file | same |
+| File mask | `i18n/overlay/*.json` | `i18n/studio/*.json` |
+| Monolingual base language file | `i18n/overlay/en.json` | `i18n/studio/en.json` |
+
+Let Weblate open pull requests rather than push to `main`, so every change runs through CI, and run `npm run build:lang` on the pull request branch (CI fails until the scripts in `shared/lang/` match).

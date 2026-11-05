@@ -27,6 +27,7 @@ Thanks for helping make the pack better. This project is by 𝓐.𝓒.𝓑 and f
 | `shared/lang/studio/<code>.js` | Studio texts and choice labels. Generated from `i18n/studio/`. |
 | `relay/server.js` | The relay: HTTP listeners, rate limits, the overlay stream, the studio API, `/health`, `/channel`, `/subscribers`, `/stats`, `/control` and `/overlay`. Kick-specific code lives in `relay/kick.js`. |
 | `relay/kick.js` | The Kick adapter: reads a webhook delivery, checks its signature (with key rotation), turns it into an overlay event, looks up channels and manages event subscriptions. A change on Kick's side is fixed here. |
+| `Dockerfile` | The relay image for server mode ([docs/cloud.md](docs/cloud.md)). |
 | `relay/site.js` | Serves the pack's pages on the relay's local port and saves the studio's settings and credentials. |
 | `relay/record.js` | Record mode: redacted copies of verified webhooks in `recordings/`. |
 | `relay/stats.js` | This stream's numbers (totals, recent events, leaderboards, sub train), saved to `kick-relay-stats.json` and written to `labels/`. |

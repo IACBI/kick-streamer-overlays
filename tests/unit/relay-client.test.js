@@ -622,7 +622,17 @@ async function testConnectRelayReconnect() {
     eq(ticks.length, 0, 'preview: no watcher');
     const https = loadCore({ location: { protocol: 'https:', hostname: '127.0.0.1', origin: 'https://127.0.0.1', search: '' } });
     https.ctx.KICK_RELAY_SELF = true;
-    eq(https.K.relayServed(), false, 'only plain http on loopback counts');
+    eq(https.K.relayServed(), true, 'https with the relay key script: a relay in server mode');
+    eq(https.K.relayRemote(), true, 'server mode is remote');
+    const notSelf = loadCore({ location: { protocol: 'https:', hostname: 'example.com', origin: 'https://example.com', search: '' } });
+    eq(notSelf.K.relayServed(), false, 'an https site without the relay key script is not the relay');
+    eq(notSelf.K.relayBlocked(), true, 'and stays blocked as hosted');
+    const plainHttp = loadCore({ location: { protocol: 'http:', hostname: 'example.com', origin: 'http://example.com', search: '' } });
+    plainHttp.ctx.KICK_RELAY_SELF = true;
+    eq(plainHttp.K.relayServed(), false, 'plain http counts only on loopback');
+    const local = loadCore({ location: { protocol: 'http:', hostname: '127.0.0.1', origin: 'http://127.0.0.1:8790', search: '' } });
+    local.ctx.KICK_RELAY_SELF = true;
+    eq(local.K.relayRemote(), false, 'the local relay is not remote');
   });
 
   await check('stop() cancels a pending reconnect and closes the stream', async () => {
