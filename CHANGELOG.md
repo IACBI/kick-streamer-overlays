@@ -4,6 +4,17 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-11-05
+
+### Added
+
+- **Connect chat and alerts** in the studio's Kick app step, when the studio is opened from the relay: the relay creates the missing Kick event subscriptions (`POST /subscribe`), the same as `relay/subscribe.js`, and learns the broadcaster ID at once. No command line needed.
+
+### Changed
+
+- The studio opened from the relay explains in the Kick app step that the credentials are saved in the relay, not kept in the page.
+- `relay/subscribe.js` shares one routine with the relay (`ensureSubscriptions`); the command line output is unchanged.
+
 ## [3.1.0] - 2026-11-05
 
 ### Added
