@@ -41,7 +41,10 @@
   "alert.gift": "Gifted subs",
   "alert.kicks": "Kicks gift",
   "alert.reward": "Reward redeemed",
-  "alert.points": "points",
+  "alert.points": {
+    "one": "point",
+    "other": "points"
+  },
   "events.title": "Recent events",
   "events.empty": "No events yet",
   "board.gifts": "Top gifters",

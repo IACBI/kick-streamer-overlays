@@ -15,7 +15,7 @@
     "note.hosted": "Live-Funktionen brauchen das heruntergeladene Paket",
     "bar.follower": "Follower",
     "bar.subscriber": "Abonnenten",
-    "bar.subTrain": "Abo-Zug",
+    "bar.subTrain": "Sub-Train",
     "chat.streamer": "Streamer",
     "countdown.soon": "Gleich geht’s los",
     "countdown.live": "Es geht los!",
@@ -43,7 +43,10 @@
     "alert.gift": "Verschenkte Abos",
     "alert.kicks": "Kicks-Geschenk",
     "alert.reward": "Belohnung eingelöst",
-    "alert.points": "Punkte",
+    "alert.points": {
+      "one": "Punkt",
+      "other": "Punkte"
+    },
     "events.title": "Letzte Ereignisse",
     "events.empty": "Noch keine Ereignisse",
     "board.gifts": "Top-Schenker",

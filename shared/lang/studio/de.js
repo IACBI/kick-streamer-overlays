@@ -75,7 +75,7 @@
       "ph.uyariTtsYasak": "badword1, badword2",
       "h.uyariTtsYasak": "Mit Kommas trennen. Enthält der Name oder die Nachricht eines davon, wird diese Nachricht gar nicht vorgelesen. Links werden nie vorgelesen.",
       "f.uyariTest": "Ausprobieren",
-      "h.uyariTest": "„Sound hier abspielen“ spielt ihn auf dieser Seite ab. Die Art-Buttons schicken einen Beispiel-Alert über das Relay an das geöffnete Alert-Overlay (mit Sound und Grafik).",
+      "h.uyariTest": "„Sound hier abspielen“ spielt ihn auf dieser Seite ab. Die Buttons pro Alert-Art schicken einen Beispiel-Alert über das Relay an das geöffnete Alert-Overlay (mit Sound und Grafik).",
       "test.sound": "Sound hier abspielen",
       "test.played": "Sound für {kind} wurde abgespielt.",
       "test.muted": "Ton ist aus oder die Lautstärke ist 0.",
@@ -248,7 +248,7 @@
       "g.css": "Erweitert: eigenes CSS",
       "warn.css": "Dieses CSS wird nicht verwendet: Es enthält eine Regel, die etwas von woanders lädt, einen Backslash oder mehr als 2000 Zeichen.",
       "f.ozelCss": "Eigenes CSS (alle Overlays)",
-      "h.ozelCss": "Bis zu 2000 Zeichen, werden über das Design angewendet. Regeln, die Dateien oder Schriften von anderswo laden (url(), @import, @font-face, image-set), und Backslashes werden nicht akzeptiert; ein solcher Wert wird komplett ignoriert.",
+      "h.ozelCss": "Bis zu 2000 Zeichen. Sie werden über das Design angewendet. Regeln, die Dateien oder Schriften von anderswo laden (url(), @import, @font-face, image-set), und Backslashes werden nicht akzeptiert; ein solcher Wert wird komplett ignoriert.",
       "f.sohbetYatay": "Horizontaler Chat (eine Zeile)",
       "h.sohbetYatay": "Nachrichten reihen sich nebeneinander zu einem Streifen am Bildschirmrand, die neueste rechts. Quellgröße z. B. 1280 × 80.",
       "g.relay.for": "Live-Chat und Alert-Brücke",
@@ -264,7 +264,7 @@
       "key.enter": "Entsperren",
       "key.bad": "Ein Schlüssel hat 32 bis 128 Buchstaben, Ziffern, „_“ oder „-“.",
       "key.wrong": "Falscher Schlüssel.",
-      "key.fail": "Das Relay hat nicht geantwortet. Versuch es noch einmal.",
+      "key.fail": "Das Relay hat nicht geantwortet. Versuche es erneut.",
       "key.note": "Dieser Browser speichert den Relay-Schlüssel. Overlay-Links enthalten ihn: gib sie nur an OBS weiter.",
       "key.forget": "Schlüssel hier vergessen",
       "save.hint": "Dein Relay liefert dieses Studio aus, deshalb ändern sich die Links unten nie. Klicke auf Speichern, und alle Overlays in OBS aktualisieren sich in wenigen Sekunden.",
@@ -276,7 +276,7 @@
       "e.relayCleared": "Zugangsdaten aus dem Relay entfernt.",
       "e.relayFail": "Das Relay hat die Zugangsdaten nicht gespeichert. Prüfe sie und versuche es erneut.",
       "s5.connect": "Chat und Alerts verbinden",
-      "s5.hintRelay": "Im Relay landen die Werte in AYARLAR.local.js daneben, nur auf diesem Computer. Teile die Datei nie und committe sie nicht.",
+      "s5.hintRelay": "Im Relay werden die Werte in AYARLAR.local.js neben AYARLAR.js geschrieben, nur auf diesem Computer. Teile die Datei nie und committe sie nicht.",
       "s5.introRelay": "Mit den Zugangsdaten deiner Kick-App liest das Relay die Abonnentenzahl und empfängt Chat und Alerts. Speichere sie einmal im Relay; sie landen nie in Links oder in AYARLAR.js, und Seiten bekommen sie nie.",
       "chk.title": "Live-Funktionen: Einrichtung",
       "chk.channel": "Kanal gespeichert: {name}",
@@ -360,7 +360,7 @@
         "retro": "Retro"
       },
       "sekil": {
-        "pill": "Pille",
+        "pill": "Kapsel",
         "rounded": "Abgerundet",
         "square": "Eckig"
       },
@@ -381,7 +381,7 @@
       },
       "animasyon": {
         "normal": "Normal",
-        "low": "Gering",
+        "low": "Reduziert",
         "off": "Aus"
       }
     }
