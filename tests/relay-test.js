@@ -566,6 +566,14 @@ function statusOf(port, p, headers) {
       T.cloudflaredPath({ 'ProgramFiles(x86)': 'C:\\Program Files (x86)' }, { platform: 'win32', exists: (p) => p === 'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe' }) === 'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe' &&
       T.cloudflaredPath({ ProgramFiles: 'C:\\Program Files' }, { platform: 'win32', exists: () => false }) === 'cloudflared' &&
       T.cloudflaredPath({}, { platform: 'linux', exists: () => true }) === 'cloudflared');
+    check('cloudflaredPath: one next to the relay wins over the install folder and PATH',
+      T.cloudflaredPath({}, { platform: 'win32', root: 'C:\\pack', exists: (p) => p.endsWith('cloudflared.exe') }) === 'C:\\pack\\cloudflared.exe' &&
+      T.cloudflaredPath({}, { platform: 'linux', root: '/pack', exists: () => false }) === 'cloudflared');
+    check('cloudflaredFound: a found file, or cloudflared in a PATH folder; nothing found is false',
+      T.cloudflaredFound({ PATH: '/usr/bin:/opt/cf' }, { platform: 'linux', delimiter: ':', exists: (p) => p === '/opt/cf/cloudflared' }) === true &&
+      T.cloudflaredFound({ PATH: 'C:\\Windows;D:\\cf' }, { platform: 'win32', delimiter: ';', exists: (p) => p === 'D:\\cf\\cloudflared.exe' }) === true &&
+      T.cloudflaredFound({ PATH: '/usr/bin' }, { platform: 'linux', delimiter: ':', exists: () => false }) === false &&
+      T.cloudflaredFound({ RELAY_CLOUDFLARED: '/x/cf' }, { platform: 'linux', exists: () => false }) === false);
 
     // A fake cloudflared: each spawn returns a process the test drives by hand.
     const procs = [], calls = [];

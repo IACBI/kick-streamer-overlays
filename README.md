@@ -71,7 +71,7 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 3. Enter your channel name, pick a look, and press **Save and apply to OBS**.
 4. Press **Copy link** on an overlay. In OBS add **Sources → + → Browser**, turn **Local file** off, paste the link (`http://127.0.0.1:8790/follower-bar.html`) into **URL**, and set the size shown on the card.
 
-From then on, change anything in the studio and press **Save**: every overlay in OBS updates within a few seconds. Live chat, alerts and the subscriber total need a Kick app and a tunnel on top; see [docs/relay.md](docs/relay.md).
+From then on, change anything in the studio and press **Save**: every overlay in OBS updates within a few seconds. Live chat, alerts and the subscriber total need a free Kick app and a tunnel on top. The studio's **Live features** checklist walks you through it, and the relay app starts the tunnel by itself once [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) is installed. Details: [docs/relay.md](docs/relay.md).
 
 **Without the relay:** open `studio.html` from the unpacked folder, pick a look, and copy the links. A link then carries your settings, so after a change copy it again.
 
@@ -227,7 +227,7 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 3. Kanal adını yaz, bir görünüm seç ve **Kaydet ve OBS'e uygula** düğmesine bas.
 4. Bir overlay'in **Bağlantıyı kopyala** düğmesine bas. OBS'te **Kaynaklar → + → Tarayıcı** ekle, **Yerel dosya** kutusunu kapat, bağlantıyı (`http://127.0.0.1:8790/follower-bar.html`) **URL** kutusuna yapıştır ve boyutu kartta yazan değere ayarla.
 
-Bundan sonra stüdyoda neyi değiştirirsen değiştir, **Kaydet**'e basman yeter: OBS'teki tüm overlay'ler birkaç saniye içinde güncellenir. Canlı sohbet, bildirimler ve abone sayısı için ayrıca bir Kick uygulaması ve tünel gerekir; bkz. [docs/relay.md](docs/relay.md) (İngilizce).
+Bundan sonra stüdyoda neyi değiştirirsen değiştir, **Kaydet**'e basman yeter: OBS'teki tüm overlay'ler birkaç saniye içinde güncellenir. Canlı sohbet, bildirimler ve abone sayısı için ayrıca ücretsiz bir Kick uygulaması ve tünel gerekir. Stüdyodaki **Canlı özellikler** kontrol listesi seni adım adım götürür; [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) kuruluysa relay uygulaması tüneli kendisi açar. Ayrıntılar: [docs/relay.md](docs/relay.md) (İngilizce).
 
 **Relay olmadan:** açtığın klasördeki `studio.html` dosyasını aç, bir görünüm seç ve bağlantıları kopyala. Bu durumda bağlantı ayarlarını taşır; bir değişiklikten sonra yeniden kopyala.
 

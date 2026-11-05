@@ -18,7 +18,7 @@ const { HEADER, verifySignature, isFresh, ReplayGuard, TokenBucket, normalizeEve
 const { ROOT, loadConfig, fetchTimeout, loadRelayKey, parsePort } = require('./config.js');
 const { createKickApi, retryAfterSec } = require('./kick-api.js');
 const { createLogger } = require('./log.js');
-const { startTunnel, cloudflaredPath } = require('./tunnel.js');
+const { startTunnel, cloudflaredPath, cloudflaredFound } = require('./tunnel.js');
 const { createStats } = require('./stats.js');
 const { createSite } = require('./site.js');
 const { ensureSubscriptions } = require('./subscribe.js');
@@ -198,6 +198,7 @@ function createRelay(opts) {
     siteRoot: ROOT,            // the pages served on the events port
     configRoot: ROOT,          // where AYARLAR.js and AYARLAR.local.js are read and saved
     recordDir: null,           // record mode: redacted copies of verified webhooks go here
+    onConfigChange: () => {},  // after the studio saved settings or credentials
     normalizeEvent,
     logger: console,
     now: () => Date.now()
@@ -553,6 +554,7 @@ data: ${JSON.stringify(stats.snapshot())}
       // A new channel needs its own broadcaster id, unless the id was given explicitly.
       if (slugOption() !== before && !o.broadcasterUserId) { broadcasterId = ''; resolveBroadcaster(); }
       o.logger.log('  Settings saved from the studio.');
+      o.onConfigChange('settings');
       return send(res, 200, r);
     }
     const r = site.writeLocal(body);
@@ -562,6 +564,7 @@ data: ${JSON.stringify(stats.snapshot())}
     subsCache.clear();
     if (!broadcasterId) resolveBroadcaster();
     o.logger.log(r.saved ? '  Kick app credentials saved from the studio.' : '  Kick app credentials removed from the studio.');
+    o.onConfigChange('credentials');
     return send(res, 200, { ok: true, saved: r.saved, credentials: api.hasCredentials() });
   }
 
@@ -638,7 +641,7 @@ data: ${JSON.stringify(stats.snapshot())}
 
     if (p === '/health') {
       return send(res, 200, {
-        ok: true, version: VERSION, clients: clients.size, lastEventAt,
+        ok: true, version: VERSION, clients: clients.size, lastEventAt, channel: slugOption(),
         features: { chat: chatReady(), alerts: chatReady(), live: chatReady(), channel: true, subscribers: api.hasCredentials(), settings: true },
         alertsPaused, lastAlert: lastAlert ? lastAlert.kind : null,
         tunnel: tunnelUrl ? tunnelUrl + '/kick/webhook' : null, recentErrors: recentErrors.slice()
@@ -691,6 +694,7 @@ data: ${JSON.stringify(stats.snapshot())}
     setTunnel(url) { tunnelUrl = typeof url === 'string' && /^https:\/\//.test(url) ? url : null; },
     chatReady,
     hasPack: site.hasPack,
+    hasCredentials: () => api.hasCredentials(),
     async start() {
       const webhookPort = await listen(webhook, o.webhookPort);
       const eventsPort = await listen(events, o.eventsPort);
@@ -748,6 +752,7 @@ function main(env = process.env, argv = process.argv.slice(2)) {
       statsFile: path.join(ROOT, 'kick-relay-stats.json'),
       labelsDir: env.RELAY_LABELS === '0' ? null : path.join(ROOT, 'labels'),
       recordDir: argv.includes('--record') || env.RELAY_RECORD === '1' ? path.join(ROOT, 'recordings') : null,
+      onConfigChange: () => maybeTunnel(),
       logger: log
     });
   } catch (e) {
@@ -755,7 +760,29 @@ function main(env = process.env, argv = process.argv.slice(2)) {
     process.exit(1);
   }
   // Ctrl+C or a service stop closes the sockets and ends open overlay streams before the process exits.
-  let tunnel = null;
+  let tunnel = null, webhookPortNow = 0;
+  // --tunnel (or RELAY_TUNNEL=1) always starts the quick tunnel. The executable also starts it by itself once Kick app
+  // credentials exist and cloudflared is installed, because a double-click user has no other way to get live events.
+  // RELAY_TUNNEL=0 turns that off. The tunnel exposes only the signed webhook path.
+  const tunnelAsked = argv.includes('--tunnel') || env.RELAY_TUNNEL === '1';
+  const tunnelAuto = !tunnelAsked && env.RELAY_TUNNEL !== '0' && isSea();
+  function maybeTunnel() {
+    if (tunnel || !webhookPortNow || !relay) return;
+    if (!tunnelAsked && !(tunnelAuto && relay.hasCredentials() && cloudflaredFound(env, { root: ROOT }))) return;
+    log.log(tunnelAsked ? '  Starting a Cloudflare quick tunnel...' : '  Starting a Cloudflare quick tunnel (cloudflared found; RELAY_TUNNEL=0 turns this off)...');
+    tunnel = startTunnel({
+      port: webhookPortNow, bin: cloudflaredPath(env, { root: ROOT }), logger: relay.logger,
+      onUrl: (url) => {
+        relay.setTunnel(url);
+        if (url) {
+          log.log('');
+          log.log(`  Webhook URL for your Kick app: ${url}/kick/webhook`);
+          log.log('  Paste it at kick.com/settings/developer -> your app -> Webhook URL. A new tunnel means a new URL.');
+          log.log('');
+        }
+      }
+    });
+  }
   const shutdown = (sig) => { log.log(`Kick relay stopping (${sig}).`); if (tunnel) tunnel.stop(); relay.stop(); process.exit(0); };
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));
@@ -764,21 +791,8 @@ function main(env = process.env, argv = process.argv.slice(2)) {
     log.log('Kick relay running.');
     log.log(`  Webhook (expose this through a tunnel): http://127.0.0.1:${webhookPort}/kick/webhook`);
     if (argv.includes('--record') || env.RELAY_RECORD === '1') log.log(`  Record mode: verified webhooks are saved, without names or message text, to ${path.join(ROOT, 'recordings')}`);
-    if (argv.includes('--tunnel') || env.RELAY_TUNNEL === '1') {
-      log.log('  Starting a Cloudflare quick tunnel...');
-      tunnel = startTunnel({
-        port: webhookPort, bin: cloudflaredPath(env), logger: relay.logger,
-        onUrl: (url) => {
-          relay.setTunnel(url);
-          if (url) {
-            log.log('');
-            log.log(`  Webhook URL for your Kick app: ${url}/kick/webhook`);
-            log.log('  Paste it at kick.com/settings/developer -> your app -> Webhook URL. A new tunnel means a new URL.');
-            log.log('');
-          }
-        }
-      });
-    }
+    webhookPortNow = webhookPort;
+    maybeTunnel();
     const studioUrl = `http://127.0.0.1:${eventsPort}/`;
     const packHere = relay.hasPack();
     if (!packHere) log.warn(`  The overlay pack is not in ${ROOT}. Put the relay in the unpacked kick-streamer-overlays folder to use the studio.`);

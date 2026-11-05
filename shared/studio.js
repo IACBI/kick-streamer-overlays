@@ -776,6 +776,7 @@
       savedJson = JSON.stringify(currentSettings());
       markDirty();
       say(box, 'ok', t('save.ok'));
+      refreshChecklist();
     } catch (e) {
       say(box, 'err', t('save.fail'));
     } finally {
@@ -814,6 +815,7 @@
       $('kickClientId').value = '';
       $('kickClientSecret').value = '';
       say(kickStatus, 'ok', data.saved ? t('e.relaySaved') : t('e.relayCleared'));
+      refreshChecklist();
     } catch (e) {
       say(kickStatus, 'err', t('e.relayFail'));
     } finally {
@@ -836,6 +838,7 @@
       if (res.ok && data && data.ok) {
         var n = Array.isArray(data.added) ? data.added.length : 0;
         say(kickStatus, 'ok', n ? t('e.connectOk', { n: n }) : t('e.connectAll'));
+        refreshChecklist();
       } else {
         var code = data && typeof data.error === 'string' ? data.error : '';
         say(kickStatus, 'err', t(Object.prototype.hasOwnProperty.call(CONNECT_ERRORS, code) ? CONNECT_ERRORS[code] : 'e.connectFail'));
@@ -845,6 +848,66 @@
     } finally {
       btn.disabled = false;
     }
+  }
+
+  // ---- Live features checklist (studio opened from the relay) ------------------
+
+  var CHECK_MS = 5000;
+  var lastChecklist = '';
+  function checklistItems(data, now) {
+    var f = data.features && typeof data.features === 'object' ? data.features : {};
+    var items = [];
+    var channel = typeof data.channel === 'string' ? data.channel.slice(0, 40) : '';
+    items.push(channel ? ['ok', t('chk.channel', { name: channel })] : ['err', t('chk.noChannel')]);
+    items.push(f.subscribers === true ? ['ok', t('chk.app')] : ['warn', t('chk.noApp')]);
+    var tunnel = typeof data.tunnel === 'string' && /^https:\/\/[a-z0-9.-]+\.trycloudflare\.com\/kick\/webhook$/.test(data.tunnel) ? data.tunnel : '';
+    items.push(tunnel ? ['ok', t('chk.tunnel'), tunnel] : ['warn', t('chk.noTunnel')]);
+    items.push(f.chat === true ? ['ok', t('chk.chat')] : ['warn', t('chk.noChat')]);
+    items.push(typeof data.lastEventAt === 'number' && isFinite(data.lastEventAt)
+      ? ['ok', t('chk.event', { ago: ago(now - data.lastEventAt) })] : ['warn', t('chk.noEvent')]);
+    return items;
+  }
+
+  function renderChecklist(items) {
+    var key = JSON.stringify(items);
+    if (key === lastChecklist) return;
+    lastChecklist = key;
+    var list = $('kurulum-liste');
+    list.textContent = '';
+    items.forEach(function (it) {
+      var li = document.createElement('li');
+      li.className = 'is-' + it[0];
+      var mark = document.createElement('span');
+      mark.className = 'st-mark';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.textContent = MARK[it[0]];
+      var text = document.createElement('span');
+      text.textContent = it[1];
+      li.append(mark, text);
+      if (it[2]) {
+        var code = document.createElement('code');
+        code.textContent = ' ' + it[2];
+        var copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'st-linkbtn';
+        copy.textContent = t('chk.copy');
+        copy.addEventListener('click', function () {
+          navigator.clipboard.writeText(it[2]).then(function () { toast(t('chk.copied')); }, function () { toast(t('chk.copyFail'), true); });
+        });
+        li.append(code, copy);
+      }
+      list.appendChild(li);
+    });
+    $('kurulum').hidden = false;
+  }
+
+  async function refreshChecklist() {
+    if (document.hidden) return;
+    try {
+      var res = await fetch(K.relayUrl(window.location.origin + '/health'), { cache: 'no-store' });
+      var data = res.ok ? await res.json() : null;
+      if (data && data.ok) renderChecklist(checklistItems(data, Date.now()));
+    } catch (e) { /* relay stopped: keep the last list */ }
   }
 
   function downloadLocal() {
@@ -1298,5 +1361,9 @@
   update();
   fitPreview();
   checkUpdate();
-  if (SELF) loadFromRelay();
+  if (SELF) {
+    loadFromRelay();
+    refreshChecklist();
+    setInterval(refreshChecklist, CHECK_MS);
+  }
 })();

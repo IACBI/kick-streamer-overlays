@@ -24,15 +24,19 @@ function tunnelUrlOf(line) {
 }
 
 /**
- * The cloudflared to run: RELAY_CLOUDFLARED, else the Windows installer's folder when it exists (it is not always
- * on PATH), else whatever "cloudflared" PATH finds.
+ * The cloudflared to run: RELAY_CLOUDFLARED, else one next to the relay (opts.root), else the Windows installer's
+ * folder when it exists (it is not always on PATH), else whatever "cloudflared" PATH finds.
  * @param {NodeJS.ProcessEnv} env
- * @param {{ platform?: string, exists?: (p: string) => boolean }} [opts]
+ * @param {{ platform?: string, exists?: (p: string) => boolean, root?: string }} [opts]
  * @returns {string}
  */
 function cloudflaredPath(env, opts) {
   const o = Object.assign({ platform: process.platform, exists: fs.existsSync }, opts || {});
   if (env.RELAY_CLOUDFLARED) return env.RELAY_CLOUDFLARED;
+  if (o.root) {
+    const p = o.platform === 'win32' ? path.win32.join(o.root, 'cloudflared.exe') : path.posix.join(o.root, 'cloudflared');
+    if (o.exists(p)) return p;
+  }
   if (o.platform === 'win32') {
     for (const base of [env['ProgramFiles(x86)'], env.ProgramFiles]) {
       if (!base) continue;
@@ -131,4 +135,19 @@ function startTunnel(opts) {
   };
 }
 
-module.exports = { startTunnel, tunnelUrlOf, cloudflaredPath };
+/**
+ * Whether cloudflared can be started: the file cloudflaredPath picked exists, or "cloudflared" is on PATH.
+ * @param {NodeJS.ProcessEnv} env
+ * @param {{ platform?: string, exists?: (p: string) => boolean, root?: string, delimiter?: string }} [opts]
+ */
+function cloudflaredFound(env, opts) {
+  const o = Object.assign({ platform: process.platform, exists: fs.existsSync, delimiter: path.delimiter }, opts || {});
+  const p = cloudflaredPath(env, o);
+  if (p !== 'cloudflared') return o.exists(p);
+  const names = o.platform === 'win32' ? ['cloudflared.exe', 'cloudflared.cmd'] : ['cloudflared'];
+  const join = o.platform === 'win32' ? path.win32.join : path.posix.join;
+  return String(env.PATH || env.Path || '').split(o.delimiter).filter(Boolean)
+    .some((dir) => names.some((n) => o.exists(join(dir, n))));
+}
+
+module.exports = { startTunnel, tunnelUrlOf, cloudflaredPath, cloudflaredFound };

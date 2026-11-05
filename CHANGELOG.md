@@ -4,6 +4,13 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.1.4] - 2026-11-05
+
+### Added
+
+- A **Live features** checklist in the studio opened from the relay: channel, Kick app, tunnel (with the Webhook URL and a copy button), channel ID and the last event from Kick, refreshed every few seconds. `/health` now also reports the channel.
+- The relay executable starts the Cloudflare quick tunnel by itself once Kick app credentials exist and `cloudflared` is found (next to the relay, in its install folder or on `PATH`), also right after the credentials are saved in the studio. `RELAY_TUNNEL=0` turns it off.
+
 ## [3.1.3] - 2026-11-05
 
 ### Changed
