@@ -100,7 +100,7 @@
           detail: K.t(S, 'event.kicks', { n: ev.amount }) + (ev.giftName ? ' · ' + ev.giftName : ''), message: ev.message || '' };
       case 'reward':
         return { title: K.t(S, 'alert.reward'), name: ev.username,
-          detail: ev.rewardTitle + (ev.cost ? ' · ' + n(ev.cost) + ' ' + K.t(S, 'alert.points') : ''), message: ev.message || '' };
+          detail: ev.rewardTitle + (ev.cost ? ' · ' + n(ev.cost) + ' ' + K.t(S, 'alert.points', { n: ev.cost }) : ''), message: ev.message || '' };
     }
     return null;
   }

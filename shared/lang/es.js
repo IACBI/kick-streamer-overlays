@@ -9,8 +9,8 @@
     "note.noData": "Sin datos de suscriptores",
     "note.unreachable": "Kick no responde",
     "note.stale": "Los datos pueden estar desactualizados",
-    "note.chatRelay": "El relay del chat no está activo",
-    "note.alertRelay": "El relay de alertas no está activo",
+    "note.chatRelay": "El relay del chat no está en marcha",
+    "note.alertRelay": "El relay de alertas no está en marcha",
     "note.localFile": "En OBS, usa el enlace del estudio en lugar de “Archivo local”",
     "note.hosted": "Las funciones en vivo necesitan el paquete descargado",
     "bar.follower": "Seguidores",
@@ -24,8 +24,8 @@
     "event.followed": "siguió",
     "event.subscribed": "se suscribió",
     "event.subMonths": {
-      "one": "suscrito {n} mes",
-      "other": "suscrito {n} meses"
+      "one": "suscrito durante {n} mes",
+      "other": "suscrito durante {n} meses"
     },
     "event.kicks": "{n} Kicks",
     "event.gifted": {
@@ -43,7 +43,10 @@
     "alert.gift": "Suscripciones regaladas",
     "alert.kicks": "Regalo de Kicks",
     "alert.reward": "Recompensa canjeada",
-    "alert.points": "puntos",
+    "alert.points": {
+      "one": "punto",
+      "other": "puntos"
+    },
     "events.title": "Eventos recientes",
     "events.empty": "Aún no hay eventos",
     "board.gifts": "Más regalos",
@@ -73,7 +76,7 @@
       "other": "{n} overlays conectados"
     },
     "dock.paused": "en pausa",
-    "dock.down": "El relay no está activo. Inícialo con “node relay/server.js”.",
+    "dock.down": "El relay no está en marcha. Inícialo con “node relay/server.js”.",
     "dock.sentNone": "Enviado, pero ningún overlay está conectado al relay.",
     "dock.done": "Listo.",
     "dock.noReplay": "Aún no hay alerta para repetir.",

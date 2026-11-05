@@ -4,6 +4,20 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.2.1] - 2026-11-05
+
+### Fixed
+
+- Every translation was reviewed against English: clearer wording, one term per idea (relay, link, announcements, Sub-Train), and Brazilian Portuguese forms.
+- Spanish and Arabic no longer say "ago" twice in the last-event line of the relay check.
+- A reward cost reads "1 point" instead of "1 points", and Arabic uses its dual and plural forms.
+- Counts that cannot agree with a noun in Portuguese and Arabic are shown as a plain number.
+- Spanish names the OBS menus as the Spanish OBS shows them.
+
+### Removed
+
+- Weblate setup notes from docs/translating.md: languages are reviewed before each release instead.
+
 ## [3.2.0] - 2026-11-05
 
 ### Added

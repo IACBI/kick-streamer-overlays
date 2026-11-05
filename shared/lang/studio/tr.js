@@ -28,8 +28,8 @@
       "preset.kor": "Kor",
       "preset.retro": "Retro",
       "preset.terminal": "Terminal",
-      "look.copy": "Görünüm linkini kopyala",
-      "look.inputLabel": "Görünüm linki",
+      "look.copy": "Görünüm bağlantısını kopyala",
+      "look.inputLabel": "Görünüm bağlantısı",
       "look.placeholder": "Görünüm linkini yapıştır",
       "look.apply": "Uygula",
       "look.applied": "Linkteki görünüm uygulandı. Kalıcı olması için kaydet.",
@@ -224,7 +224,7 @@
       "help.n3.d": "Geçici bağlantı sorunu ya da istek sınırı. Overlay son başarılı değeri tutar; genellikle kendiliğinden düzelir.",
       "help.n4.t": "Kick bu kanal için abone verisi döndürmedi",
       "help.n4.d": "Kick bu kanal için abone bilgisi vermiyor. Sayı 0 görünebilir; elle girilen abone sayısı bu durumda kullanılmaz.",
-      "help.n5.t": "Canlı sohbet köprüsüne bağlanılamadı",
+      "help.n5.t": "Chat relay’e ulaşılamıyor",
       "help.n5.d": "Sohbet, yerel relay üzerinden gelir. “node relay/server.js” çalışıyor mu? Çalışmıyorsa sohbet kutusu boş kalır ve sahte mesaj gösterilmez. Kurulum için README’deki Canlı sohbet bölümüne bak.",
       "help.n6.t": "⚙ AYARLAR.js → duyuruMetinleri",
       "help.n6.d": "Duyuru metni boş. Sayılar ve içerik bölümünde Duyuru çubuğu alanını doldur.",
@@ -243,7 +243,7 @@
       "f.sohbetKomutGizle": "“!” ile başlayan komut mesajlarını gizle",
       "h.sohbetKomutGizle": "Örneğin !discord yazan mesajlar sohbette görünmez.",
       "f.geriSayimSaat": "Hedef saat (SS:DD)",
-      "h.geriSayimSaat": "24 saatlik yerel saat, örn. 21:30. Doluysa süreden (dakika) önceliklidir; saat bugün geçtiyse yarına sayar. Boş bırak = süreyi kullan.",
+      "h.geriSayimSaat": "24 saatlik yerel saat, örn. 21:30. Doluysa dakika ayarının yerine geçer; saat bugün geçtiyse yarına sayar. Boş bırak = süreyi kullan.",
       "g.relay": "Gelişmiş: relay",
       "g.css": "Gelişmiş: özel CSS",
       "warn.css": "Bu CSS kullanılmıyor: dışarıdan yükleme yapan bir kural, ters eğik çizgi var ya da 2000 karakteri aşıyor.",
@@ -251,7 +251,7 @@
       "h.ozelCss": "En çok 2000 karakter; temanın üzerine uygulanır. Dışarıdan dosya ya da yazı tipi yükleyen kurallar (url(), @import, @font-face, image-set) ve ters eğik çizgi kabul edilmez; böyle bir değer tümüyle yok sayılır.",
       "f.sohbetYatay": "Yatay sohbet (tek satır)",
       "h.sohbetYatay": "Mesajlar ekranın kenarındaki bir şerit için yan yana dizilir; en yenisi sağda. Kaynak boyutu örneğin 1280 × 80.",
-      "g.relay.for": "canlı sohbet ve bildirim köprüsü",
+      "g.relay.for": "canlı sohbet ve bildirim relay’i",
       "f.relayAdresi": "Relay adresi",
       "h.relayAdresi": "Yalnızca relay’i farklı bir adreste çalıştırıyorsan değiştir. Varsayılan dışındaysa AYARLAR.js dosyasına yazılır. Yalnızca https ya da 127.0.0.1 / localhost üzerinden http kabul edilir.",
       "relay.check": "Relay’i kontrol et",
@@ -312,12 +312,12 @@
       "relay.down": "Relay çalışmıyor ya da ulaşılamıyor ({url}). “node relay/server.js” ile başlat.",
       "relay.bad": "Relay beklenmeyen bir yanıt verdi (HTTP {status}).",
       "relay.key": "Relay erişim anahtarı eksik ya da yanlış. Relay’i bir kez başlat (“node relay/server.js”): proje klasöründe AYARLAR.relay.js dosyasını oluşturur. Sonra bu sayfayı yenile.",
-      "links.copyAll": "Tüm linkleri kopyala",
+      "links.copyAll": "Tüm bağlantıları kopyala",
       "obs.download": "OBS sahne koleksiyonunu indir",
       "obs.how": "Tek seferde kurulum: indirdiğin dosyayı OBS’te Sahne Koleksiyonu → İçe Aktar ile ekle, sonra aynı menüden seç. Tüm overlay’ler 1920 × 1080 tuval için yerleştirilmiş tek bir sahnede gelir; birleşik çubuk ve geri sayım gizli eklenir. Ayar değiştirirsen dosyayı yeniden indir.",
       "obs.saved": "Sahne koleksiyonu indirildi.",
       "obs.scene": "Kick Overlay’ler",
-      "dock.copy": "OBS kontrol paneli linkini kopyala",
+      "dock.copy": "OBS kontrol paneli bağlantısını kopyala",
       "dock.how": "Kontrol paneli: OBS’te Paneller → Özel Tarayıcı Panelleri’ni aç, bir ad yaz ve bu linki URL olarak yapıştır. Bildirimleri duraklatır, geçer, sonuncuyu tekrarlar ve test bildirimi gönderir. Relay’in çalışması gerekir.",
       "links.copyAllDone": "Tüm bağlantılar kopyalandı.",
       "copy.done": "Kopyalandı ✓",
@@ -354,13 +354,13 @@
         "pastel": "Pastel",
         "terminal": "Terminal",
         "aurora": "Kuzey Işığı",
-        "holo": "Holografik",
+        "holo": "Holo",
         "ember": "Kor",
         "paper": "Kâğıt",
-        "retro": "Piksel"
+        "retro": "Retro"
       },
       "sekil": {
-        "pill": "Hap",
+        "pill": "Kapsül",
         "rounded": "Yuvarlak",
         "square": "Kare"
       },
@@ -381,7 +381,7 @@
       },
       "animasyon": {
         "normal": "Normal",
-        "low": "Az",
+        "low": "Düşük",
         "off": "Kapalı"
       }
     }

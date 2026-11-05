@@ -1,6 +1,6 @@
 {
   "name": "kick-streamer-overlays",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "Free OBS overlays for Kick: goal bars, viewer panel, chat, alerts, countdown, announcement bar and a settings studio.",
   "private": true,
   "license": "MIT",
