@@ -380,9 +380,9 @@ async function offlineChecks() {
   await st.eval(`(() => { const k = document.getElementById('kanal'); k.value = 'Test_Kanal'; k.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('[data-preset="neon"]').click(); })()`);
   await sleep(600);
   const set = await st.eval(`({ follower: ${urlOf('follower')}, chat: ${urlOf('chat')}, ticker: ${urlOf('ticker')}, warn: !document.querySelector('[data-card="follower"] .st-card-warn').hidden, src: document.getElementById('onizleme').getAttribute('src') })`);
-  check('studio: link carries the lowercase channel and the preset look', /kanal=test_kanal/.test(set.follower) && /stil=neon/.test(set.follower) && /sekil=rounded/.test(set.follower), set.follower);
-  check('studio: a link holds only the settings that overlay reads', !/sohbetMaksMesaj|geriSayim|duyuru/.test(set.follower) && !/takipciHedefi/.test(set.chat), set.follower + ' | ' + set.chat);
-  check('studio: the accent color is URL-encoded, no secret keys', /renk=%2339ff14/.test(set.follower) && !/client|secret/i.test(set.follower), set.follower);
+  check('studio: link carries the lowercase channel and the preset look', /channel=test_kanal/.test(set.follower) && /theme=neon/.test(set.follower) && /shape=rounded/.test(set.follower), set.follower);
+  check('studio: a link holds only the settings that overlay reads', !/chatMaxMessages|countdown|announcement/.test(set.follower) && !/followerGoal/.test(set.chat), set.follower + ' | ' + set.chat);
+  check('studio: the accent color is URL-encoded, no secret keys', /accent=%2339ff14/.test(set.follower) && !/client|secret/i.test(set.follower), set.follower);
   check('studio: the empty-channel warning goes away', !set.warn);
   check('studio: the preview keeps sample data (onizleme=1) after a channel is set, until "Live data" is clicked', /onizleme=1/.test(set.src), set.src);
 
@@ -425,7 +425,7 @@ async function offlineChecks() {
   await st.eval(`document.getElementById('sifirlaEvet').click()`);
   await sleep(400);
   const reset =await st.eval(`({ kanal: document.getElementById('kanal').value, stil: document.querySelector('input[name=stil]:checked').value, follower: ${urlOf('follower')} })`);
-  check('studio: reset keeps the channel and restores the default look', reset.kanal === 'test_kanal' && reset.stil === 'glass' && /kanal=test_kanal/.test(reset.follower) && !/stil=/.test(reset.follower), JSON.stringify(reset));
+  check('studio: reset keeps the channel and restores the default look', reset.kanal === 'test_kanal' && reset.stil === 'glass' && /channel=test_kanal/.test(reset.follower) && !/theme=/.test(reset.follower), JSON.stringify(reset));
   // Network log lines are expected here: the test channel does not exist. Script errors are not.
   const scriptErrors = st.logs.filter((l) => l.kind !== 'log');
   check('studio: no script errors after interaction', scriptErrors.length === 0, short(scriptErrors));

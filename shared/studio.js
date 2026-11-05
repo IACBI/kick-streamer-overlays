@@ -131,6 +131,10 @@
   // Opened from the relay (http://127.0.0.1:8790/): settings are saved there, and links carry no settings.
   var SELF = typeof K.relayServed === 'function' && K.relayServed();
   var savedJson = null;   // the settings the relay holds, for the unsaved-changes note
+  // Links and settings files use the English setting names; the Turkish ones keep working everywhere.
+  var EN_NAME = {};
+  Object.keys(K.aliases()).forEach(function (en) { EN_NAME[K.aliases()[en]] = en; });
+  function enName(key) { return EN_NAME[key] || key; }
 
   // ---- Small helpers ------------------------------------------------------
 
@@ -207,7 +211,7 @@
     var defaults = K.normalize({});
     var q = new URLSearchParams();
     COMMON.concat(o.keys).forEach(function (key) {
-      if (s[key] !== defaults[key]) q.set(key, String(s[key]));
+      if (s[key] !== defaults[key]) q.set(enName(key), String(s[key]));
     });
     var url = new URL(o.file, window.location.href);
     url.search = q.toString();
@@ -660,9 +664,9 @@
     // Keys the loaded core does not know are left out; relayAdresi only when it differs from the default.
     var doc = ayarDoc().filter(function (item) { return s[item.key] !== undefined; });
     var relay = relayValue();
-    var entries = doc.map(function (item) { return { key: item.key, note: item.note, value: s[item.key] }; });
+    var entries = doc.map(function (item) { return { key: enName(item.key), note: item.note, value: s[item.key] }; });
     if (relay !== RELAY_DEFAULT) {
-      entries.push({ key: 'relayAdresi', note: 'Chat relay address. Change it only if you run the relay somewhere else.', value: relay });
+      entries.push({ key: enName('relayAdresi'), note: 'Chat relay address. Change it only if you run the relay somewhere else.', value: relay });
     }
     entries.forEach(function (item, i) {
       if (item.note) {

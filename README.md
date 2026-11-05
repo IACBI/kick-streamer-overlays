@@ -134,9 +134,9 @@ Something not showing? See [docs/troubleshooting.md](docs/troubleshooting.md). L
 <a id="configuration-en"></a>
 ### Configuration
 
-Every setting lives in `AYARLAR.js`, and the studio writes the same settings into the links it gives you. A link overrides `AYARLAR.js`. An invalid value falls back to its default, and numbers are limited to their range. Yes/no settings accept `true`/`false`, `yes`/`no`, `on`/`off` or `1`/`0`. Each setting can be written with its Turkish or its English name; if both are given, the Turkish one wins.
+Every setting lives in `AYARLAR.js`, and the studio writes the same settings into the links it gives you. A link overrides `AYARLAR.js`. An invalid value falls back to its default, and numbers are limited to their range. Yes/no settings accept `true`/`false`, `yes`/`no`, `on`/`off` or `1`/`0`. The studio writes the English names; the original Turkish names work too, and win if a file or link gives both.
 
-The most used ones: `kanal` (channel), `stil` (theme), `dil` (label language: `tr`, `en`, `both`, `es`, `pt`, `de`, `ar`), `renk` (accent), and the goals `takipciHedefi`, `aboneHedefi` and `kicksHedefi`. Every setting, with its values and default, is in [docs/settings.md](docs/settings.md).
+The most used ones: `channel`, `theme`, `language` (label language: `tr`, `en`, `both`, `es`, `pt`, `de`, `ar`), `accent`, and the goals `followerGoal`, `subscriberGoal` and `kicksGoal`. Every setting, with its values and default, is in [docs/settings.md](docs/settings.md).
 
 Your own alert sounds and art, badge art, and the Kick app for the subscriber total: [docs/setup.md](docs/setup.md).
 
@@ -290,9 +290,9 @@ Bir şey görünmüyor mu? [docs/troubleshooting.md](docs/troubleshooting.md) do
 <a id="yapilandirma-tr"></a>
 ### Yapılandırma
 
-Tüm ayarlar `AYARLAR.js` içindedir; stüdyo aynı ayarları verdiği bağlantılara da yazar. Bağlantı `AYARLAR.js` değerlerinin üzerine yazar. Geçersiz bir değer varsayılanına döner, sayılar kendi aralıklarına sınırlanır. Evet/hayır ayarları `true`/`false`, `yes`/`no`, `on`/`off` ya da `1`/`0` kabul eder. Her ayar Türkçe ya da İngilizce adıyla yazılabilir; ikisi birden verilirse Türkçe ad geçerli olur.
+Tüm ayarlar `AYARLAR.js` içindedir; stüdyo aynı ayarları verdiği bağlantılara da yazar. Bağlantı `AYARLAR.js` değerlerinin üzerine yazar. Geçersiz bir değer varsayılanına döner, sayılar kendi aralıklarına sınırlanır. Evet/hayır ayarları `true`/`false`, `yes`/`no`, `on`/`off` ya da `1`/`0` kabul eder. Stüdyo İngilizce adları yazar; özgün Türkçe adlar da çalışır ve bir dosya ya da bağlantı ikisini birden verirse Türkçe ad geçerli olur.
 
-En çok kullanılanlar: `kanal`, `stil` (tema), `dil` (etiket dili: `tr`, `en`, `both`, `es`, `pt`, `de`, `ar`), `renk` (vurgu rengi) ve `takipciHedefi`, `aboneHedefi`, `kicksHedefi` hedefleri. Tüm ayarlar, değerleri ve varsayılanlarıyla [docs/settings.md](docs/settings.md) dosyasında.
+En çok kullanılanlar: `channel` (`kanal`), `theme` (`stil`), `language` (`dil`; etiket dili: `tr`, `en`, `both`, `es`, `pt`, `de`, `ar`), `accent` (`renk`, vurgu rengi) ve `followerGoal`, `subscriberGoal`, `kicksGoal` hedefleri. Tüm ayarlar, değerleri ve varsayılanlarıyla [docs/settings.md](docs/settings.md) dosyasında.
 
 Kendi bildirim seslerin ve görsellerin, rozet görselleri ve abone toplamı için Kick uygulaması: [docs/setup.md](docs/setup.md).
 

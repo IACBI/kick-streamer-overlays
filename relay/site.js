@@ -203,13 +203,20 @@ function createSite(o) {
     try { core = K(); } catch (e) { return { ok: false, error: 'pack missing' }; }
     const keys = core.schemaKeys();
     const known = {};
+    const aliasOf = core.aliases();
+    Object.keys(aliasOf).forEach((name) => { if (Object.hasOwn(raw, name)) known[name] = raw[name]; });
     keys.forEach((k) => { if (Object.hasOwn(raw, k)) known[k] = raw[k]; });
     // relayAdresi is local-only and kept from the file: a page served here already talks to this relay.
     const before = readPublic();
     const s = core.normalize(known), d = core.normalize({});
+    // Written with the English names, which every reader accepts; the Turkish ones still work in hand-written files.
+    const en = {};
+    const aliases = core.aliases();
+    Object.keys(aliases).forEach((name) => { en[aliases[name]] = name; });
     const out = {};
-    keys.forEach((k) => { if (s[k] !== d[k]) out[k] = s[k]; });
-    if (typeof before.relayAdresi === 'string') out.relayAdresi = before.relayAdresi;
+    keys.forEach((k) => { if (s[k] !== d[k]) out[en[k] || k] = s[k]; });
+    const relay = typeof before.relayAdresi === 'string' ? before.relayAdresi : before.relayAddress;
+    if (typeof relay === 'string') out.relayAddress = relay;
     const text = '// Kick Overlay Pack settings, saved by the studio. Every key is described in docs/settings.md.\n'
       + '// Edit here or in the studio; overlays served by the relay pick up a change within a few seconds.\n'
       + 'window.KICK_OVERLAY_AYARLAR = ' + JSON.stringify(out, null, 2) + ';\n';
@@ -217,7 +224,7 @@ function createSite(o) {
       if (fs.existsSync(publicFile())) fs.copyFileSync(publicFile(), path.join(o.configRoot, BACKUP_FILE));
       writeAtomic(publicFile(), text);
     } catch (e) { return { ok: false, error: 'write failed' }; }
-    return { ok: true, rev: settingsRev(), channel: out.kanal || '' };
+    return { ok: true, rev: settingsRev(), channel: s.kanal || '' };
   }
 
   /**

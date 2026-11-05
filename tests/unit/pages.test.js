@@ -193,4 +193,33 @@ async function testVersionSync() {
   });
 }
 
-module.exports = { testThemesAndPages, testSyntax, testVersionSync };
+// ---- Section: docs/settings.md follows the schema ---------------------------------
+
+async function testSettingsDoc() {
+  section('docs/settings.md');
+  await check('docs/settings.md: every setting, with its English and Turkish name and its default, matches the code', () => {
+    const { K } = loadCore();
+    const doc = fs.readFileSync(path.join(ROOT, 'docs', 'settings.md'), 'utf8');
+    const rows = new Map();
+    for (const line of doc.split('\n')) {
+      const m = /^\| `([A-Za-z]+)` \| `([A-Za-z]+)` \| (.*) \| (.*) \|$/.exec(line);
+      if (m) rows.set(m[2], { en: m[1], def: m[4] });
+    }
+    const aliases = K.aliases();
+    const enOf = {};
+    Object.keys(aliases).forEach((en) => { enOf[aliases[en]] = en; });
+    const d = K.normalize({});
+    const problems = [];
+    for (const key of K.schemaKeys()) {
+      const row = rows.get(key);
+      if (!row) { problems.push(key + ': missing'); continue; }
+      if (row.en !== enOf[key]) problems.push(`${key}: English name ${row.en}, code says ${enOf[key]}`);
+      const want = d[key] === '' ? '*(empty)*' : '`' + String(d[key]) + '`';
+      if (row.def !== want) problems.push(`${key}: default ${row.def}, code says ${want}`);
+    }
+    for (const key of rows.keys()) if (!K.schemaKeys().includes(key)) problems.push(key + ': documented but not a setting');
+    eq(problems, [], 'doc and schema agree');
+  });
+}
+
+module.exports = { testThemesAndPages, testSyntax, testVersionSync, testSettingsDoc };
