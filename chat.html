@@ -507,11 +507,22 @@
     });
   }
 
+  // A moderator deleted one message (the live feed only; webhooks do not report deletions).
+  function removeMessage(id){
+    if(!id) return;
+    feed.querySelectorAll('.ko-msg:not(.is-leaving)').forEach(el => {
+      if(el.dataset.id !== String(id)) return;
+      seen.delete(el.dataset.id);
+      fadeRemove(el);
+    });
+  }
+
   function onEvent(ev){
     if(!ev) return;
     switch(ev.kind){
       case 'chat':   if(ev.message) addMessage(ev); break;
       case 'ban':    removeMessagesByUser(ev.userId, ev.username); break;
+      case 'delete': removeMessage(ev.id); break;
     }
   }
 

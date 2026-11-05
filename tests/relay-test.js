@@ -1501,6 +1501,117 @@ function statusOf(port, p, headers) {
     fsx.rmSync(cfg, { recursive: true, force: true });
   }
 
+  // ---- Kick's realtime feed (relay/kick-live.js) against a fake socket ----
+  {
+    const { normalizeLive, createKickLive } = require('../relay/kick-live.js');
+    const sockets = [];
+    class FakeWS {
+      constructor(url) { this.url = url; this.sent = []; sockets.push(this); setTimeout(() => this.onopen && this.onopen(), 0); }
+      send(t) { this.sent.push(JSON.parse(t)); }
+      close() { this.closed = true; }
+      emit(obj) { if (this.onmessage) this.onmessage({ data: typeof obj === 'string' ? obj : JSON.stringify(obj) }); }
+      pub(event, data) { this.emit({ push: { channel: 'chatrooms.4242.v2', pub: { data: { event, data: JSON.stringify(data) } } } }); }
+    }
+    const fetches = [];
+    const fakeFetch = async (url, init) => {
+      fetches.push({ url: String(url), init });
+      if (String(url).includes('/realtime/auth/connection')) return new Response(JSON.stringify({ data: { token: 'tk-1' } }), { status: 200 });
+      if (String(url).includes('/api/v2/channels/iacbi')) return new Response(JSON.stringify({ id: 9, user_id: 113812015, slug: 'iacbi', chatroom: { id: 4242 } }), { status: 200 });
+      return new Response('{}', { status: 404 });
+    };
+    const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+    const E = (n) => 'App\\Events\\' + n;
+    const chatData = { id: 'm-1', chatroom_id: 4242, content: 'hi from live', type: 'message', created_at: '2026-11-06T10:00:00Z',
+      sender: { id: 555, username: 'viewer_one', slug: 'viewer_one', identity: { color: '#53fc18', badges: [{ type: 'subscriber', text: 'Subscriber', count: 3 }] } } };
+
+    const ce = normalizeLive(E('ChatMessageEvent'), chatData);
+    check('live: a chat message becomes the relay chat shape', !!ce && ce.kind === 'chat' && ce.id === 'm-1' && ce.username === 'viewer_one'
+      && ce.senderId === '555' && ce.message === 'hi from live' && ce.badges[0].type === 'subscriber' && ce.badges[0].count === 3 && ce.color === '#53fc18');
+    const sub = normalizeLive(E('SubscriptionEvent'), { chatroom_id: 4242, username: 'subby', months: 4 });
+    const gift = normalizeLive(E('GiftedSubscriptionsEvent'), { chatroom_id: 4242, gifted_usernames: ['a', 'b'], gifter_username: 'santa' });
+    const anon = normalizeLive(E('GiftedSubscriptionsEvent'), { gifted_usernames: ['a'], gifter_username: '' });
+    const kicks = normalizeLive('KicksGifted', { message: 'gg', sender: { id: 7, username: 'rich' }, gift: { name: 'Rocket', amount: 100 }, created_at: 'x' });
+    const del = normalizeLive(E('MessageDeletedEvent'), { id: 'd', message: { id: 'm-1' } });
+    const ban = normalizeLive(E('UserBannedEvent'), { user: { id: 555, username: 'Viewer_One' }, banned_by: { id: 1, username: 'mod' } });
+    check('live: subscriptions, gifted subs, Kicks, deletes and bans are understood', sub.kind === 'sub' && sub.months === 4 && sub.renewal === true
+      && gift.count === 2 && gift.username === 'santa' && anon.anonymous === true && kicks.amount === 100 && kicks.giftName === 'Rocket'
+      && kicks.message === 'gg' && del.kind === 'delete' && del.id === 'm-1' && ban.kind === 'ban' && ban.userId === '555' && ban.username === 'viewer_one');
+    check('live: junk and unknown events are ignored', [
+      normalizeLive(E('ChatMessageEvent'), { content: 5 }), normalizeLive(E('ChatMessageEvent'), null), normalizeLive('PollUpdateEvent', {}),
+      normalizeLive('KicksGifted', { sender: { username: 'x' }, gift: { amount: 0 } }), normalizeLive(E('GiftedSubscriptionsEvent'), { gifted_usernames: [] })
+    ].every((x) => x === null));
+
+    // the relay end to end: channel lookup, token, connect, subscribe, events on the overlay stream
+    const r = createRelay({ publicKeyPem: publicKey, accessKey: ACCESS_KEY, webhookPort: 0, eventsPort: 0, credentials: false, channelSlug: 'iacbi',
+      kickLive: true, WebSocketImpl: FakeWS, fetchImpl: fakeFetch, logger: quietLogger() });
+    const started = await r.start();
+    const sse = openSse(started.eventsPort);
+    await wait(80);
+    const ws = sockets[0];
+    check('live: the relay asks for a token without any Kick app credentials', fetches.some((x) => x.url.includes('/realtime/auth/connection') && x.init.method === 'POST'));
+    check('live: the token is used to connect', !!ws && !!ws.sent[0] && !!ws.sent[0].connect && ws.sent[0].connect.token === 'tk-1');
+    ws.emit({ id: 1, connect: { client: 'c' } });
+    check('live: the channel chat room is subscribed', !!ws.sent[1] && !!ws.sent[1].subscribe && ws.sent[1].subscribe.channel === 'chatrooms.4242.v2');
+    ws.emit({ id: 2, subscribe: {} });
+    check('live: the channel feed (Kicks) is subscribed too', !!ws.sent[2] && ws.sent[2].subscribe.channel === 'channel_9');
+    ws.emit({ id: 3, subscribe: {} });
+    const h = JSON.parse((await get(started.eventsPort, withKey('/health'))).body);
+    check('live: /health reports the feed and chat as ready', !!h.live && h.live.state === 'live' && h.features.chat === true, JSON.stringify(h.live));
+    ws.emit({});
+    check('live: a server ping is answered', JSON.stringify(ws.sent[ws.sent.length - 1]) === '{}');
+    ws.pub(E('ChatMessageEvent'), chatData);
+    ws.pub(E('SubscriptionEvent'), { chatroom_id: 4242, username: 'subby', months: 1 });
+    ws.pub(E('MessageDeletedEvent'), { id: 'x', message: { id: 'm-1' } });
+    ws.pub('KicksGifted', { message: '', sender: { id: 7, username: 'rich' }, gift: { name: 'Rocket', amount: 100 }, created_at: 'x' });
+    await wait(80);
+    check('live: chat reaches the overlay stream', sse.frames.some((x) => x.event === 'chat' && x.data.id === 'm-1'));
+    check('live: a subscription reaches it as an alert with an id', sse.frames.some((x) => x.event === 'sub' && x.data.username === 'subby' && /^live-/.test(x.data.id)));
+    check('live: Kicks reach it too', sse.frames.some((x) => x.event === 'kicks' && x.data.amount === 100));
+    check('live: a deleted message is passed on', sse.frames.some((x) => x.event === 'delete' && x.data.id === 'm-1'));
+    // the same chat message and subscription arriving by webhook as well are not shown twice
+    const ts = String(Math.floor(Date.now() / 1000));
+    const dupChat = JSON.stringify({ message_id: 'm-1', broadcaster: { user_id: 113812015 }, sender: { user_id: 555, username: 'viewer_one' }, content: 'hi from live', created_at: 'x' });
+    await post(started.webhookPort, { id: 'wh-1', ts, body: dupChat, sig: sign('wh-1', ts, dupChat, privateKey) });
+    const dupSub = JSON.stringify({ broadcaster: { user_id: 113812015 }, subscriber: { user_id: 8, username: 'subby' }, duration: 1, created_at: 'x' });
+    await post(started.webhookPort, { id: 'wh-2', ts, body: dupSub, sig: sign('wh-2', ts, dupSub, privateKey), type: 'channel.subscription.new' });
+    const follow = JSON.stringify({ broadcaster: { user_id: 113812015 }, follower: { user_id: 9, username: 'fan' } });
+    await post(started.webhookPort, { id: 'wh-3', ts, body: follow, sig: sign('wh-3', ts, follow, privateKey), type: 'channel.followed' });
+    await wait(80);
+    check('live: the broadcaster id from kick.com lets webhooks in without credentials', sse.frames.some((x) => x.event === 'follow' && x.data.username === 'fan'));
+    check('live: an event from both sources is shown once', sse.frames.filter((x) => x.event === 'chat' && x.data.id === 'm-1').length === 1
+      && sse.frames.filter((x) => x.event === 'sub').length === 1);
+    ws.pub(E('SubscriptionEvent'), { chatroom_id: 4242, username: 'subby', months: 1 });
+    await wait(50);
+    check('live: two equal alerts from one source are both shown', sse.frames.filter((x) => x.event === 'sub').length === 2);
+    sse.close();
+    r.stop();
+    check('live: stopping the relay closes the socket', ws.closed === true);
+
+    // reconnects: a refused connection retries with a fresh token, quickly at first
+    const logs = [];
+    const lg = { log: (m) => logs.push(m), warn: (m) => logs.push(m), error() {} };
+    const lv = createKickLive({ fetchImpl: fakeFetch, WebSocketImpl: FakeWS, random: () => 0, onEvent() {}, logger: lg });
+    const before = sockets.length;
+    lv.follow('4242');
+    await wait(30);
+    const s1 = sockets[before];
+    s1.emit({ id: 1, error: { code: 103, message: 'permission denied' } });
+    check('live: a refused connection is logged once and retried', lv.status().state === 'connecting' && logs.filter((m) => /refused/.test(m)).length === 1 && s1.closed === true);
+    await wait(1700);
+    check('live: the retry opens a new socket', sockets.length === before + 2, String(sockets.length - before));
+    lv.follow('abc');
+    check('live: a bad chat room id stops the feed', lv.status().state === 'off');
+    lv.stop();
+    const saved = globalThis.WebSocket;
+    globalThis.WebSocket = undefined;
+    const noWs = createKickLive({ fetchImpl: fakeFetch, onEvent() {}, logger: lg });
+    noWs.follow('1');
+    globalThis.WebSocket = saved;
+    await wait(20);
+    check('live: without WebSocket support it says which Node.js is needed', logs.some((m) => /Node\.js 22/.test(m)) && noWs.status().state === 'off');
+    noWs.stop();
+  }
+
   const failed = results.filter((ok) => !ok).length;
   console.log(`\n${results.length - failed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);

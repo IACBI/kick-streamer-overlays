@@ -2,7 +2,7 @@
 
   var ES_CLOSED = 2;
   // Event names the relay streams (relay/server.js). Each page acts on the kinds it shows and ignores the rest.
-  var RELAY_EVENTS = ['chat', 'ban', 'follow', 'sub', 'gift', 'kicks', 'reward', 'live', 'meta', 'control', 'overlay', 'stats'];
+  var RELAY_EVENTS = ['chat', 'ban', 'delete', 'follow', 'sub', 'gift', 'kicks', 'reward', 'live', 'meta', 'control', 'overlay', 'stats'];
 
   // Server-Sent Events: the relay sends chat, ban, alert and stream frames (RELAY_EVENTS) already in the overlay's shape.
   // h = { onMessage(event), onStatus(status) }. Status: 'connecting', 'open', 'reconnecting', or 'blocked' (see relayBlocked; nothing is tried).

@@ -22,6 +22,10 @@ You can expect an answer within a few days.
   a signature fails. Repeated message IDs are acknowledged but not shown again. Bodies are limited to 64 KiB. The
   rate is limited before the signature check, and verified deliveries have a separate quota, so unsigned traffic
   cannot starve real events. A report that bypasses signature or freshness checks is in scope.
+- **Relay, Kick chat feed** (outgoing only). The relay asks `web.kick.com` for an anonymous connection token and reads
+  Kick's realtime socket for the saved channel. Nothing of yours is sent: no name, key, credential or setting. What
+  arrives is treated as untrusted like a webhook body: only known fields are kept, as plain text, with length limits,
+  and the overlays render it as text. It cannot reach the relay's API or files. `RELAY_KICK_LIVE=0` turns it off.
 - **Relay, overlay port** (`127.0.0.1:8790` by default). Never put this port behind a tunnel.
   - **Pages.** It serves the pack's top-level pages and the `shared/`, `alerts/`, `badges/` and `branding/` folders,
     by file type, without a key; every other path, dot files and anything outside the folder are refused. Pages carry

@@ -29,8 +29,8 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 | Follower goal | Works. The number on screen matches Kick's public count for kick.com/iacbi. |
 | Viewers and uptime | Works from Kick's public data. Not yet checked on a live broadcast. |
 | Subscriber total | Needs a free Kick developer app (see [Configuration](docs/setup.md#subscriber-total-kick-app)). Checked with a real app on 2026-11-03: the token and channel lookup work, and the count (0) matches the channel. Not yet checked with a channel that has subscribers. Without an app, enter the count by hand. |
-| Live chat | Works through the optional relay (see [Live chat](docs/relay.md#live-chat-and-alerts)). Needs a Kick app and a public tunnel. Checked with a real message sent in kick.com/iacbi's chat on 2026-11-03: it went from Kick through a Cloudflare tunnel and the relay's signature check onto the overlay. Without the relay, `chat.html` stays empty instead of showing fake messages. |
-| Alerts | Same relay and setup as live chat. Tested with signed test events built from the payloads in Kick's documentation, in a real browser; not yet with live Kick delivery. |
+| Live chat | Works through the optional relay, with no Kick app and no tunnel (see [Chat without a Kick app](docs/relay.md#chat-without-a-kick-app)). Checked on 2026-11-06 on a live channel: the relay took 31 messages in 25 seconds from Kick's realtime feed onto `chat.html`. That feed is not an official API; the signed webhooks with a Kick app keep working beside it. Without the relay, `chat.html` stays empty instead of showing fake messages. |
+| Alerts | Subscriptions, gifted subscriptions and Kicks come through the same feed as chat. Follows, channel point rewards and stream start need a Kick app and a tunnel. Tested with signed test events built from the payloads in Kick's documentation, in a real browser; not yet with live Kick delivery. |
 
 ### Features
 
@@ -58,7 +58,7 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 - Optional: a Kick developer app (client ID and secret) for the subscriber total
 - For the relay: Node.js 20 or newer, or the relay executable from the [releases page](https://github.com/IACBI/kick-streamer-overlays/releases), which needs no Node.js
 - Node.js 20 or newer, for the tests
-- Optional, for live chat: a tunnel tool such as `cloudflared` or `ngrok`
+- Optional, for follows and rewards: a tunnel tool such as `cloudflared` or `ngrok`
 
 ### Installation
 
@@ -71,7 +71,7 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 3. Enter your channel name, pick a look, and press **Save and apply to OBS**.
 4. Press **Copy link** on an overlay. In OBS add **Sources → + → Browser**, turn **Local file** off, paste the link (`http://127.0.0.1:8790/follower-bar.html`) into **URL**, and set the size shown on the card.
 
-From then on, change anything in the studio and press **Save**: every overlay in OBS updates within a few seconds. Live chat, alerts and the subscriber total need a free Kick app and a tunnel on top. The studio's **Live features** checklist walks you through it, and the relay app starts the tunnel by itself once [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) is installed. Details: [docs/relay.md](docs/relay.md).
+From then on, change anything in the studio and press **Save**: every overlay in OBS updates within a few seconds. Live chat, subscriptions and Kicks work as soon as the relay runs. Follows, channel point rewards and the live subscriber total need a free Kick app and a tunnel on top. The studio's **Live features** checklist walks you through it, and the relay app starts the tunnel by itself once [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) is installed. Details: [docs/relay.md](docs/relay.md).
 
 **On your own server:** run the relay in Docker behind your HTTPS address, so chat and alerts keep working without a tunnel or the streaming PC: [docs/cloud.md](docs/cloud.md).
 
@@ -142,7 +142,7 @@ The most used ones: `channel`, `theme`, `language` (label language: `tr`, `en`, 
 
 Your own alert sounds and art, badge art, and the Kick app for the subscriber total: [docs/setup.md](docs/setup.md).
 
-**Secrets and privacy.** Your client secret is read only from `AYARLAR.local.js`, from the `KICK_CLIENT_SECRET` environment variable, or from the studio's memory. It is never placed in a link, a saved draft, the JSON export or the generated settings file. In the browser, only `subscriber-bar.html` and `combined-bar.html` read it. The overlays contact `kick.com` (channel data), `api.kick.com` and `id.kick.com` (subscriber total, only with your app), `files.kick.com` (chat emotes), and Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) for the one typeface you pick. Live chat and relay answers come from `127.0.0.1`. The relay talks only to Kick, and checks every webhook signature before it accepts an event. [SECURITY.md](SECURITY.md) describes the full model.
+**Secrets and privacy.** Your client secret is read only from `AYARLAR.local.js`, from the `KICK_CLIENT_SECRET` environment variable, or from the studio's memory. It is never placed in a link, a saved draft, the JSON export or the generated settings file. In the browser, only `subscriber-bar.html` and `combined-bar.html` read it. The overlays contact `kick.com` (channel data), `api.kick.com` and `id.kick.com` (subscriber total, only with your app), `files.kick.com` (chat emotes), and Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`) for the one typeface you pick. Live chat and relay answers come from `127.0.0.1`. The relay talks only to Kick (`kick.com`, `web.kick.com` and `realtime.us-east-1.platform.kick.com` for the chat feed, plus `api.kick.com` and `id.kick.com` with your app), and checks every webhook signature before it accepts an event. [SECURITY.md](SECURITY.md) describes the full model.
 
 ### Contributing
 
@@ -186,8 +186,8 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 | Takipçi hedefi | Çalışıyor. Ekrandaki sayı kick.com/iacbi için Kick'in herkese açık sayısıyla eşleşiyor. |
 | İzleyici ve yayın süresi | Kick'in herkese açık verisinden çalışıyor. Canlı yayında henüz kontrol edilmedi. |
 | Abone toplamı | Ücretsiz bir Kick geliştirici uygulaması gerektirir (bkz. [Yapılandırma](docs/setup.md#subscriber-total-kick-app)). 2026-11-03'te gerçek bir uygulamayla kontrol edildi: token alma ve kanal sorgusu çalışıyor, sayı (0) kanalla uyuşuyor. Abonesi olan bir kanalda henüz kontrol edilmedi. Uygulaman yoksa sayıyı elle gir. |
-| Canlı sohbet | Opsiyonel relay ile çalışıyor (bkz. [Canlı sohbet](docs/relay.md#live-chat-and-alerts)). Bir Kick uygulaması ve herkese açık bir tünel gerektirir. 2026-11-03'te kick.com/iacbi chat'ine yazılan gerçek bir mesajla kontrol edildi: mesaj Kick'ten Cloudflare tüneli ve relay'in imza kontrolü üzerinden overlay'e ulaştı. Relay yoksa `chat.html` sahte mesaj yerine boş kalır. |
-| Bildirimler | Canlı sohbetle aynı relay ve kurulum. Kick'in dokümantasyonundaki örnek verilerden üretilen imzalı test olaylarıyla gerçek bir tarayıcıda test edildi; gerçek Kick teslimatıyla henüz değil. |
+| Canlı sohbet | Opsiyonel relay ile, Kick uygulaması ve tünel olmadan çalışıyor (bkz. [Kick uygulaması olmadan sohbet](docs/relay.md#chat-without-a-kick-app)). 2026-11-06'da canlı bir kanalda kontrol edildi: relay, Kick'in canlı akışından 25 saniyede 31 mesajı `chat.html`'e taşıdı. Bu akış resmi bir API değil; Kick uygulamalı imzalı webhook'lar yanında çalışmaya devam eder. Relay yoksa `chat.html` sahte mesaj yerine boş kalır. |
+| Bildirimler | Abonelikler, hediye abonelikler ve Kicks sohbetle aynı akıştan gelir. Takipler, kanal puanı ödülleri ve yayın başlangıcı için Kick uygulaması ve tünel gerekir. Kick'in dokümantasyonundaki örnek verilerden üretilen imzalı test olaylarıyla gerçek bir tarayıcıda test edildi; gerçek Kick teslimatıyla henüz değil. |
 
 ### Özellikler
 
@@ -215,7 +215,7 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 - İsteğe bağlı: abone toplamı için bir Kick geliştirici uygulaması (client ID ve client secret)
 - Relay için Node.js 20 veya üstü ya da [sürümler sayfasındaki](https://github.com/IACBI/kick-streamer-overlays/releases) Node.js gerektirmeyen relay programı
 - Testler için Node.js 20 veya üstü
-- Opsiyonel, canlı sohbet için: `cloudflared` veya `ngrok` gibi bir tünel aracı
+- Opsiyonel, takipler ve ödüller için: `cloudflared` veya `ngrok` gibi bir tünel aracı
 
 ### Kurulum
 
@@ -228,7 +228,7 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 3. Kanal adını yaz, bir görünüm seç ve **Kaydet ve OBS'e uygula** düğmesine bas.
 4. Bir overlay'in **Bağlantıyı kopyala** düğmesine bas. OBS'te **Kaynaklar → + → Tarayıcı** ekle, **Yerel dosya** kutusunu kapat, bağlantıyı (`http://127.0.0.1:8790/follower-bar.html`) **URL** kutusuna yapıştır ve boyutu kartta yazan değere ayarla.
 
-Bundan sonra stüdyoda neyi değiştirirsen değiştir, **Kaydet**'e basman yeter: OBS'teki tüm overlay'ler birkaç saniye içinde güncellenir. Canlı sohbet, bildirimler ve abone sayısı için ayrıca ücretsiz bir Kick uygulaması ve tünel gerekir. Stüdyodaki **Canlı özellikler** kontrol listesi seni adım adım götürür; [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) kuruluysa relay uygulaması tüneli kendisi açar. Ayrıntılar: [docs/relay.md](docs/relay.md) (İngilizce).
+Bundan sonra stüdyoda neyi değiştirirsen değiştir, **Kaydet**'e basman yeter: OBS'teki tüm overlay'ler birkaç saniye içinde güncellenir. Canlı sohbet, abonelikler ve Kicks relay çalışır çalışmaz gelir. Takipler, kanal puanı ödülleri ve canlı abone sayısı için ayrıca ücretsiz bir Kick uygulaması ve tünel gerekir. Stüdyodaki **Canlı özellikler** kontrol listesi seni adım adım götürür; [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) kuruluysa relay uygulaması tüneli kendisi açar. Ayrıntılar: [docs/relay.md](docs/relay.md) (İngilizce).
 
 **Kendi sunucunda:** relay'i Docker ile kendi HTTPS adresinin arkasında çalıştır; sohbet ve bildirimler tünel ya da yayın bilgisayarı olmadan da çalışır: [docs/cloud.md](docs/cloud.md) (İngilizce).
 
@@ -299,7 +299,7 @@ En çok kullanılanlar: `channel` (`kanal`), `theme` (`stil`), `language` (`dil`
 
 Kendi bildirim seslerin ve görsellerin, rozet görselleri ve abone toplamı için Kick uygulaması: [docs/setup.md](docs/setup.md).
 
-**Gizli bilgiler ve gizlilik.** Client secret yalnızca `AYARLAR.local.js` dosyasından, `KICK_CLIENT_SECRET` ortam değişkeninden ya da stüdyonun belleğinden okunur. Hiçbir zaman bir bağlantıya, kaydedilmiş taslağa, JSON dışa aktarımına ya da üretilen ayar dosyasına konmaz. Tarayıcıda bunu yalnızca `subscriber-bar.html` ve `combined-bar.html` okur. Overlay'ler `kick.com` (kanal verisi), `api.kick.com` ve `id.kick.com` (abone toplamı, yalnızca kendi uygulamanla), `files.kick.com` (sohbet emote'ları) ve seçtiğin tek yazı tipi için Google Fonts'a (`fonts.googleapis.com`, `fonts.gstatic.com`) bağlanır. Canlı sohbet ve relay yanıtları `127.0.0.1`'den gelir. Relay yalnızca Kick ile konuşur ve her webhook imzasını kabul etmeden önce doğrular. Tam model için [SECURITY.md](SECURITY.md) dosyasına bak.
+**Gizli bilgiler ve gizlilik.** Client secret yalnızca `AYARLAR.local.js` dosyasından, `KICK_CLIENT_SECRET` ortam değişkeninden ya da stüdyonun belleğinden okunur. Hiçbir zaman bir bağlantıya, kaydedilmiş taslağa, JSON dışa aktarımına ya da üretilen ayar dosyasına konmaz. Tarayıcıda bunu yalnızca `subscriber-bar.html` ve `combined-bar.html` okur. Overlay'ler `kick.com` (kanal verisi), `api.kick.com` ve `id.kick.com` (abone toplamı, yalnızca kendi uygulamanla), `files.kick.com` (sohbet emote'ları) ve seçtiğin tek yazı tipi için Google Fonts'a (`fonts.googleapis.com`, `fonts.gstatic.com`) bağlanır. Canlı sohbet ve relay yanıtları `127.0.0.1`'den gelir. Relay yalnızca Kick ile konuşur (sohbet akışı için `kick.com`, `web.kick.com` ve `realtime.us-east-1.platform.kick.com`, uygulamanla birlikte `api.kick.com` ve `id.kick.com`) ve her webhook imzasını kabul etmeden önce doğrular. Tam model için [SECURITY.md](SECURITY.md) dosyasına bak.
 
 ### Katkı
 

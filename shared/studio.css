@@ -362,6 +362,7 @@ legend { padding: 0; margin-bottom: 8px; font-size: 14px; font-weight: 600; }
 .st-diag .is-ok .st-mark { color: var(--st-ok); }
 .st-diag .is-warn .st-mark { color: var(--st-warn); }
 .st-diag .is-err .st-mark { color: var(--st-err); }
+.st-diag .is-opt .st-mark { color: var(--st-muted); }
 .st-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .st-notes { margin: 0; display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
 .st-notes dt { font-weight: 700; }

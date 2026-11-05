@@ -16,6 +16,15 @@ The relay also serves the pack itself on its local port. Open `http://127.0.0.1:
 - **Works in OBS as a plain URL.** OBS's **Local file** sources cannot reach the relay; these links do.
 - **What it serves:** the top-level pages and the `shared/`, `alerts/`, `badges/` and `branding/` folders, by file type. Nothing else in the folder can be read through it. The access key goes only to the relay's own pages (the browser's `Sec-Fetch-Site` header decides), and saving needs the key, a JSON body and a local `Origin`.
 
+## Chat without a Kick app
+
+Save your channel in the studio and start the relay: that is all live chat needs. The relay opens Kick's own realtime feed, the one kick.com's chat uses, and passes chat messages, deleted messages, bans, subscriptions, gifted subscriptions and Kicks to the overlays. No Kick developer app, no tunnel and no Webhook URL.
+
+- **Why the relay, and not the overlay page.** Kick lets only kick.com pages open that feed from a browser, so a page on GitHub Pages or in OBS cannot. The relay is a program, not a page, so it can.
+- **What still needs a Kick app.** Follows, channel point rewards, stream start, end and title, and the live subscriber total come only through the signed webhooks below. With both running, an event that arrives both ways is shown once.
+- **Not an official API.** Kick does not document this feed and may change it. If it stops answering, the relay retries by itself (every 2 seconds at first, then up to once a minute), says why in its log and in the studio's **Check relay**, and the webhooks keep working. `RELAY_KICK_LIVE=0` turns the feed off. It needs Node.js 22 or newer; the relay executable and the Docker image have it.
+- **What it sends to Kick.** One request to `web.kick.com` for an anonymous connection token, then the socket at `realtime.us-east-1.platform.kick.com`. No name, key or setting of yours is sent; the channel's chat room ID comes from kick.com's public channel data.
+
 ## Live chat and alerts
 
 Kick sends chat messages, bans, follows, subscriptions, gifted subscriptions, Kicks, channel point reward redemptions and stream start, end and title changes to a web address you register in your Kick app. The relay in `relay/` receives them, checks Kick's signature, and passes them to `chat.html`, `alerts.html` and `info-panel.html`.
