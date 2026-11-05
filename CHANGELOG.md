@@ -4,6 +4,13 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.1.5] - 2026-11-05
+
+### Changed
+
+- The setup guide, FAQ and security policy now start from the relay: open the studio it prints, save, and the overlays follow.
+- `POST /subscribe` accepts only a JSON body, like the other studio saves, so a plain cross-site form cannot reach it.
+
 ## [3.1.4] - 2026-11-05
 
 ### Added

@@ -1139,6 +1139,7 @@ function statusOf(port, p, headers) {
     const sub = (headers) => get(ep, withKey('/subscribe'), 'POST', Object.assign({ Origin: 'null', 'Content-Type': 'application/json' }, headers || {}), '{}');
     check('subscribe: GET is refused (405)', (await eget(ep, '/subscribe')).status === 405);
     check('subscribe: no Origin is refused', (await sub({ Origin: undefined })).status === 403);
+    check('subscribe: a body that is not JSON is refused (415)', (await sub({ 'Content-Type': 'text/plain' })).status === 415);
     const first = await sub();
     const fb = JSON.parse(first.body);
     check('subscribe: creates only the missing events, as numbers for broadcaster_user_id', first.status === 200 && fb.added.length === 9 && fb.existing.join() === 'chat.message.sent'
