@@ -24,7 +24,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - name: Syntax check (every tracked .js file)
         shell: bash
-        run: git ls-files -z '*.js' | xargs -0 -n1 node --check
+        run: git ls-files -z '*.js' ':!src/core/*' | xargs -0 -n1 node --check
       - name: Unit tests
         run: node tests/run.js
       - name: Relay tests

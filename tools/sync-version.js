@@ -32,7 +32,8 @@ function read(root = ROOT) {
 function sync(root = ROOT) {
   const { version, coreVersion, core, corePath } = read(root);
   const partPath = path.join(root, 'src', 'core', '90-api.js');
-  const part = fs.existsSync(partPath) ? fs.readFileSync(partPath, 'utf8') : null;
+  let part = null;
+  try { part = fs.readFileSync(partPath, 'utf8'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
   const partStale = part !== null && (part.match(VERSION_LINE) || [])[2] !== version;
   if (coreVersion === version && !partStale) return null;
   if (partStale) fs.writeFileSync(partPath, part.replace(VERSION_LINE, `$1${version}$3`));

@@ -29,7 +29,8 @@ function build(root = ROOT) {
 /** Writes the built core. Returns true when the file changed. */
 function write(root = ROOT) {
   const { text, outPath } = build(root);
-  const old = fs.existsSync(outPath) ? fs.readFileSync(outPath, 'utf8') : null;
+  let old = null;
+  try { old = fs.readFileSync(outPath, 'utf8'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
   if (old === text) return false;
   fs.writeFileSync(outPath, text);
   return true;
