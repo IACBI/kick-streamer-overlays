@@ -23,8 +23,16 @@
     neon: { stil: 'neon', sekil: 'rounded', yaziTipi: 'mono', animasyon: 'normal', renk: '#39ff14' },
     pastel: { stil: 'pastel', sekil: 'pill', yaziTipi: 'nunito', animasyon: 'normal', renk: '#c4a7ff' },
     gece: { stil: 'aurora', sekil: 'rounded', yaziTipi: 'poppins', animasyon: 'low', renk: '#5eead4' },
-    kagit: { stil: 'paper', sekil: 'rounded', yaziTipi: 'nunito', animasyon: 'normal', renk: '#c2410c' }
+    kagit: { stil: 'paper', sekil: 'rounded', yaziTipi: 'nunito', animasyon: 'normal', renk: '#c2410c' },
+    sinema: { stil: 'cinema', sekil: 'square', yaziTipi: 'poppins', animasyon: 'low', renk: '#f5c518' },
+    holo: { stil: 'holo', sekil: 'pill', yaziTipi: 'poppins', animasyon: 'normal', renk: '#a78bfa' },
+    kor: { stil: 'ember', sekil: 'rounded', yaziTipi: 'inter', animasyon: 'normal', renk: '#fb923c' },
+    retro: { stil: 'retro', sekil: 'square', yaziTipi: 'mono', animasyon: 'normal', renk: '#ff4fd8' },
+    terminal: { stil: 'terminal', sekil: 'square', yaziTipi: 'mono', animasyon: 'low', renk: '#22c55e' }
   };
+  // A "look" is the part of the settings a look link carries: never the channel, texts or anything private.
+  var LOOK_KEYS = ['stil', 'sekil', 'yaziTipi', 'animasyon', 'renk'];
+  var SHARE_BASE = 'https://iacbi.github.io/kick-streamer-overlays/studio.html';
 
   // The overlays: file, OBS size, the settings each one reads (besides the common look keys),
   // the settings group that opens when it is previewed, whether it needs a channel name, and whether
@@ -549,6 +557,62 @@
     }, 1600);
   }
 
+  // The look keys found in a link's query, under English or Turkish names, normalized; null when there are none.
+  function lookFrom(search) {
+    var raw = K.urlOverrides(search || '');
+    var look = {};
+    LOOK_KEYS.forEach(function (k) { if (Object.prototype.hasOwnProperty.call(raw, k)) look[k] = raw[k]; });
+    if (!Object.keys(look).length) return null;
+    var n = K.normalize(Object.assign(currentSettings(), look));
+    var out = {};
+    Object.keys(look).forEach(function (k) { out[k] = n[k]; });
+    return out;
+  }
+
+  function applyLook(look) {
+    writeForm(K.normalize(Object.assign(currentSettings(), look)));
+    update();
+  }
+
+  // Shared links open the online studio, the one address everyone can open; the English names keep them readable.
+  function lookLink() {
+    var s = currentSettings();
+    var q = new URLSearchParams();
+    LOOK_KEYS.forEach(function (k) { q.set(enName(k), String(s[k])); });
+    return SHARE_BASE + '?' + q.toString();
+  }
+
+  async function copyLookLink() {
+    try {
+      await navigator.clipboard.writeText(lookLink());
+      toast(t('look.copied'));
+    } catch (e) {
+      toast(t('toast.linkFail'), true);
+    }
+  }
+
+  function applyLookInput() {
+    var box = $('lookStatus');
+    var text = $('lookInput').value.trim();
+    var q;
+    try { q = new URL(text, SHARE_BASE).search; } catch (e) { q = ''; }
+    if (!q && text.indexOf('=') > 0) q = '?' + text.replace(/^[?]/, '');
+    var look = lookFrom(q);
+    if (!look) { say(box, 'err', t('look.bad')); return; }
+    applyLook(look);
+    $('lookInput').value = '';
+    say(box, 'ok', t('look.applied'));
+  }
+
+  // A look link opened in the studio: applied once, then dropped from the address bar so a reload keeps the form.
+  function lookFromAddress() {
+    var look = lookFrom(window.location.search);
+    if (!look) return;
+    applyLook(look);
+    say($('lookStatus'), 'ok', t('look.applied'));
+    try { history.replaceState(null, '', window.location.pathname + window.location.hash); } catch (e) { /* file:// may refuse */ }
+  }
+
   async function copyLink(btn, input) {
     try {
       await navigator.clipboard.writeText(input.value);
@@ -802,6 +866,7 @@
     } catch (e) { /* relay busy or old: the form keeps its defaults */ }
     savedJson = JSON.stringify(currentSettings());
     update();
+    lookFromAddress();   // after the saved settings, so the look shows as an unsaved change
   }
 
   async function saveLocalToRelay() {
@@ -1211,6 +1276,10 @@
       update();
     });
 
+    $('lookCopy').addEventListener('click', copyLookLink);
+    $('lookApply').addEventListener('click', applyLookInput);
+    $('lookInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); applyLookInput(); } });
+
     document.querySelectorAll('[data-preset]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var p = PRESETS[btn.getAttribute('data-preset')];
@@ -1355,6 +1424,7 @@
   writeForm(K.normalize({}));
   if (!SELF) loadDraft();
   bindEvents();
+  if (!SELF) lookFromAddress();
   applyI18n();
   setBackground(background);
   selectTab(activeId, false);

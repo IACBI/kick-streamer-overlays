@@ -4,6 +4,15 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.1.8] - 2026-11-05
+
+### Added
+
+- Theme gallery: [docs/themes.md](docs/themes.md) shows all thirteen themes in one image, and every theme and quick look has a link that opens the online studio with that look applied.
+- Look links: **Copy look link** in the studio copies a link with your theme, shape, font, motion and accent. Opening it, or pasting it into **Paste a look link** (also in the studio the relay serves), applies the look; **Save** keeps it. A look link carries only those five settings, and the studio ignores anything else in it.
+- Five more quick looks: Cinema, Holo, Ember, Retro and Terminal, in all six studio languages.
+- `node tools/record-previews.js gallery` re-creates the gallery image.
+
 ## [3.1.7] - 2026-11-05
 
 ### Changed

@@ -244,6 +244,33 @@ async function testSettingsDoc() {
     for (const key of rows.keys()) if (!K.schemaKeys().includes(key)) problems.push(key + ': documented but not a setting');
     eq(problems, [], 'doc and schema agree');
   });
+
+  await check('docs/themes.md: every theme and every studio quick look has a working studio link', () => {
+    const { K } = loadCore();
+    const doc = fs.readFileSync(path.join(ROOT, 'docs', 'themes.md'), 'utf8');
+    const links = [...doc.matchAll(/\(https:\/\/iacbi\.github\.io\/kick-streamer-overlays\/studio\.html(\?[^)]*)\)/g)].map((m) => m[1]);
+    const looks = links.map((q) => K.normalize(K.urlOverrides(q)));
+    const problems = [];
+    for (const theme of K.enums('stil')) if (!looks.some((s) => s.stil === theme)) problems.push('theme ' + theme + ': no link');
+    const studio = fs.readFileSync(path.join(ROOT, 'shared', 'studio.js'), 'utf8');
+    const presets = [...studio.matchAll(/\{ stil: '(\w+)', sekil: '(\w+)', yaziTipi: '(\w+)', animasyon: '(\w+)', renk: '(#[0-9a-f]{6})' \}/g)];
+    ok(presets.length >= 10, 'presets found in studio.js: ' + presets.length);
+    for (const p of presets) {
+      const hit = looks.some((s) => s.stil === p[1] && s.sekil === p[2] && s.yaziTipi === p[3] && s.animasyon === p[4] && s.renk === p[5]);
+      if (!hit) problems.push('quick look ' + p[1] + '/' + p[5] + ': no matching link');
+    }
+    eq(problems, [], 'gallery and code agree');
+  });
+
+  await check('studio: a look link applies only the five look settings', () => {
+    const { K } = loadCore();
+    const raw = K.urlOverrides('?theme=retro&accent=%23ff4fd8&channel=someone&ozelCss=x');
+    ok(raw.stil === 'retro' && raw.kanal === 'someone', 'urlOverrides reads both names');
+    const studio = fs.readFileSync(path.join(ROOT, 'shared', 'studio.js'), 'utf8');
+    const m = /var LOOK_KEYS = (\[[^\]]*\]);/.exec(studio);
+    ok(m, 'LOOK_KEYS in studio.js');
+    eq(JSON.parse(m[1].replace(/'/g, '"')), ['stil', 'sekil', 'yaziTipi', 'animasyon', 'renk'], 'look keys');
+  });
 }
 
 module.exports = { testThemesAndPages, testSyntax, testVersionSync, testSettingsDoc };

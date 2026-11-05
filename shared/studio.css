@@ -430,3 +430,7 @@ h3.st-sub { font-size: 14px; font-weight: 700; color: var(--st-muted); margin: 1
 .st-checklist h3 { margin: 0 0 6px; }
 .st-checklist .st-linkbtn { margin-inline-start: 6px; }
 .st-checklist code { overflow-wrap: anywhere; }
+
+/* ---- Look links (share and apply a look) ---- */
+.st-look { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.st-look input { flex: 1 1 140px; min-width: 0; }
