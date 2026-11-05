@@ -26,3 +26,6 @@ labels/
 # Settings saved from the studio through the relay: the previous AYARLAR.js, and half-written files
 AYARLAR.backup.js
 AYARLAR*.tmp
+
+# Record mode output (relay --record): redacted webhooks for tools/check-recordings.js
+recordings/

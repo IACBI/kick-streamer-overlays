@@ -22,6 +22,7 @@ const { startTunnel, cloudflaredPath } = require('./tunnel.js');
 const { createStats } = require('./stats.js');
 const { createSite } = require('./site.js');
 const { ensureSubscriptions } = require('./subscribe.js');
+const { createRecorder } = require('./record.js');
 const path = require('path');
 
 const { version: VERSION } = require('../package.json');
@@ -196,6 +197,7 @@ function createRelay(opts) {
     labelsDir: null,           // plain-text files for OBS Text sources when set
     siteRoot: ROOT,            // the pages served on the events port
     configRoot: ROOT,          // where AYARLAR.js and AYARLAR.local.js are read and saved
+    recordDir: null,           // record mode: redacted copies of verified webhooks go here
     normalizeEvent,
     logger: console,
     now: () => Date.now()
@@ -235,6 +237,7 @@ function createRelay(opts) {
   const getKey = o.publicKeyPem
     ? async () => o.publicKeyPem
     : kickKeySource(o);
+  const recorder = o.recordDir ? createRecorder({ dir: o.recordDir, logger: o.logger }) : null;
   const replay = new ReplayGuard();
   const preAuth = new TokenBucket(o.webhookPreAuthRate.perSec, o.webhookPreAuthRate.burst);
   const bucket = new TokenBucket(o.webhookRate.perSec, o.webhookRate.burst);
@@ -350,6 +353,7 @@ data: ${JSON.stringify(stats.snapshot())}
 
     let body;
     try { body = JSON.parse(raw.toString('utf8')); } catch (e) { return send(res, 400, { error: 'bad json' }); }
+    if (recorder) recorder.save(String(type || ''), body);
     const ev = o.normalizeEvent(String(type || ''), body);
     // A reward keeps one id across its pending and accepted updates, so it is shown once.
     if (ev && ALERT_KINDS.has(ev.kind)) ev.id = ev.kind === 'reward' ? 'reward-' + ev.redemptionId : String(messageId);
@@ -743,6 +747,7 @@ function main(env = process.env, argv = process.argv.slice(2)) {
       fetchImpl: globalThis.fetch,
       statsFile: path.join(ROOT, 'kick-relay-stats.json'),
       labelsDir: env.RELAY_LABELS === '0' ? null : path.join(ROOT, 'labels'),
+      recordDir: argv.includes('--record') || env.RELAY_RECORD === '1' ? path.join(ROOT, 'recordings') : null,
       logger: log
     });
   } catch (e) {
@@ -758,6 +763,7 @@ function main(env = process.env, argv = process.argv.slice(2)) {
   relay.start().then(({ webhookPort, eventsPort, chat }) => {
     log.log('Kick relay running.');
     log.log(`  Webhook (expose this through a tunnel): http://127.0.0.1:${webhookPort}/kick/webhook`);
+    if (argv.includes('--record') || env.RELAY_RECORD === '1') log.log(`  Record mode: verified webhooks are saved, without names or message text, to ${path.join(ROOT, 'recordings')}`);
     if (argv.includes('--tunnel') || env.RELAY_TUNNEL === '1') {
       log.log('  Starting a Cloudflare quick tunnel...');
       tunnel = startTunnel({

@@ -1,0 +1,42 @@
+name: Kick drift check
+
+# Once a day: do Kick's public channel data and webhook key still parse the way the overlays expect?
+# A change opens (or comments on) one issue labelled "kick-drift". Blocks and outages only print a note.
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: kick-drift
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Check Kick endpoints
+        id: check
+        run: |
+          set +e
+          node tools/kick-drift.js | tee drift.txt
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+      - name: Report drift as an issue
+        if: steps.check.outputs.code == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          body="$(printf 'The daily drift check found a change in what Kick returns.\n\n```\n%s\n```\n\nRun: %s/%s/actions/runs/%s' "$(cat drift.txt)" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")"
+          gh label create kick-drift --color d93f0b --description "Kick changed an endpoint the overlays use" 2>/dev/null || true
+          open="$(gh issue list --label kick-drift --state open --json number --jq '.[0].number')"
+          if [ -n "$open" ]; then gh issue comment "$open" --body "$body"; else gh issue create --title "Kick drift: an endpoint changed" --label kick-drift --body "$body"; fi
+          exit 1

@@ -4,6 +4,13 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.1.2] - 2026-11-05
+
+### Added
+
+- Record mode: `--record` (or `RELAY_RECORD=1`) saves every verified webhook to `recordings/`, with names, user IDs, pictures and message text replaced. `tools/check-recordings.js` runs them through the relay's event mapping and reports anything Kick changed.
+- A daily drift check (`tools/kick-drift.js`, `.github/workflows/kick-drift.yml`) of Kick's public channel data and webhook key. A change opens an issue labelled `kick-drift`; a block or outage is only noted.
+
 ## [3.1.1] - 2026-11-05
 
 ### Added

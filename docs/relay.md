@@ -48,6 +48,18 @@ Kick sends chat messages, bans, follows, subscriptions, gifted subscriptions, Ki
 
 The relay accepts only events with a valid Kick signature, passes each one on only once, and passes events on only for your broadcaster ID. While that ID is unknown, events are dropped and the relay says so in its log; it retries the lookup at most once a minute. Its overlay port listens on `127.0.0.1` only and refuses requests with a foreign `Host` header, so the tunnel exposes just the webhook path. Kick limits subscriptions per app: 10,000 per event type, and 1,000 for chat messages while the app is unverified.
 
+## Record mode
+
+Start the relay with `--record` (or `RELAY_RECORD=1`) during a stream, and every webhook that passes the signature check is also saved to `recordings/`. Names, user IDs, profile pictures and message text are replaced with placeholders before anything is written; the event structure and numbers stay. At most 500 files are saved per run.
+
+Then check them:
+
+```bash
+node tools/check-recordings.js
+```
+
+It runs each file through the same mapping the relay uses and prints what the overlays would show. A file marked `dropped` or `empty` means Kick changed that payload; please open an issue and attach the file. Separately, a daily GitHub workflow checks Kick's public channel data and webhook key, and opens an issue labelled `kick-drift` when their shape changes.
+
 ## Relay endpoints and subscriber total
 
 The relay is one small Node.js program with no packages. It has two listeners, both bound to `127.0.0.1`. The webhook port (8788 by default) takes Kick's events on `POST /kick/webhook`, and is the only path meant for a tunnel. The overlay port (8790 by default) serves the overlays:
