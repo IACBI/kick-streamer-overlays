@@ -1597,7 +1597,14 @@ function statusOf(port, p, headers) {
     const s1 = sockets[before];
     s1.emit({ id: 1, error: { code: 103, message: 'permission denied' } });
     check('live: a refused connection is logged once and retried', lv.status().state === 'connecting' && logs.filter((m) => /refused/.test(m)).length === 1 && s1.closed === true);
+    const s1b = sockets[sockets.length - 1];
     await wait(1700);
+    const s2 = sockets[sockets.length - 1];
+    if (s2 !== s1b) {
+      s2.emit({ id: 1, error: { code: 'x', message: 'bad\r\nFAKE relay line\u2028more' } });
+      check('live: control characters in Kick error texts never reach the log as extra lines',
+        logs.every((m) => !/[\r\n\u2028]/.test(m)) && logs.some((m) => /badFAKE relay line more/.test(m)) && /\(bad/.test(lv.status().error));
+    }
     check('live: the retry opens a new socket', sockets.length === before + 2, String(sockets.length - before));
     lv.follow('abc');
     check('live: a bad chat room id stops the feed', lv.status().state === 'off');
