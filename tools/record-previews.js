@@ -88,6 +88,15 @@ const SCENES = {
     w: 800, h: 120, seconds: 10, colors: 96,
     html: `<iframe width="760" height="80" style="left:20px;top:20px" src="${fileUrl('ticker.html', '?onizleme=1&stil=neon&duyuruSn=3')}"></iframe>`
   },
+  // Every theme side by side, for docs/themes.md: the combined bar at half size, four to a row.
+  gallery: {
+    w: 1160, h: 520, seconds: 5, still: true,
+    html: THEMES.map((t, i) => {
+      const x = 20 + (i % 4) * 285, y = 14 + Math.floor(i / 4) * 125;
+      return `<div class="cap" style="left:${x}px;right:auto;width:260px;top:${y}px;text-align:left"><b>${t}</b></div>`
+        + `<iframe width="520" height="180" style="left:${x}px;top:${y + 24}px;transform:scale(.5)" src="${fileUrl('combined-bar.html', '?onizleme=1&animasyon=off&stil=' + t)}"></iframe>`;
+    }).join('')
+  },
   // The studio itself: a still of the real page, dark, once per interface language.
   'studio-en': {
     w: 1360, h: 900, seconds: 3, still: true, direct: 'studio.html', scheme: 'dark', lang: 'en'

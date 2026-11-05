@@ -34,7 +34,7 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 
 ### Features
 
-- 13 themes: `glass`, `vivid`, `soft`, `cinema`, `neon`, `minimal`, `pastel`, `terminal`, `aurora`, `holo`, `ember`, `paper`, `retro`
+- 13 themes: `glass`, `vivid`, `soft`, `cinema`, `neon`, `minimal`, `pastel`, `terminal`, `aurora`, `holo`, `ember`, `paper`, `retro` ([gallery and look links](docs/themes.md))
 - Corner shapes (`pill`, `rounded`, `square`), four fonts (only the one you pick is loaded), labels in Turkish, English, Spanish, Brazilian Portuguese, German or Arabic (right to left), or Turkish and English together, three motion levels, and an optional percentage. Reduced-motion settings are respected everywhere
 - A session gain next to the subscriber count, such as "+3 this stream". It survives an OBS refresh for 12 hours
 - Goal bars pulse at 25, 50 and 75 %, and show a goal-reached state at 100 % (`hedefKutlama`). With `hedefArtis` a reached goal moves up by a set step instead
@@ -154,7 +154,7 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 - Pages must stay classic scripts so they work from `file://`. Use the shared `.ko-*` components and tokens in `shared/themes.css`, and prefer `transform` and `opacity` for new animations.
 - `node tools/record-previews.js` re-creates the images in `screenshots/` (needs Node.js 22 or newer, Chrome or Edge, and `ffmpeg`).
 - `node tools/visual-qa.js --out <dir>` and `node tools/motion-qa.js --out <dir>` check every theme for readability and every animation for smoothness before a change ships (Node.js 22 or newer, Chrome). Add `--only main,lang --gate` to fail on any text below its contrast target or any layout issue, in every label language, as CI does.
-- Guides: [setup](docs/setup.md), [relay](docs/relay.md), [settings](docs/settings.md), [troubleshooting](docs/troubleshooting.md), [FAQ](docs/faq.md), [roadmap](docs/ROADMAP.md).
+- Guides: [setup](docs/setup.md), [relay](docs/relay.md), [settings](docs/settings.md), [theme gallery](docs/themes.md), [troubleshooting](docs/troubleshooting.md), [FAQ](docs/faq.md), [roadmap](docs/ROADMAP.md).
 - More in [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [changelog](CHANGELOG.md).
 
 ### License
@@ -190,7 +190,7 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 
 ### Özellikler
 
-- 13 tema: `glass`, `vivid`, `soft`, `cinema`, `neon`, `minimal`, `pastel`, `terminal`, `aurora`, `holo`, `ember`, `paper`, `retro`
+- 13 tema: `glass`, `vivid`, `soft`, `cinema`, `neon`, `minimal`, `pastel`, `terminal`, `aurora`, `holo`, `ember`, `paper`, `retro` ([galeri ve görünüm linkleri](docs/themes.md))
 - Köşe şekilleri (`pill`, `rounded`, `square`), dört yazı tipi (yalnızca seçtiğin yüklenir), Türkçe, İngilizce, İspanyolca, Brezilya Portekizcesi, Almanca ya da Arapça (sağdan sola) veya Türkçe ve İngilizce birlikte etiketler, üç hareket seviyesi ve isteğe bağlı yüzde gösterimi. Hareket azaltma ayarları her yerde geçerlidir
 - Abone sayısının yanında "bu yayında +3" gibi yayın içi artış. OBS'te kaynağı yenilesen de 12 saat boyunca korunur
 - Hedef çubukları yüzde 25, 50 ve 75'te nabız atar, yüzde 100'de "hedefe ulaşıldı" durumuna geçer (`hedefKutlama`). `hedefArtis` ile ulaşılan hedef belirlenen adım kadar yükselir
@@ -310,7 +310,7 @@ Kendi bildirim seslerin ve görsellerin, rozet görselleri ve abone toplamı iç
 - Sayfalar `file://` üzerinden çalışabilmek için klasik script olarak kalmalı. Ortak `.ko-*` bileşenlerini ve `shared/themes.css` içindeki değişkenleri kullan, yeni animasyonlar için `transform` ve `opacity` tercih et.
 - `node tools/record-previews.js`, `screenshots/` içindeki görselleri yeniden üretir (Node.js 22 veya üstü, Chrome veya Edge ve `ffmpeg` gerekir).
 - `node tools/visual-qa.js --out <dir>` ve `node tools/motion-qa.js --out <dir>`, bir değişiklik yayınlanmadan önce her temanın okunabilirliğini ve her animasyonun akıcılığını ölçer (Node.js 22 veya üstü, Chrome). CI'daki gibi, her etiket dilinde kontrast hedefinin altındaki her metinde ya da her yerleşim sorununda hata vermesi için `--only main,lang --gate` ekle.
-- Rehberler (İngilizce): [kurulum](docs/setup.md), [relay](docs/relay.md), [ayarlar](docs/settings.md), [sorun giderme](docs/troubleshooting.md), [SSS](docs/faq.md), [yol haritası](docs/ROADMAP.md).
+- Rehberler (İngilizce): [kurulum](docs/setup.md), [relay](docs/relay.md), [ayarlar](docs/settings.md), [tema galerisi](docs/themes.md), [sorun giderme](docs/troubleshooting.md), [SSS](docs/faq.md), [yol haritası](docs/ROADMAP.md).
 - Ayrıntılar: [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) ve [değişiklik günlüğü](CHANGELOG.md).
 
 ### Lisans
