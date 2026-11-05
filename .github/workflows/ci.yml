@@ -87,3 +87,30 @@ jobs:
         run: npm run build:relay
       - name: Smoke test the executable from an empty folder
         run: npm run test:relay-binary
+
+  # Server mode: the image builds, starts, answers only its public host, and never hands out the access key.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the relay image
+        run: docker build -t kick-relay .
+      - name: Start it in server mode and check it
+        shell: bash
+        run: |
+          docker run -d --name relay -p 127.0.0.1:8790:8790 -e RELAY_PUBLIC_URL=https://overlays.example.test kick-relay
+          for i in $(seq 1 30); do curl -sf -o /dev/null -H 'Host: overlays.example.test' http://127.0.0.1:8790/studio.html && break; sleep 1; done
+          h='Host: overlays.example.test'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "$h" http://127.0.0.1:8790/studio.html)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: other.example.test' http://127.0.0.1:8790/studio.html)" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "$h" http://127.0.0.1:8790/health)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "$h" http://127.0.0.1:8790/kick/webhook)" = 401
+          key=$(docker exec relay sed -E 's/.*"(.*)".*/\1/' /data/AYARLAR.relay.js)
+          ! curl -s -H "$h" http://127.0.0.1:8790/AYARLAR.relay.js | grep -qF "$key"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "$h" "http://127.0.0.1:8790/health?key=$key")" = 200
+          echo "server mode checks passed"
+      - name: Relay log
+        if: always()
+        run: docker logs relay 2>&1 | sed -E 's/[A-Za-z0-9_-]{32,}/***/g'

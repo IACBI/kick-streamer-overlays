@@ -237,10 +237,17 @@
     return out;
   }
 
-  // True for a page the relay serves itself (http://127.0.0.1:PORT/...): the key script it sends says so.
+  // True for a page the relay serves itself: http://127.0.0.1:PORT/... on this computer, or the https address of a
+  // relay in server mode. The key script only the relay sends says so.
   function relayServed() {
     var loc = global.location;
-    return global.KICK_RELAY_SELF === true && !!loc && loc.protocol === 'http:' && LOOPBACK_NAME.test(loc.hostname || '');
+    if (global.KICK_RELAY_SELF !== true || !loc) return false;
+    return (loc.protocol === 'http:' && LOOPBACK_NAME.test(loc.hostname || '')) || loc.protocol === 'https:';
+  }
+
+  // A relay on a public https address (server mode): its pages bring the access key themselves.
+  function relayRemote() {
+    return relayServed() && global.location.protocol === 'https:';
   }
 
   // Settings saved in the studio (or AYARLAR.js edited by hand) reach a page the relay serves within a few seconds:
@@ -882,7 +889,7 @@
   // The relay is then skipped, not retried: each attempt would fail, and a public page should not probe 127.0.0.1.
   function relayBlockReason() {
     var loc = global.location;
-    if (!loc || !loc.protocol) return '';
+    if (!loc || !loc.protocol || relayServed()) return '';
     if (loc.protocol === 'http:' && loc.hostname === 'absolute') return 'localFile';
     if ((loc.protocol === 'http:' || loc.protocol === 'https:') && !LOOPBACK_NAME.test(loc.hostname || '')) return 'hosted';
     return '';
@@ -1436,7 +1443,7 @@
   function aliases() { return Object.assign({}, ALIASES); }
 
   global.KickOverlay = {
-    version: '3.1.9',
+    version: '3.2.0',
     enums: enumsOf,
     schemaKeys: schemaKeys,
     aliases: aliases,
@@ -1445,6 +1452,7 @@
     readSettings: readSettings,
     urlOverrides: urlOverrides,
     relayServed: relayServed,
+    relayRemote: relayRemote,
     isPreview: isPreview,
     isDebug: isDebug,
     sample: SAMPLE,

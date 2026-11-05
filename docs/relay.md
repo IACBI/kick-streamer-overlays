@@ -4,6 +4,8 @@ The relay is optional. It brings live chat, alerts, live stream status, stream s
 
 ## Studio and overlays from the relay
 
+To run the relay on an always-on server instead of the streaming PC, see [server mode](cloud.md).
+
 The relay also serves the pack itself on its local port. Open `http://127.0.0.1:8790/` (the relay executable opens it for you; with Node.js add `--open`, and set `RELAY_OPEN=0` to turn it off).
 
 - **One link per overlay, for good.** Links such as `http://127.0.0.1:8790/chat.html` carry no settings. The studio's **Save and apply to OBS** writes them to `AYARLAR.js` (the previous file is kept as `AYARLAR.backup.js`), and every overlay served by the relay reloads within a few seconds. A hand edit of `AYARLAR.js` is picked up the same way.

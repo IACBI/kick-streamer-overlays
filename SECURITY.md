@@ -38,6 +38,11 @@ You can expect an answer within a few days.
   - **Origin.** A request with no `Origin`, with `Origin: null` (an overlay opened from disk), or from a loopback
     `http(s)` origin is answered. Any other origin gets 403. The allowed origin is echoed back, never `*`, and
     `Vary: Origin` is set. A web page on another site cannot read these endpoints.
+- **Server mode** (`RELAY_PUBLIC_URL`, see [docs/cloud.md](docs/cloud.md)). The overlay port then sits behind the
+  owner's HTTPS reverse proxy. Only that address's host and origin are added to the loopback ones; Kick's webhook is
+  taken on the same port with the same checks, while the separate webhook listener stays on loopback. The key script
+  never contains the key: the studio asks for it and keeps it in that browser, and OBS links carry it. The address must
+  be plain `https://`.
 - **Broadcaster check.** Chat, ban and alert events are passed on only when their broadcaster ID matches your channel. The ID
   comes from `RELAY_BROADCASTER_ID`, or is looked up from `kanal` with Kick app credentials. While the ID is unknown,
   events are dropped. `RELAY_ALLOW_ANY_BROADCASTER=1` turns the check off and is meant for testing only.

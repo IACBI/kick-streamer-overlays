@@ -115,6 +115,7 @@ function createRelay(opts) {
     webhookPort: 8788,
     eventsPort: 8790,
     host: '127.0.0.1',
+    publicUrl: null,           // server mode: the https address a reverse proxy serves this relay on
     broadcasterUserId: '',     // when set, events for other broadcasters are dropped
     allowAnyBroadcaster: false,
     publicKeyPem: null,        // tests inject a key; production fetches Kick's
@@ -155,7 +156,22 @@ function createRelay(opts) {
   }
   let tunnelUrl = null;
 
-  const accessKey = o.accessKey === undefined ? loadRelayKey() : String(o.accessKey);
+  // Server mode: one public https address in front of the events port. Its host and origin are accepted besides the
+  // loopback ones, Kick's webhook is taken on the same port, and pages never receive the access key.
+  let publicOrigin = null, publicHost = null;
+  if (o.publicUrl) {
+    let u;
+    try { u = new URL(String(o.publicUrl)); } catch (e) { throw new Error('RELAY_PUBLIC_URL is not a URL', { cause: e }); }
+    if (u.protocol !== 'https:' || u.username || u.password || (u.pathname !== '/' && u.pathname !== '') || u.search || u.hash) {
+      throw new Error('RELAY_PUBLIC_URL must be a plain https:// address, such as https://overlays.example.com');
+    }
+    publicOrigin = u.origin;
+    publicHost = u.host.toLowerCase();
+  }
+  const hostOk = (h) => LOOPBACK_HOST.test(h || '') || (publicHost !== null && String(h || '').toLowerCase() === publicHost);
+  const originOk = (origin) => originAllowed(origin) || (publicOrigin !== null && origin === publicOrigin);
+
+  const accessKey = o.accessKey === undefined ? loadRelayKey({ root: o.configRoot }) : String(o.accessKey);
   const keyOk = (given) => {
     if (typeof given !== 'string' || !given || !accessKey) return false;
     const a = Buffer.from(given, 'utf8'), b = Buffer.from(accessKey, 'utf8');
@@ -164,7 +180,7 @@ function createRelay(opts) {
 
   let fileConfig = null;
   const config = () => fileConfig || (fileConfig = loadConfig({ root: o.configRoot }));
-  const site = createSite({ siteRoot: o.siteRoot, configRoot: o.configRoot, accessKey: () => accessKey });
+  const site = createSite({ siteRoot: o.siteRoot, configRoot: o.configRoot, accessKey: () => accessKey, publicMode: publicOrigin !== null });
   const credentials = () => (o.credentials === undefined ? config().credentials : (o.credentials || null));
   const slugOption = () => (o.channelSlug === undefined ? config().slug : String(o.channelSlug || ''));
 
@@ -495,12 +511,14 @@ data: ${JSON.stringify(stats.snapshot())}
 
   // ---- events listener (local only, for the overlay page) ----
   async function handleEvents(req, res) {
-    // Only loopback names are served, so a web page cannot reach this port through DNS rebinding.
-    if (!LOOPBACK_HOST.test(req.headers.host || '')) return send(res, 403, { error: 'forbidden host' });
+    // Only loopback names (and in server mode the public address) are served, so a web page cannot reach this port
+    // through DNS rebinding.
+    if (!hostOk(req.headers.host)) return send(res, 403, { error: 'forbidden host' });
+    if (publicOrigin !== null && req.url === kick.webhookPath) return handleWebhook(req, res);
     res.setHeader('Vary', 'Origin');
     const origin = req.headers.origin;
     if (origin !== undefined) {
-      if (!originAllowed(origin)) return send(res, 403, { error: 'forbidden origin' });
+      if (!originOk(origin)) return send(res, 403, { error: 'forbidden origin' });
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Expose-Headers', 'X-Kick-Source, Retry-After');
     }
@@ -549,7 +567,8 @@ data: ${JSON.stringify(stats.snapshot())}
         ok: true, version: VERSION, clients: clients.size, lastEventAt, channel: slugOption(),
         features: { chat: chatReady(), alerts: chatReady(), live: chatReady(), channel: true, subscribers: api.hasCredentials(), settings: true },
         alertsPaused, lastAlert: lastAlert ? lastAlert.kind : null,
-        tunnel: tunnelUrl ? tunnelUrl + kick.webhookPath : null, recentErrors: recentErrors.slice()
+        tunnel: tunnelUrl ? tunnelUrl + kick.webhookPath : publicOrigin ? publicOrigin + kick.webhookPath : null,
+        server: publicOrigin !== null, recentErrors: recentErrors.slice()
       });
     }
     if (p === '/channel' || p === '/subscribers') {
@@ -586,10 +605,10 @@ data: ${JSON.stringify(stats.snapshot())}
   });
   events.maxHeadersCount = 50;
 
-  function listen(server, port) {
+  function listen(server, port, host) {
     return new Promise((resolve, reject) => {
       server.once('error', reject);
-      server.listen(port, o.host, () => resolve(server.address().port));
+      server.listen(port, host || o.host, () => resolve(server.address().port));
     });
   }
 
@@ -601,7 +620,8 @@ data: ${JSON.stringify(stats.snapshot())}
     hasPack: site.hasPack,
     hasCredentials: () => api.hasCredentials(),
     async start() {
-      const webhookPort = await listen(webhook, o.webhookPort);
+      // In server mode Kick posts to the events port; the separate webhook listener stays on loopback.
+      const webhookPort = await listen(webhook, o.webhookPort, publicOrigin !== null ? '127.0.0.1' : o.host);
       const eventsPort = await listen(events, o.eventsPort);
       heartbeat = setInterval(() => { for (const res of Array.from(clients)) writeClient(res, ': ping\n\n'); }, HEARTBEAT_MS);
       heartbeat.unref();
@@ -646,17 +666,24 @@ function main(env = process.env, argv = process.argv.slice(2)) {
     process.exit(1);
   }
   process.on('unhandledRejection', (/** @type {any} */ e) => log.error('Unhandled error (relay keeps running):', e && e.message ? e.message : e));
+  // Server mode (RELAY_PUBLIC_URL): settings, key and stats live in RELAY_DATA_DIR (a volume in a container), the relay
+  // listens on RELAY_HOST, and no tunnel or browser is started.
+  const publicUrl = env.RELAY_PUBLIC_URL || null;
+  const DATA = env.RELAY_DATA_DIR ? path.resolve(env.RELAY_DATA_DIR) : ROOT;
   let relay;
   try {
     relay = createRelay({
+      host: env.RELAY_HOST || '127.0.0.1',
+      publicUrl,
+      configRoot: DATA,
       webhookPort: parsePort(env.RELAY_WEBHOOK_PORT, 8788, 'RELAY_WEBHOOK_PORT'),
       eventsPort: parsePort(env.RELAY_EVENTS_PORT, 8790, 'RELAY_EVENTS_PORT'),
       broadcasterUserId: String(env.RELAY_BROADCASTER_ID || ''),
       allowAnyBroadcaster: env.RELAY_ALLOW_ANY_BROADCASTER === '1',
       fetchImpl: globalThis.fetch,
-      statsFile: path.join(ROOT, 'kick-relay-stats.json'),
-      labelsDir: env.RELAY_LABELS === '0' ? null : path.join(ROOT, 'labels'),
-      recordDir: argv.includes('--record') || env.RELAY_RECORD === '1' ? path.join(ROOT, 'recordings') : null,
+      statsFile: path.join(DATA, 'kick-relay-stats.json'),
+      labelsDir: env.RELAY_LABELS === '0' ? null : path.join(DATA, 'labels'),
+      recordDir: argv.includes('--record') || env.RELAY_RECORD === '1' ? path.join(DATA, 'recordings') : null,
       onConfigChange: () => maybeTunnel(),
       logger: log
     });
@@ -670,7 +697,7 @@ function main(env = process.env, argv = process.argv.slice(2)) {
   // credentials exist and cloudflared is installed, because a double-click user has no other way to get live events.
   // RELAY_TUNNEL=0 turns that off. The tunnel exposes only the signed webhook path.
   const tunnelAsked = argv.includes('--tunnel') || env.RELAY_TUNNEL === '1';
-  const tunnelAuto = !tunnelAsked && env.RELAY_TUNNEL !== '0' && isSea();
+  const tunnelAuto = !tunnelAsked && !publicUrl && env.RELAY_TUNNEL !== '0' && isSea();
   function maybeTunnel() {
     if (tunnel || !webhookPortNow || !relay) return;
     if (!tunnelAsked && !(tunnelAuto && relay.hasCredentials() && cloudflaredFound(env, { root: ROOT }))) return;
@@ -694,19 +721,22 @@ function main(env = process.env, argv = process.argv.slice(2)) {
   log.log(`Kick relay ${VERSION} starting...`);
   relay.start().then(({ webhookPort, eventsPort, chat }) => {
     log.log('Kick relay running.');
-    log.log(`  Webhook (expose this through a tunnel): http://127.0.0.1:${webhookPort}${WEBHOOK_PATH}`);
-    if (argv.includes('--record') || env.RELAY_RECORD === '1') log.log(`  Record mode: verified webhooks are saved, without names or message text, to ${path.join(ROOT, 'recordings')}`);
+    if (publicUrl) log.log(`  Server mode. Webhook URL for your Kick app: ${new URL(publicUrl).origin}${WEBHOOK_PATH}`);
+    else log.log(`  Webhook (expose this through a tunnel): http://127.0.0.1:${webhookPort}${WEBHOOK_PATH}`);
+    if (argv.includes('--record') || env.RELAY_RECORD === '1') log.log(`  Record mode: verified webhooks are saved, without names or message text, to ${path.join(DATA, 'recordings')}`);
     webhookPortNow = webhookPort;
     maybeTunnel();
-    const studioUrl = `http://127.0.0.1:${eventsPort}/`;
+    const studioUrl = publicUrl ? new URL(publicUrl).origin + '/' : `http://127.0.0.1:${eventsPort}/`;
     const packHere = relay.hasPack();
     if (!packHere) log.warn(`  The overlay pack is not in ${ROOT}. Put the relay in the unpacked kick-streamer-overlays folder to use the studio.`);
     log.log('');
     log.log(`  Studio and overlays: ${studioUrl}`);
-    log.log('  Open it in your browser, pick a look, press "Save", and paste the overlay links into OBS.');
+    log.log(publicUrl
+      ? '  Open it, enter the access key once (RELAY_KEY, or AYARLAR.relay.js in the data folder), and copy the links into OBS.'
+      : '  Open it in your browser, pick a look, press "Save", and paste the overlay links into OBS.');
     log.log('');
     // The executable is usually started with a double click: open the studio for the user. RELAY_OPEN=0 turns it off.
-    if (packHere && env.RELAY_OPEN !== '0' && (argv.includes('--open') || isSea())) openBrowser(studioUrl, log);
+    if (packHere && !publicUrl && env.RELAY_OPEN !== '0' && (argv.includes('--open') || isSea())) openBrowser(studioUrl, log);
     if (chat) {
       if (env.RELAY_ALLOW_ANY_BROADCASTER === '1' && !env.RELAY_BROADCASTER_ID) log.log('  Chat and alerts: accepting events for ANY broadcaster (RELAY_ALLOW_ANY_BROADCASTER=1).');
     } else {
@@ -716,7 +746,9 @@ function main(env = process.env, argv = process.argv.slice(2)) {
     }
     log.log(env.RELAY_KEY
       ? '  Overlay access key: taken from RELAY_KEY (overlays need the same value).'
-      : '  Overlay access key: stored in AYARLAR.relay.js (overlays load it automatically).');
+      : publicUrl
+        ? `  Overlay access key: stored in ${path.join(DATA, 'AYARLAR.relay.js')}. Pages on the public address never receive it.`
+        : '  Overlay access key: stored in AYARLAR.relay.js (overlays load it automatically).');
   }).catch((e) => {
     log.error('Could not start the relay:', e.message);
     process.exit(1);

@@ -138,6 +138,10 @@
   var RELAY_DEFAULT = K.normalizeLocal({}).relayAdresi;
   // Opened from the relay (http://127.0.0.1:8790/): settings are saved there, and links carry no settings.
   var SELF = typeof K.relayServed === 'function' && K.relayServed();
+  // Server mode: the relay is on a public https address; links for OBS carry the key, and the studio asks for it once.
+  var REMOTE = SELF && typeof K.relayRemote === 'function' && K.relayRemote();
+  var KEY_STORE = 'kickRelayKey';
+  var KEY_FORMAT = /^[A-Za-z0-9_-]{32,128}$/;
   var savedJson = null;   // the settings the relay holds, for the unsaved-changes note
   // Links and settings files use the English setting names; the Turkish ones keep working everywhere.
   var EN_NAME = {};
@@ -215,7 +219,7 @@
   // The link for OBS: only the settings that overlay reads, and only those that differ from the defaults.
   function overlayUrl(o, s) {
     // Served by the relay, a page reads the saved AYARLAR.js, so its link never has to change.
-    if (SELF) return new URL(o.file, window.location.href).href;
+    if (SELF) return REMOTE ? K.relayUrl(new URL(o.file, window.location.href).href) : new URL(o.file, window.location.href).href;
     var defaults = K.normalize({});
     var q = new URLSearchParams();
     COMMON.concat(o.keys).forEach(function (key) {
@@ -613,6 +617,28 @@
     try { history.replaceState(null, '', window.location.pathname + window.location.hash); } catch (e) { /* file:// may refuse */ }
   }
 
+  // Checks a key against the relay before keeping it in this browser.
+  async function enterKey(e) {
+    e.preventDefault();
+    var box = $('anahtar-durum');
+    var key = $('anahtarGir').value.trim();
+    if (!KEY_FORMAT.test(key)) { say(box, 'err', t('key.bad')); return; }
+    try {
+      var res = await fetch(window.location.origin + '/health?key=' + encodeURIComponent(key), { cache: 'no-store' });
+      if (res.status === 401) { say(box, 'err', t('key.wrong')); return; }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      localStorage.setItem(KEY_STORE, key);
+      window.location.reload();
+    } catch (err) {
+      say(box, 'err', t('key.fail'));
+    }
+  }
+
+  function forgetKey() {
+    try { localStorage.removeItem(KEY_STORE); } catch (e) { /* storage blocked: nothing kept */ }
+    window.location.reload();
+  }
+
   async function copyLink(btn, input) {
     try {
       await navigator.clipboard.writeText(input.value);
@@ -659,8 +685,9 @@
     var url = new URL('dock.html', window.location.href);
     if (s.dil !== K.normalize({}).dil) url.search = 'dil=' + encodeURIComponent(s.dil);
     url.hash = '';
+    var dockHref = REMOTE ? K.relayUrl(url.href) : url.href;
     try {
-      await navigator.clipboard.writeText(url.href);
+      await navigator.clipboard.writeText(dockHref);
       flashCopied($('dockKopyala'));
     } catch (e) {
       toast(t('toast.linkFail'), true);
@@ -1276,6 +1303,8 @@
       update();
     });
 
+    $('anahtarForm').addEventListener('submit', enterKey);
+    $('anahtarUnut').addEventListener('click', forgetKey);
     $('lookCopy').addEventListener('click', copyLookLink);
     $('lookApply').addEventListener('click', applyLookInput);
     $('lookInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); applyLookInput(); } });
@@ -1413,6 +1442,11 @@
   buildPresets();
   buildTabs();
   buildCards();
+  if (REMOTE) {
+    var keyMissing = !window.KICK_RELAY_KEY;
+    $('anahtarKutu').hidden = !keyMissing;
+    $('anahtarNot').hidden = keyMissing;
+  }
   if (SELF) {
     $('kaydetKutu').hidden = false;
     $('s4-again').hidden = true;

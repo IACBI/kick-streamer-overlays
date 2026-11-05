@@ -39,6 +39,16 @@ const LOCAL_FILE = 'AYARLAR.local.js';
 const BACKUP_FILE = 'AYARLAR.backup.js';
 
 // Same headers on every page: no sniffing, and no other site may frame the dock or the studio.
+const PUBLIC_KEY_SCRIPT = `// Served by a relay on a public address. The key is not in this file: the page's link or this browser has it.
+window.KICK_RELAY_SELF = true;
+(function () {
+  var k = null;
+  try { k = new URLSearchParams(location.search).get('key'); } catch (e) { k = null; }
+  if (!k) { try { k = localStorage.getItem('kickRelayKey'); } catch (e) { k = null; } }
+  if (k && /^[A-Za-z0-9_-]{32,128}$/.test(k)) window.KICK_RELAY_KEY = k;
+})();
+`;
+
 const BASE_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
@@ -109,7 +119,7 @@ function isPlainObject(v) {
 
 /**
  * The pack's pages and the settings files, for one relay.
- * @param {{ siteRoot: string, configRoot: string, accessKey: () => string }} o
+ * @param {{ siteRoot: string, configRoot: string, accessKey: () => string, publicMode?: boolean }} o
  */
 function createSite(o) {
   let core = null;
@@ -159,6 +169,12 @@ function createSite(o) {
       return true;
     }
     if (pathname === '/AYARLAR.relay.js') {
+      // On a public address anyone can load the pages, so the key is never handed out: the owner's browser brings it
+      // (the studio asks once and keeps it; an OBS link carries it).
+      if (o.publicMode) {
+        sendText(req, res, 200, 'text/javascript; charset=utf-8', PUBLIC_KEY_SCRIPT);
+        return true;
+      }
       if (!keyScriptAllowed(req)) {
         sendText(req, res, 403, 'text/javascript; charset=utf-8', '// Only pages served by this relay can load its key.\n');
         return true;

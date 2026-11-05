@@ -20,7 +20,7 @@
   // The relay is then skipped, not retried: each attempt would fail, and a public page should not probe 127.0.0.1.
   function relayBlockReason() {
     var loc = global.location;
-    if (!loc || !loc.protocol) return '';
+    if (!loc || !loc.protocol || relayServed()) return '';
     if (loc.protocol === 'http:' && loc.hostname === 'absolute') return 'localFile';
     if ((loc.protocol === 'http:' || loc.protocol === 'https:') && !LOOPBACK_NAME.test(loc.hostname || '')) return 'hosted';
     return '';

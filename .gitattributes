@@ -8,6 +8,8 @@
 /tools export-ignore
 /src export-ignore
 /i18n export-ignore
+/Dockerfile export-ignore
+/.dockerignore export-ignore
 /eslint.config.js export-ignore
 /tsconfig.json export-ignore
 /package-lock.json export-ignore
