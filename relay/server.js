@@ -20,6 +20,7 @@ const { createKickApi, retryAfterSec } = require('./kick-api.js');
 const { createLogger } = require('./log.js');
 const { startTunnel, cloudflaredPath } = require('./tunnel.js');
 const { createStats } = require('./stats.js');
+const { createSite } = require('./site.js');
 const path = require('path');
 
 const { version: VERSION } = require('../package.json');
@@ -48,6 +49,8 @@ const MAX_LINES = 12;                   // same limits as the duyuruMetinleri se
 const MAX_TEXT = 400;
 const STATS_FRAME_MS = 300;             // a burst of gifts sends one stats frame, not one per event
 const TEST_GAP_MS = 1500;              // test alerts are for setup; a stuck button must not flood the stream
+const SAVE_GAP_MS = 500;               // studio saves rewrite a file; one at a time is plenty
+const POST_ROUTES = new Set(['/test-alert', '/control', '/overlay', '/stats/reset', '/credentials']);
 // Fixed samples, so a test request cannot put any text of its own on stream.
 const TEST_ALERTS = {
   follow: { kind: 'follow', username: 'TestFollower' },
@@ -189,6 +192,8 @@ function createRelay(opts) {
     accessKey: undefined,      // events port key; undefined reads or creates AYARLAR.relay.js
     statsFile: null,           // stream stats survive a restart when set (main() sets it next to AYARLAR.js)
     labelsDir: null,           // plain-text files for OBS Text sources when set
+    siteRoot: ROOT,            // the pages served on the events port
+    configRoot: ROOT,          // where AYARLAR.js and AYARLAR.local.js are read and saved
     normalizeEvent,
     logger: console,
     now: () => Date.now()
@@ -219,7 +224,8 @@ function createRelay(opts) {
   };
 
   let fileConfig = null;
-  const config = () => fileConfig || (fileConfig = loadConfig());
+  const config = () => fileConfig || (fileConfig = loadConfig({ root: o.configRoot }));
+  const site = createSite({ siteRoot: o.siteRoot, configRoot: o.configRoot, accessKey: () => accessKey });
   const credentials = () => (o.credentials === undefined ? config().credentials : (o.credentials || null));
   const slugOption = () => (o.channelSlug === undefined ? config().slug : String(o.channelSlug || ''));
 
@@ -519,6 +525,40 @@ data: ${JSON.stringify(stats.snapshot())}
     return send(res, 200, { ok: true, target, clients: clients.size });
   }
 
+  // ---- /settings and /credentials: the studio saves through the relay ----
+  // Only a page of an allowed origin may write: the request must carry an Origin and a JSON body, which a form on
+  // another site cannot send without a preflight the origin check refuses.
+  let lastSaveAt = -Infinity;
+  async function handleSave(req, res, p) {
+    if (req.headers.origin === undefined) return send(res, 403, { ok: false, error: 'origin required' });
+    if (!/^application\/json\b/i.test(req.headers['content-type'] || '')) return send(res, 415, { ok: false, error: 'json only' });
+    const now = o.now();
+    if (now - lastSaveAt < SAVE_GAP_MS) return send(res, 429, { ok: false, error: 'rate' }, { 'Retry-After': '1' });
+    lastSaveAt = now;
+    let body;
+    try { body = JSON.parse((await readRaw(req)).toString('utf8')); } catch (e) {
+      return refuse(req, res, e.status || 400, { ok: false, error: e.status === 413 ? 'too large' : 'bad json' });
+    }
+    if (p === '/settings') {
+      const before = slugOption();
+      const r = site.writePublic(body && body.settings);
+      if (!r.ok) return send(res, r.error === 'write failed' || r.error === 'pack missing' ? 500 : 400, r);
+      fileConfig = null;
+      // A new channel needs its own broadcaster id, unless the id was given explicitly.
+      if (slugOption() !== before && !o.broadcasterUserId) { broadcasterId = ''; resolveBroadcaster(); }
+      o.logger.log('  Settings saved from the studio.');
+      return send(res, 200, r);
+    }
+    const r = site.writeLocal(body);
+    if (!r.ok) return send(res, r.error === 'write failed' ? 500 : 400, r);
+    fileConfig = null;
+    api.clearToken();
+    subsCache.clear();
+    if (!broadcasterId) resolveBroadcaster();
+    o.logger.log(r.saved ? '  Kick app credentials saved from the studio.' : '  Kick app credentials removed from the studio.');
+    return send(res, 200, { ok: true, saved: r.saved, credentials: api.hasCredentials() });
+  }
+
   // ---- events listener (local only, for the overlay page) ----
   async function handleEvents(req, res) {
     // Only loopback names are served, so a web page cannot reach this port through DNS rebinding.
@@ -543,10 +583,19 @@ data: ${JSON.stringify(stats.snapshot())}
     let url;
     try { url = new URL(req.url, 'http://localhost'); } catch (e) { return send(res, 400, { error: 'bad request' }); }
     const p = url.pathname;
-    // POST is only for the routes with a side effect; everything else is read-only GET.
-    const method = p === '/test-alert' || p === '/control' || p === '/overlay' || p === '/stats/reset' ? 'POST' : 'GET';
-    if (req.method !== method) return send(res, 405, { error: 'method not allowed' }, { Allow: method + ', OPTIONS' });
+    // The pack's own pages and assets: public files, no key.
+    if (await site.serve(req, res, p)) return;
+    // POST is only for the routes with a side effect; everything else is read-only GET. /settings has both.
+    const methods = p === '/settings' ? ['GET', 'POST'] : POST_ROUTES.has(p) ? ['POST'] : ['GET'];
+    if (!methods.includes(req.method)) return send(res, 405, { error: 'method not allowed' }, { Allow: methods.join(', ') + ', OPTIONS' });
     if (!keyOk(url.searchParams.get('key'))) return send(res, 401, { ok: false, error: 'bad key' });
+    if (p === '/settings/rev') return send(res, 200, { ok: true, rev: site.settingsRev() });
+    if (p === '/settings' && req.method === 'GET') {
+      let settings = {};
+      try { settings = site.readPublic(); } catch (e) { o.logger.warn('AYARLAR.js could not be read:', e.message); }
+      return send(res, 200, { ok: true, settings, rev: site.settingsRev(), credentials: api.hasCredentials() });
+    }
+    if (p === '/settings' || p === '/credentials') return handleSave(req, res, p);
     if (p === '/test-alert') return handleTestAlert(res, url.searchParams.get('kind') || '');
     if (p === '/control') return handleControl(res, url.searchParams.get('action') || '');
     if (p === '/overlay') return handleOverlay(res, url.searchParams);
@@ -563,7 +612,7 @@ data: ${JSON.stringify(stats.snapshot())}
     if (p === '/health') {
       return send(res, 200, {
         ok: true, version: VERSION, clients: clients.size, lastEventAt,
-        features: { chat: chatReady(), alerts: chatReady(), live: chatReady(), channel: true, subscribers: api.hasCredentials() },
+        features: { chat: chatReady(), alerts: chatReady(), live: chatReady(), channel: true, subscribers: api.hasCredentials(), settings: true },
         alertsPaused, lastAlert: lastAlert ? lastAlert.kind : null,
         tunnel: tunnelUrl ? tunnelUrl + '/kick/webhook' : null, recentErrors: recentErrors.slice()
       });
@@ -614,6 +663,7 @@ data: ${JSON.stringify(stats.snapshot())}
     logger: o.logger,
     setTunnel(url) { tunnelUrl = typeof url === 'string' && /^https:\/\//.test(url) ? url : null; },
     chatReady,
+    hasPack: site.hasPack,
     async start() {
       const webhookPort = await listen(webhook, o.webhookPort);
       const eventsPort = await listen(events, o.eventsPort);
@@ -633,6 +683,22 @@ data: ${JSON.stringify(stats.snapshot())}
       if (webhook.closeIdleConnections) { webhook.closeIdleConnections(); events.closeIdleConnections(); }
     }
   };
+}
+
+function isSea() {
+  try { return require('node:sea').isSea(); } catch (e) { return false; }
+}
+
+// Opens a fixed local URL in the default browser. The URL is built here from a port number, never from input.
+function openBrowser(url, log) {
+  const { spawn } = require('child_process');
+  const bin = process.platform === 'win32' ? 'explorer' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+  const args = [url];
+  try {
+    const child = spawn(bin, args, { stdio: 'ignore', detached: true, windowsHide: true });
+    child.on('error', () => log.log('  (Could not open a browser; open the address above yourself.)'));
+    child.unref();
+  } catch (e) { log.log('  (Could not open a browser; open the address above yourself.)'); }
 }
 
 // ---- command line ----
@@ -684,7 +750,15 @@ function main(env = process.env, argv = process.argv.slice(2)) {
         }
       });
     }
-    log.log(`  Overlay events (local only):            http://127.0.0.1:${eventsPort}/events`);
+    const studioUrl = `http://127.0.0.1:${eventsPort}/`;
+    const packHere = relay.hasPack();
+    if (!packHere) log.warn(`  The overlay pack is not in ${ROOT}. Put the relay in the unpacked kick-streamer-overlays folder to use the studio.`);
+    log.log('');
+    log.log(`  Studio and overlays: ${studioUrl}`);
+    log.log('  Open it in your browser, pick a look, press "Save", and paste the overlay links into OBS.');
+    log.log('');
+    // The executable is usually started with a double click: open the studio for the user. RELAY_OPEN=0 turns it off.
+    if (packHere && env.RELAY_OPEN !== '0' && (argv.includes('--open') || isSea())) openBrowser(studioUrl, log);
     if (chat) {
       if (env.RELAY_ALLOW_ANY_BROADCASTER === '1' && !env.RELAY_BROADCASTER_ID) log.log('  Chat and alerts: accepting events for ANY broadcaster (RELAY_ALLOW_ANY_BROADCASTER=1).');
     } else {

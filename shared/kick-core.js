@@ -228,7 +228,40 @@
     // AYARLAR.js is shared and published; app credentials are honored only from the git-ignored AYARLAR.local.js.
     secrets.kickClientId = coerce(LOCAL_SCHEMA.kickClientId, local.kickClientId);
     secrets.kickClientSecret = coerce(LOCAL_SCHEMA.kickClientSecret, local.kickClientSecret);
-    return Object.freeze(Object.assign({}, normalize(pub), secrets));
+    // A page the relay serves talks to that same relay, whatever port it runs on, unless an address is set.
+    if (relayServed() && !own(file, 'relayAdresi') && !own(local, 'relayAdresi')) secrets.relayAdresi = global.location.origin;
+    var out = Object.freeze(Object.assign({}, normalize(pub), secrets));
+    if (relayServed() && !isPreview()) watchSettings(secrets.relayAdresi);
+    return out;
+  }
+
+  // True for a page the relay serves itself (http://127.0.0.1:PORT/...): the key script it sends says so.
+  function relayServed() {
+    var loc = global.location;
+    return global.KICK_RELAY_SELF === true && !!loc && loc.protocol === 'http:' && LOOPBACK_NAME.test(loc.hostname || '');
+  }
+
+  // Settings saved in the studio (or AYARLAR.js edited by hand) reach a page the relay serves within a few seconds:
+  // it asks for the file's revision and reloads when it changes. One watcher per page; a hidden page does not ask.
+  var SETTINGS_POLL_MS = 3000;
+  var watching = false;
+  function watchSettings(base) {
+    if (watching || typeof setInterval !== 'function' || !global.location || typeof global.location.reload !== 'function') return;
+    watching = true;
+    var rev = null, busy = false;
+    function ask() {
+      if (busy || (rev !== null && global.document && global.document.hidden)) return;
+      busy = true;
+      getJson(relayUrl(base + '/settings/rev'), { timeoutMs: 2000 }).then(function (r) {
+        busy = false;
+        if (!r.ok || !r.data || typeof r.data.rev !== 'number') return;
+        if (rev === null) rev = r.data.rev;
+        else if (r.data.rev !== rev) global.location.reload();
+      });
+    }
+    // The first answer is what this page loaded with, so it is asked for at once: a save a moment later still counts.
+    ask();
+    setInterval(ask, SETTINGS_POLL_MS);
   }
 
   function hasCredentials(s) {
@@ -828,6 +861,7 @@
   // ---- Kick REST (public, no token) ----------------------------------------
 
   var RELAY_RETRY_MS = 5 * 60 * 1000;
+  var LOOPBACK_NAME = /^(?:127\.0\.0\.1|localhost|\[::1\])$/i;
   var relayMemo = {};
 
   // The relay answers only requests that carry its local access key (AYARLAR.relay.js, read at call time).
@@ -848,7 +882,7 @@
     var loc = global.location;
     if (!loc || !loc.protocol) return '';
     if (loc.protocol === 'http:' && loc.hostname === 'absolute') return 'localFile';
-    if ((loc.protocol === 'http:' || loc.protocol === 'https:') && !/^(?:127\.0\.0\.1|localhost|\[::1\])$/i.test(loc.hostname || '')) return 'hosted';
+    if ((loc.protocol === 'http:' || loc.protocol === 'https:') && !LOOPBACK_NAME.test(loc.hostname || '')) return 'hosted';
     return '';
   }
 
@@ -1400,13 +1434,14 @@
   function aliases() { return Object.assign({}, ALIASES); }
 
   global.KickOverlay = {
-    version: '3.0.1',
+    version: '3.1.0',
     enums: enumsOf,
     schemaKeys: schemaKeys,
     aliases: aliases,
     normalize: normalize,
     normalizeLocal: normalizeLocal,
     readSettings: readSettings,
+    relayServed: relayServed,
     isPreview: isPreview,
     isDebug: isDebug,
     sample: SAMPLE,

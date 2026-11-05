@@ -22,3 +22,7 @@ dist/
 kick-relay-stats.json
 kick-relay-stats.json.tmp
 labels/
+
+# Settings saved from the studio through the relay: the previous AYARLAR.js, and half-written files
+AYARLAR.backup.js
+AYARLAR*.tmp

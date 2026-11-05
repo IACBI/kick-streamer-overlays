@@ -64,10 +64,16 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 
 **Try it online first:** [iacbi.github.io/kick-streamer-overlays](https://iacbi.github.io/kick-streamer-overlays/) has the studio and every overlay. Links copied there work in OBS as they are, for everything that needs no relay ([details](docs/setup.md#try-it-online)).
 
-1. Download the `kick-streamer-overlays-vX.Y.Z.zip` file from the [releases page](https://github.com/IACBI/kick-streamer-overlays/releases) (or clone this repository), unpack it, and keep the folder somewhere permanent.
-2. Open `studio.html` in your browser. Enter your channel name and pick a look.
-3. In the studio's **Add to OBS** step, press **Copy link** on the overlay you want. In OBS add a source with **Sources → + → Browser**, turn **Local file** off, paste the link into **URL**, and set the width and height shown on the card (they are also in the table below).
-4. After you change a setting in the studio, copy the link again and paste it into the source.
+**Recommended: with the relay app.** Links never change, and every edit reaches OBS with one click.
+
+1. From the [releases page](https://github.com/IACBI/kick-streamer-overlays/releases), download `kick-streamer-overlays-vX.Y.Z.zip` and the relay for your system (`kick-relay-win-x64.exe`, `kick-relay-macos-arm64`, …). Unpack the zip somewhere permanent and put the relay in that folder.
+2. Start the relay (double-click it, or run `node relay/server.js`). It opens the studio at `http://127.0.0.1:8790/`.
+3. Enter your channel name, pick a look, and press **Save and apply to OBS**.
+4. Press **Copy link** on an overlay. In OBS add **Sources → + → Browser**, turn **Local file** off, paste the link (`http://127.0.0.1:8790/follower-bar.html`) into **URL**, and set the size shown on the card.
+
+From then on, change anything in the studio and press **Save**: every overlay in OBS updates within a few seconds. Live chat, alerts and the subscriber total need a Kick app and a tunnel on top; see [docs/relay.md](docs/relay.md).
+
+**Without the relay:** open `studio.html` from the unpacked folder, pick a look, and copy the links. A link then carries your settings, so after a change copy it again.
 
 **All overlays at once, the control dock, and the Local file method:** see [docs/setup.md](docs/setup.md).
 
@@ -214,10 +220,16 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 
 **Önce çevrimiçi dene:** [iacbi.github.io/kick-streamer-overlays](https://iacbi.github.io/kick-streamer-overlays/) adresinde stüdyo ve tüm overlay'ler var. Oradan kopyalanan bağlantılar, relay gerektirmeyen her şey için OBS'te olduğu gibi çalışır ([ayrıntılar](docs/setup.md#try-it-online)).
 
-1. [Sürümler sayfasından](https://github.com/IACBI/kick-streamer-overlays/releases) `kick-streamer-overlays-vX.Y.Z.zip` dosyasını indir (ya da depoyu klonla), arşivi aç ve klasörü kalıcı bir yere koy.
-2. `studio.html` dosyasını tarayıcıda aç. Kanal adını yaz ve bir görünüm seç.
-3. Stüdyonun **OBS'e ekle** adımında istediğin overlay'in **Bağlantıyı kopyala** düğmesine bas. OBS'te **Kaynaklar → + → Tarayıcı** ile bir kaynak ekle, **Yerel dosya** kutusunu kapat, bağlantıyı **URL** kutusuna yapıştır ve genişlik ile yüksekliği kartta yazan boyuta ayarla (aşağıdaki tabloda da var).
-4. Stüdyoda bir ayarı değiştirdikten sonra bağlantıyı yeniden kopyalayıp kaynağa yapıştır.
+**Önerilen yol: relay uygulamasıyla.** Bağlantılar hiç değişmez, her düzenleme tek tıkla OBS'e ulaşır.
+
+1. [Sürümler sayfasından](https://github.com/IACBI/kick-streamer-overlays/releases) `kick-streamer-overlays-vX.Y.Z.zip` dosyasını ve sistemine uygun relay'i (`kick-relay-win-x64.exe`, `kick-relay-macos-arm64`, …) indir. Zip'i kalıcı bir yere aç ve relay'i o klasöre koy.
+2. Relay'i başlat (çift tıkla ya da `node relay/server.js` çalıştır). Stüdyoyu `http://127.0.0.1:8790/` adresinde açar.
+3. Kanal adını yaz, bir görünüm seç ve **Kaydet ve OBS'e uygula** düğmesine bas.
+4. Bir overlay'in **Bağlantıyı kopyala** düğmesine bas. OBS'te **Kaynaklar → + → Tarayıcı** ekle, **Yerel dosya** kutusunu kapat, bağlantıyı (`http://127.0.0.1:8790/follower-bar.html`) **URL** kutusuna yapıştır ve boyutu kartta yazan değere ayarla.
+
+Bundan sonra stüdyoda neyi değiştirirsen değiştir, **Kaydet**'e basman yeter: OBS'teki tüm overlay'ler birkaç saniye içinde güncellenir. Canlı sohbet, bildirimler ve abone sayısı için ayrıca bir Kick uygulaması ve tünel gerekir; bkz. [docs/relay.md](docs/relay.md) (İngilizce).
+
+**Relay olmadan:** açtığın klasördeki `studio.html` dosyasını aç, bir görünüm seç ve bağlantıları kopyala. Bu durumda bağlantı ayarlarını taşır; bir değişiklikten sonra yeniden kopyala.
 
 **Tüm overlay'ler tek seferde, kontrol paneli ve Yerel dosya yöntemi:** [docs/setup.md](docs/setup.md) (İngilizce).
 

@@ -582,6 +582,49 @@ async function testConnectRelayReconnect() {
     eq(K.relayBlockedNote(K.normalize({ dil: 'en' })), 'Live features need the downloaded pack', 'note');
   });
 
+  await check('pages the relay serves use that relay (any port) and reload when the saved settings change', async () => {
+    const ticks = [];
+    let reloads = 0, rev = 5;
+    const urls = [];
+    const location = { protocol: 'http:', hostname: '127.0.0.1', origin: 'http://127.0.0.1:9123', search: '', reload: () => { reloads += 1; } };
+    const { K, ctx } = loadCore({ location, setInterval: (fn) => { ticks.push(fn); return ticks.length; },
+      fetch: async (url) => { urls.push(String(url)); return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ ok: true, rev }) }; } });
+    eq(K.relayServed(), false, 'not without the key script flag');
+    eq(K.readSettings().relayAdresi, 'http://127.0.0.1:8790', 'default address before the flag');
+    eq(ticks.length, 0, 'no watcher for a page the relay does not serve');
+    ctx.KICK_RELAY_SELF = true;
+    ctx.KICK_RELAY_KEY = 'k1';
+    eq(K.relayServed(), true, 'served');
+    eq(K.readSettings().relayAdresi, 'http://127.0.0.1:9123', 'the page origin is the relay');
+    K.readSettings();
+    eq(ticks.length, 1, 'one watcher per page, however often settings are read');
+    await ticks[0](); await new Promise((r) => setTimeout(r, 0));
+    eq(urls[0], 'http://127.0.0.1:9123/settings/rev?key=k1', 'asks the relay for the revision with the key');
+    eq(reloads, 0, 'the first answer only records the revision');
+    await ticks[0](); await new Promise((r) => setTimeout(r, 0));
+    eq(reloads, 0, 'same revision: no reload');
+    rev = 6;
+    await ticks[0](); await new Promise((r) => setTimeout(r, 0));
+    eq(reloads, 1, 'a new revision reloads the page');
+  });
+
+  await check('a relay-served page keeps an address set in AYARLAR.js, and preview pages never watch', async () => {
+    const ticks = [];
+    const mk = (search, ayarlar) => {
+      const { K, ctx } = loadCore({ ayarlar, setInterval: (fn) => { ticks.push(fn); return 1; },
+        location: { protocol: 'http:', hostname: 'localhost', origin: 'http://localhost:8790', search, reload() {} } });
+      ctx.KICK_RELAY_SELF = true;
+      return K;
+    };
+    eq(mk('', { relayAdresi: 'http://127.0.0.1:9999' }).readSettings().relayAdresi, 'http://127.0.0.1:9999', 'explicit address wins');
+    ticks.length = 0;
+    mk('?onizleme=1').readSettings();
+    eq(ticks.length, 0, 'preview: no watcher');
+    const https = loadCore({ location: { protocol: 'https:', hostname: '127.0.0.1', origin: 'https://127.0.0.1', search: '' } });
+    https.ctx.KICK_RELAY_SELF = true;
+    eq(https.K.relayServed(), false, 'only plain http on loopback counts');
+  });
+
   await check('stop() cancels a pending reconnect and closes the stream', async () => {
     const { sources, clock, stop } = setup();
     dropClosed(sources[0]);

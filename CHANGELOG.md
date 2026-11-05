@@ -4,6 +4,19 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-11-05
+
+### Added
+
+- The relay serves the studio, the dock and every overlay at `http://127.0.0.1:8790/`. The relay executable opens the studio when it starts (`--open` with Node.js, `RELAY_OPEN=0` to turn it off). Overlay links from there carry no settings and never change, and they work in OBS where a **Local file** source cannot reach the relay.
+- **Save and apply to OBS** in the studio, when it is opened from the relay: the settings go to `AYARLAR.js` (the previous file is kept as `AYARLAR.backup.js`), and every overlay the relay serves reloads within a few seconds. A hand edit of `AYARLAR.js` is picked up the same way. The studio shows when there are unsaved changes.
+- **Save in the relay** for the Kick app credentials: the studio sends them to the relay, which writes `AYARLAR.local.js` and uses them at once. Pages never receive them.
+- Relay endpoints `GET/POST /settings`, `GET /settings/rev` and `POST /credentials`. Saving needs the access key, a JSON body and a local `Origin`; values are normalized by the same core as the overlays and written as plain data.
+
+### Security
+
+- The relay serves only the pack's own pages and asset folders, by file type, never `AYARLAR.local.js`, the stats file or anything outside the folder. Its access key script goes only to the relay's own pages (`Sec-Fetch-Site`), and its pages may not be framed by another site.
+
 ## [3.0.1] - 2026-11-04
 
 ### Changed

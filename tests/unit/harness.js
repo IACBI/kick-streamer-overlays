@@ -116,7 +116,7 @@ function loadCore(opts = {}) {
     AbortController,
     setTimeout: opts.setTimeout || setTimeout,
     clearTimeout: opts.clearTimeout || clearTimeout,
-    setInterval,
+    setInterval: opts.setInterval || setInterval,
     clearInterval,
     fetch: opts.fetch || (async () => { throw new TypeError('no fetch in this check'); }),
     WebSocket: opts.WebSocket,

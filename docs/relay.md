@@ -2,6 +2,15 @@
 
 The relay is optional. It brings live chat, alerts, live stream status, stream stats, the control dock and the subscriber total without a secret in the browser.
 
+## Studio and overlays from the relay
+
+The relay also serves the pack itself on its local port. Open `http://127.0.0.1:8790/` (the relay executable opens it for you; with Node.js add `--open`, and set `RELAY_OPEN=0` to turn it off).
+
+- **One link per overlay, for good.** Links such as `http://127.0.0.1:8790/chat.html` carry no settings. The studio's **Save and apply to OBS** writes them to `AYARLAR.js` (the previous file is kept as `AYARLAR.backup.js`), and every overlay served by the relay reloads within a few seconds. A hand edit of `AYARLAR.js` is picked up the same way.
+- **Kick app from the browser.** In the studio's Kick app step, **Save in the relay** writes the client ID and secret to `AYARLAR.local.js`. The relay uses them at once; pages never receive them.
+- **Works in OBS as a plain URL.** OBS's **Local file** sources cannot reach the relay; these links do.
+- **What it serves:** the top-level pages and the `shared/`, `alerts/`, `badges/` and `branding/` folders, by file type. Nothing else in the folder can be read through it. The access key goes only to the relay's own pages (the browser's `Sec-Fetch-Site` header decides), and saving needs the key, a JSON body and a local `Origin`.
+
 ## Live chat and alerts
 
 Kick sends chat messages, bans, follows, subscriptions, gifted subscriptions, Kicks, channel point reward redemptions and stream start, end and title changes to a web address you register in your Kick app. The relay in `relay/` receives them, checks Kick's signature, and passes them to `chat.html`, `alerts.html` and `info-panel.html`.

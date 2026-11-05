@@ -395,6 +395,13 @@
         <li data-i18n="s4.step2"></li>
         <li data-i18n="s4.step3"></li>
       </ol>
+      <div class="st-savebar" id="kaydetKutu" hidden>
+        <p class="st-note" data-i18n="save.hint"></p>
+        <div class="st-actions" style="margin-top:0">
+          <button type="button" id="relayKaydet" class="st-btn st-btn--primary" data-i18n="save.button"></button>
+        </div>
+        <p id="kaydet-durum" class="st-status" role="status"></p>
+      </div>
       <p class="st-warnline st-warnbox" id="kanal-uyari" role="status" hidden><span data-i18n="links.needChannel"></span> <button type="button" class="st-linkbtn" id="kanalaGit" data-i18n="links.goChannel"></button></p>
       <div id="kartlar" class="st-cards"></div>
       <div class="st-actions">
@@ -415,7 +422,7 @@
         </button>
       </div>
       <p class="st-note" data-i18n="dock.how"></p>
-      <p class="st-note" data-i18n="s4.again"></p>
+      <p class="st-note" id="s4-again" data-i18n="s4.again"></p>
 
       <details class="st-group" style="margin-top:16px">
         <summary><span data-i18n="file.title"></span><small data-i18n="file.sub"></small></summary>

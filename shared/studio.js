@@ -128,6 +128,9 @@
   var live = false; // the preview shows real Kick data only after an explicit click; every edit session starts on sample data
   var relayEl = $('relayAdresi');
   var RELAY_DEFAULT = K.normalizeLocal({}).relayAdresi;
+  // Opened from the relay (http://127.0.0.1:8790/): settings are saved there, and links carry no settings.
+  var SELF = typeof K.relayServed === 'function' && K.relayServed();
+  var savedJson = null;   // the settings the relay holds, for the unsaved-changes note
 
   // ---- Small helpers ------------------------------------------------------
 
@@ -186,7 +189,11 @@
     return q.toString();
   }
 
-  function relayValue() { return K.normalizeLocal({ relayAdresi: relayEl.value.trim() }).relayAdresi; }
+  function relayValue() {
+    var v = relayEl.value.trim();
+    if (SELF && !v) return window.location.origin;
+    return K.normalizeLocal({ relayAdresi: v }).relayAdresi;
+  }
 
   function overlayById(id) {
     for (var i = 0; i < OVERLAYS.length; i++) if (OVERLAYS[i].id === id) return OVERLAYS[i];
@@ -195,6 +202,8 @@
 
   // The link for OBS: only the settings that overlay reads, and only those that differ from the defaults.
   function overlayUrl(o, s) {
+    // Served by the relay, a page reads the saved AYARLAR.js, so its link never has to change.
+    if (SELF) return new URL(o.file, window.location.href).href;
     var defaults = K.normalize({});
     var q = new URLSearchParams();
     COMMON.concat(o.keys).forEach(function (key) {
@@ -741,7 +750,75 @@
     }
   }
 
+  // ---- Saving through the relay ----------------------------------------------
+
+  function relayPost(path, body) {
+    return fetch(K.relayUrl(window.location.origin + path), {
+      method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(function (res) {
+      return res.json().catch(function () { return null; }).then(function (data) {
+        if (!res.ok || !data || data.ok !== true) throw new Error('save');
+        return data;
+      });
+    });
+  }
+
+  async function saveToRelay() {
+    var btn = $('relayKaydet');
+    var box = $('kaydet-durum');
+    btn.disabled = true;
+    try {
+      await relayPost('/settings', { settings: readRaw() });
+      savedJson = JSON.stringify(currentSettings());
+      markDirty();
+      say(box, 'ok', t('save.ok'));
+    } catch (e) {
+      say(box, 'err', t('save.fail'));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function markDirty() {
+    if (!SELF || savedJson === null) return;
+    var dirty = JSON.stringify(currentSettings()) !== savedJson;
+    var bar = $('kaydetKutu');
+    var box = $('kaydet-durum');
+    bar.classList.toggle('is-dirty', dirty);
+    if (dirty) say(box, '', t('save.dirty'));
+    else if (box.textContent === t('save.dirty')) say(box, '', '');
+  }
+
+  async function loadFromRelay() {
+    try {
+      var res = await fetch(K.relayUrl(window.location.origin + '/settings'), { cache: 'no-store' });
+      var data = res.ok ? await res.json() : null;
+      if (data && data.ok && data.settings && typeof data.settings === 'object') writeForm(K.normalize(data.settings));
+    } catch (e) { /* relay busy or old: the form keeps its defaults */ }
+    savedJson = JSON.stringify(currentSettings());
+    update();
+  }
+
+  async function saveLocalToRelay() {
+    var id = $('kickClientId').value.trim();
+    var secret = $('kickClientSecret').value.trim();
+    if (!id !== !secret) { say(kickStatus, 'err', t('e.localNeed')); return; }
+    var btn = $('yerelIndir');
+    btn.disabled = true;
+    try {
+      var data = await relayPost('/credentials', { clientId: id, clientSecret: secret });
+      $('kickClientId').value = '';
+      $('kickClientSecret').value = '';
+      say(kickStatus, 'ok', data.saved ? t('e.relaySaved') : t('e.relayCleared'));
+    } catch (e) {
+      say(kickStatus, 'err', t('e.relayFail'));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   function downloadLocal() {
+    if (SELF) { saveLocalToRelay(); return; }
     var id = $('kickClientId').value.trim();
     var secret = $('kickClientSecret').value.trim();
     if (!id || !secret) { say(kickStatus, 'err', t('e.localNeed')); return; }
@@ -1013,6 +1090,7 @@
     checkAccent(s);
     checkCss();
     saveDraft();
+    markDirty();
     scheduleFrame();
   }
 
@@ -1115,6 +1193,7 @@
     $('kopyala').addEventListener('click', copyOutput);
     kickTestBtn.addEventListener('click', testKick);
     $('yerelIndir').addEventListener('click', downloadLocal);
+    $('relayKaydet').addEventListener('click', saveToRelay);
 
     window.addEventListener('resize', fitPreview);
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fitPreview).observe(stage);
@@ -1171,8 +1250,13 @@
   buildPresets();
   buildTabs();
   buildCards();
+  if (SELF) {
+    $('kaydetKutu').hidden = false;
+    $('s4-again').hidden = true;
+    $('yerelIndir').setAttribute('data-i18n', 's5.saveRelay');
+  }
   writeForm(K.normalize({}));
-  loadDraft();
+  if (!SELF) loadDraft();
   bindEvents();
   applyI18n();
   setBackground(background);
@@ -1180,4 +1264,5 @@
   update();
   fitPreview();
   checkUpdate();
+  if (SELF) loadFromRelay();
 })();

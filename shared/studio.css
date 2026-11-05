@@ -419,3 +419,8 @@ h3.st-sub { font-size: 14px; font-weight: 700; color: var(--st-muted); margin: 1
   html { scroll-behavior: auto; }
   * { transition: none !important; }
 }
+
+/* Opened from the relay: one save applies the settings to every overlay. */
+.st-savebar { margin: 0 0 16px; padding: 14px 16px; border: 1px solid var(--st-accent, currentColor); border-radius: 12px; }
+.st-savebar .st-note { margin-top: 0; }
+.st-savebar.is-dirty { box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-accent, #53fc18) 35%, transparent); }
