@@ -43,6 +43,8 @@ jobs:
         run: npm run lint
       - name: Type check
         run: npm run typecheck
+      - name: shared/kick-core.js is built from src/core
+        run: node tools/build-core.js --check
       - name: Version in shared/kick-core.js matches package.json
         run: node tools/sync-version.js --check
 

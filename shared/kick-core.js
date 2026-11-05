@@ -4,6 +4,8 @@
  * A classic script (not an ES module) so it works from file:// in OBS.
  * It does no DOM work at load time, so it also runs under Node for tests.
  * Exposes window.KickOverlay.
+ *
+ * Built from src/core/ by tools/build-core.js. Edit the parts there, not this file.
  */
 (function (global) {
   'use strict';
@@ -1434,7 +1436,7 @@
   function aliases() { return Object.assign({}, ALIASES); }
 
   global.KickOverlay = {
-    version: '3.1.5',
+    version: '3.1.6',
     enums: enumsOf,
     schemaKeys: schemaKeys,
     aliases: aliases,

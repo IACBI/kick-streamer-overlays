@@ -4,6 +4,12 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.1.6] - 2026-11-05
+
+### Changed
+
+- The browser core is now written as twelve small parts in `src/core/` (settings, look, HTTP, Kick parsers, Kick REST, official API, OBS export, alert media, stats, relay stream, public API). `npm run build:core` joins them into `shared/kick-core.js`, which stays one classic script so OBS can load it from `file://`. CI fails when the built file and the parts differ.
+
 ## [3.1.5] - 2026-11-05
 
 ### Changed

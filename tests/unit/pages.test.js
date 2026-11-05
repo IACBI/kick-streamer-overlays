@@ -162,6 +162,30 @@ async function testVersionSync() {
     }
   });
 
+  await check('shared/kick-core.js is exactly the src/core parts joined in order', () => {
+    const B = require('../../tools/build-core.js');
+    const b = B.build();
+    ok(b.parts.length >= 10 && b.parts[0] === '00-head.js' && b.parts[b.parts.length - 1] === '90-api.js', 'parts: ' + b.parts.join(' '));
+    eq(b.text, CORE_SOURCE, 'built text matches the committed core (run: npm run build:core)');
+  });
+
+  await check('sync-version keeps the core part and the built core on the same version', () => {
+    const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ko-version-'));
+    try {
+      fs.mkdirSync(path.join(dir, 'shared'));
+      fs.mkdirSync(path.join(dir, 'src', 'core'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ version: '9.8.7' }));
+      fs.writeFileSync(path.join(dir, 'shared', 'kick-core.js'), CORE_SOURCE);
+      const part = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'core', '90-api.js'), 'utf8');
+      fs.writeFileSync(path.join(dir, 'src', 'core', '90-api.js'), part);
+      SV.sync(dir);
+      ok(/version: '9\.8\.7',/.test(fs.readFileSync(path.join(dir, 'src', 'core', '90-api.js'), 'utf8')), 'part updated');
+      eq(SV.read(dir).coreVersion, '9.8.7', 'core updated');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   await check('sync-version refuses a package.json version that is not x.y.z', () => {
     const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ko-version-'));
     try {
