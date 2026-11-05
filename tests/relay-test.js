@@ -137,6 +137,22 @@ function statusOf(port, p, headers) {
 (async () => {
   console.log('== relay: pure helpers');
   {
+    const { createKickAdapter, subscribersFrom, WEBHOOK_PATH } = require(path.join(__dirname, '..', 'relay', 'kick.js'));
+    const kick = createKickAdapter({ fetchImpl: async () => { throw new Error('offline'); }, apiBase: 'http://x', tokenBase: 'http://x', kickBase: 'http://x', credentials: () => null, now: () => 0, publicKeyPem: publicKey });
+    const hdr = { [W.HEADER.messageId]: 'm1', [W.HEADER.timestamp]: '2026-10-16T10:00:00Z', [W.HEADER.signature]: 's', [W.HEADER.type]: 'chat.message.sent' };
+    const d = kick.readDelivery(hdr);
+    check('kick adapter: reads a delivery from the signed headers', d && d.id === 'm1' && d.type === 'chat.message.sent' && kick.webhookPath === WEBHOOK_PATH && WEBHOOK_PATH === '/kick/webhook');
+    check('kick adapter: a delivery without its signature header is null', kick.readDelivery(Object.assign({}, hdr, { [W.HEADER.signature]: undefined })) === null);
+    const body = Buffer.from('{"x":1}');
+    const good = { id: 'm1', timestamp: '123', type: '', signature: crypto.createSign('RSA-SHA256').update('m1.123.{"x":1}').sign(privateKey, 'base64') };
+    check('kick adapter: verify accepts a correct signature', await kick.verify(good, body));
+    check('kick adapter: verify refuses a changed body', !(await kick.verify(good, Buffer.from('{"x":2}'))));
+    check('kick adapter: a channel lookup that cannot reach Kick reports not ok', (await kick.fetchChannel('iacbi')).ok === false);
+    const s = subscribersFrom({ data: [{ active_subscribers_count: '12', stream: { is_live: true, viewer_count: 5, start_time: '2026-10-16 10:00:00' }, stream_title: 'Hi' }] });
+    check('kick adapter: official channel numbers map to the overlay shape', s.subs === 12 && s.live === true && s.viewers === 5 && s.startMs === Date.parse('2026-10-16T10:00:00Z') && s.title === 'Hi');
+    check('kick adapter: an empty answer gives nulls', subscribersFrom({ data: [] }).subs === null);
+  }
+  {
     const msg = 'abc.123.{"x":1}';
     const sig = crypto.createSign('RSA-SHA256').update(msg).sign(privateKey, 'base64');
     check('verifySignature accepts a correct signature', W.verifySignature({ messageId: 'abc', timestamp: '123', rawBody: Buffer.from('{"x":1}'), signature: sig, publicKeyPem: publicKey }));

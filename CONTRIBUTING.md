@@ -25,7 +25,8 @@ Thanks for helping make the pack better. This project is by 𝓐.𝓒.𝓑 and f
 | `shared/themes.css` | Design tokens, themes and the `.ko-*` components. |
 | `shared/lang/<code>.js` | Overlay and dock texts, one file per language (`tr`, `en`, `es`, `pt`, `de`, `ar`) with the keys of `en.js`. Read through `K.t()`. |
 | `shared/lang/studio/<code>.js` | Studio texts and choice labels, one file per language with the keys of `en.js`. |
-| `relay/server.js` | The relay: webhook listener and local events, `/health`, `/channel`, `/subscribers`, `/stats`, `/control` and `/overlay`. |
+| `relay/server.js` | The relay: HTTP listeners, rate limits, the overlay stream, the studio API, `/health`, `/channel`, `/subscribers`, `/stats`, `/control` and `/overlay`. Kick-specific code lives in `relay/kick.js`. |
+| `relay/kick.js` | The Kick adapter: reads a webhook delivery, checks its signature (with key rotation), turns it into an overlay event, looks up channels and manages event subscriptions. A change on Kick's side is fixed here. |
 | `relay/site.js` | Serves the pack's pages on the relay's local port and saves the studio's settings and credentials. |
 | `relay/record.js` | Record mode: redacted copies of verified webhooks in `recordings/`. |
 | `relay/stats.js` | This stream's numbers (totals, recent events, leaderboards, sub train), saved to `kick-relay-stats.json` and written to `labels/`. |

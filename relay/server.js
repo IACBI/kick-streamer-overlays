@@ -4,7 +4,7 @@
 //
 // Kick sends events (chat messages, bans) as signed HTTP POSTs to a public HTTPS address.
 // A web page loaded from disk cannot receive those, so this small server does:
-//   1. webhook listener (127.0.0.1:WEBHOOK_PORT): accepts POST /kick/webhook only. Expose this
+//   1. webhook listener (127.0.0.1:WEBHOOK_PORT): accepts POST /kick/webhook only (relay/kick.js reads and checks it). Expose this
 //      port through a tunnel such as cloudflared; nothing else on it is reachable.
 //   2. events listener (127.0.0.1:EVENTS_PORT): serves the overlay over Server-Sent Events, plus
 //      /health, /channel and /subscribers. It is never exposed publicly.
@@ -14,22 +14,17 @@
 
 const crypto = require('crypto');
 const http = require('http');
-const { HEADER, verifySignature, isFresh, ReplayGuard, TokenBucket, normalizeEvent } = require('./webhook.js');
-const { ROOT, loadConfig, fetchTimeout, loadRelayKey, parsePort } = require('./config.js');
-const { createKickApi, retryAfterSec } = require('./kick-api.js');
+const { ReplayGuard, TokenBucket, normalizeEvent } = require('./webhook.js');
+const { createKickAdapter, WEBHOOK_PATH } = require('./kick.js');
+const { ROOT, loadConfig, loadRelayKey, parsePort } = require('./config.js');
 const { createLogger } = require('./log.js');
 const { startTunnel, cloudflaredPath, cloudflaredFound } = require('./tunnel.js');
 const { createStats } = require('./stats.js');
 const { createSite } = require('./site.js');
-const { ensureSubscriptions } = require('./subscribe.js');
 const { createRecorder } = require('./record.js');
 const path = require('path');
 
 const { version: VERSION } = require('../package.json');
-const KEY_TTL_MS = 60 * 60 * 1000;
-const FORCE_MIN_GAP_MS = 60 * 1000;      // forged requests must not make the relay hammer Kick
-const KEY_FAIL_CACHE_MS = 30 * 1000;
-const KEY_TIMEOUT_MS = 5000;
 const MAX_BODY = 64 * 1024;
 const MAX_CLIENTS = 20;
 const MAX_CLIENT_BUFFER = 1024 * 1024;   // an SSE client that falls this far behind is dropped
@@ -105,67 +100,6 @@ function refuse(req, res, status, body, extra) {
   res.once('finish', () => { setTimeout(() => req.destroy(), 1000).unref(); });
 }
 
-// Default key source: Kick's public key, cached for an hour. Concurrent callers share one
-// request; a failure is remembered for 30 s so a down API is not retried per webhook.
-function kickKeySource(o) {
-  let pem = null, fetchedAt = 0, failedAt = 0, failure = null, inflight = null;
-  async function fetchKey() {
-    try {
-      const r = await fetchTimeout(o.fetchImpl, `${o.apiBase}/public/v1/public-key`, { headers: { Accept: 'application/json' } }, KEY_TIMEOUT_MS);
-      if (!r.ok) throw new Error('public key HTTP ' + r.status);
-      const body = await r.json();
-      const k = body && body.data && body.data.public_key;
-      if (typeof k !== 'string' || !k.includes('BEGIN PUBLIC KEY')) throw new Error('public key missing');
-      pem = k;
-      fetchedAt = o.now();
-      failedAt = 0;
-      return pem;
-    } catch (e) {
-      failedAt = o.now();
-      failure = e;
-      throw e;
-    }
-  }
-  return async function getKey(force) {
-    const now = o.now();
-    const age = now - fetchedAt;
-    if (pem && age < KEY_TTL_MS && (!force || age < FORCE_MIN_GAP_MS)) return pem;
-    if (failedAt && now - failedAt < KEY_FAIL_CACHE_MS) {
-      if (pem && age < KEY_TTL_MS) return pem;
-      throw failure;
-    }
-    if (!inflight) inflight = fetchKey().finally(() => { inflight = null; });
-    return inflight;
-  };
-}
-
-const numOrNull = (v) => {
-  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
-  return typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : null;
-};
-function parseTime(v) {
-  if (typeof v !== 'string' || !v) return null;
-  const st = v.replace(' ', 'T');
-  const ms = Date.parse(/Z$|[+-]\d\d:?\d\d$/.test(st) ? st : st + 'Z');
-  return Number.isNaN(ms) ? null : ms;
-}
-
-// Same shape as kick-core's parseOfficialChannel, so the overlay can use the answer unchanged.
-function subscribersFrom(body) {
-  const ch = body && Array.isArray(body.data) ? body.data[0] : null;
-  if (!ch || typeof ch !== 'object') return { subs: null, gifted: null, canceled: null, live: null, viewers: null, startMs: null, title: '' };
-  const st = ch.stream || {};
-  return {
-    subs: numOrNull(ch.active_subscribers_count),
-    gifted: numOrNull(ch.active_gifted_subscribers_count),
-    canceled: numOrNull(ch.canceled_subscribers_count),
-    live: typeof st.is_live === 'boolean' ? st.is_live : null,
-    viewers: numOrNull(st.viewer_count),
-    startMs: parseTime(st.start_time),
-    title: typeof ch.stream_title === 'string' ? ch.stream_title : ''
-  };
-}
-
 // Overlays run from file:// (Origin "null") or a local web server. Origin is only defense in depth:
 // a sandboxed iframe sends Origin "null" as well, so the access key is what really gates the API.
 function originAllowed(origin) {
@@ -234,10 +168,8 @@ function createRelay(opts) {
   const credentials = () => (o.credentials === undefined ? config().credentials : (o.credentials || null));
   const slugOption = () => (o.channelSlug === undefined ? config().slug : String(o.channelSlug || ''));
 
-  const api = createKickApi({ fetchImpl: o.fetchImpl, apiBase: o.apiBase, tokenBase: o.tokenBase, credentials, now: o.now });
-  const getKey = o.publicKeyPem
-    ? async () => o.publicKeyPem
-    : kickKeySource(o);
+  const kick = createKickAdapter(Object.assign({}, o, { credentials }));
+  const api = kick.api;
   const recorder = o.recordDir ? createRecorder({ dir: o.recordDir, logger: o.logger }) : null;
   const replay = new ReplayGuard();
   const preAuth = new TokenBucket(o.webhookPreAuthRate.perSec, o.webhookPreAuthRate.burst);
@@ -319,16 +251,13 @@ data: ${JSON.stringify(stats.snapshot())}
 
   // ---- webhook listener (public via tunnel) ----
   async function handleWebhook(req, res) {
-    if (req.url !== '/kick/webhook') return send(res, 404, { error: 'not found' });
+    if (req.url !== kick.webhookPath) return send(res, 404, { error: 'not found' });
     if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' }, { Allow: 'POST' });
 
     // Refused before the body is read, so a flood of junk cannot make the relay drain uploads.
-    const messageId = req.headers[HEADER.messageId];
-    const timestamp = req.headers[HEADER.timestamp];
-    const signature = req.headers[HEADER.signature];
-    const type = req.headers[HEADER.type];
-    if (!messageId || !timestamp || !signature) return refuse(req, res, 401, { error: 'missing headers' });
-    if (!isFresh(timestamp, o.now())) return refuse(req, res, 401, { error: 'stale' });
+    const delivery = kick.readDelivery(req.headers);
+    if (!delivery) return refuse(req, res, 401, { error: 'missing headers' });
+    if (!kick.isFresh(delivery, o.now())) return refuse(req, res, 401, { error: 'stale' });
     if (!preAuth.take(o.now())) return refuse(req, res, 429, { error: 'too many requests' }, { 'Retry-After': '1' });
 
     let raw;
@@ -336,28 +265,21 @@ data: ${JSON.stringify(stats.snapshot())}
       return refuse(req, res, e.status || 400, { error: e.status === 413 ? 'too large' : 'bad request' });
     }
 
-    let key;
-    try { key = await getKey(false); } catch (e) { return send(res, 503, { error: 'key unavailable' }); }
-    let ok = verifySignature({ messageId, timestamp, rawBody: raw, signature, publicKeyPem: key });
-    if (!ok) {
-      // A key rotation is the usual cause of a sudden failure: refetch, and only retry with a new key.
-      let key2 = key;
-      try { key2 = await getKey(true); } catch (e) { /* keep the old key: the request stays rejected */ }
-      if (key2 !== key) ok = verifySignature({ messageId, timestamp, rawBody: raw, signature, publicKeyPem: key2 });
-    }
+    let ok;
+    try { ok = await kick.verify(delivery, raw); } catch (e) { return send(res, 503, { error: 'key unavailable' }); }
     if (!ok) return send(res, 401, { error: 'bad signature' });
     if (!bucket.take(o.now())) return send(res, 429, { error: 'too many requests' }, { 'Retry-After': '1' });
 
     // Accepted: Kick may resend, so answer 200 for repeats without showing them again.
-    if (!replay.accept(String(messageId), o.now())) return send(res, 200, { ok: true, duplicate: true });
+    if (!replay.accept(String(delivery.id), o.now())) return send(res, 200, { ok: true, duplicate: true });
     lastEventAt = o.now();
 
     let body;
     try { body = JSON.parse(raw.toString('utf8')); } catch (e) { return send(res, 400, { error: 'bad json' }); }
-    if (recorder) recorder.save(String(type || ''), body);
-    const ev = o.normalizeEvent(String(type || ''), body);
+    if (recorder) recorder.save(delivery.type, body);
+    const ev = kick.normalize(delivery.type, body);
     // A reward keeps one id across its pending and accepted updates, so it is shown once.
-    if (ev && ALERT_KINDS.has(ev.kind)) ev.id = ev.kind === 'reward' ? 'reward-' + ev.redemptionId : String(messageId);
+    if (ev && ALERT_KINDS.has(ev.kind)) ev.id = ev.kind === 'reward' ? 'reward-' + ev.redemptionId : String(delivery.id);
     if (ev) {
       if (broadcasterId ? ev.broadcasterId === broadcasterId : o.allowAnyBroadcaster) {
         broadcast(ev);
@@ -389,24 +311,6 @@ data: ${JSON.stringify(stats.snapshot())}
   const channelInflight = new Map();
   let channelBlockedUntil = 0;
 
-  async function fetchChannel(slug) {
-    for (const ver of ['v2', 'v1']) {
-      let r;
-      try { r = await fetchTimeout(o.fetchImpl, `${o.kickBase}/api/${ver}/channels/${slug}`, { headers: { Accept: 'application/json' } }); } catch (e) { continue; }
-      if (r.ok) {
-        try {
-          const text = await r.text();
-          JSON.parse(text);
-          return { ok: true, text, source: ver };
-        } catch (e) { continue; }
-      }
-      if (r.status === 403 || r.status === 429) return { ok: false, rate: true, retryAfterSec: retryAfterSec(r.headers) };
-      if (r.status === 404 || r.status >= 500) continue;
-      return { ok: false };
-    }
-    return { ok: false };
-  }
-
   async function handleChannel(res, slug) {
     const now = o.now();
     const hit = channelCache.get(slug);
@@ -419,7 +323,7 @@ data: ${JSON.stringify(stats.snapshot())}
     }
     let p = channelInflight.get(slug);
     if (!p) {
-      p = fetchChannel(slug).finally(() => channelInflight.delete(slug));
+      p = kick.fetchChannel(slug).finally(() => channelInflight.delete(slug));
       channelInflight.set(slug, p);
     }
     const r = await p;
@@ -454,7 +358,7 @@ data: ${JSON.stringify(stats.snapshot())}
     }
     const r = await p;
     if (r.ok) {
-      const value = Object.assign({ ok: true }, subscribersFrom(r.data));
+      const value = Object.assign({ ok: true }, kick.subscribersFrom(r.data));
       subsCache.delete(slug);
       subsCache.set(slug, { at: o.now(), value });
       while (subsCache.size > CACHE_MAX) subsCache.delete(subsCache.keys().next().value);
@@ -578,7 +482,7 @@ data: ${JSON.stringify(stats.snapshot())}
     if (now - lastSubscribeAt < SUBSCRIBE_GAP_MS) return send(res, 429, { ok: false, error: 'rate' }, { 'Retry-After': '5' });
     lastSubscribeAt = now;
     try {
-      const r = await ensureSubscriptions({ api, slug: slugOption(), apiBase: o.apiBase, fetchImpl: o.fetchImpl });
+      const r = await kick.subscribe(slugOption());
       if (!broadcasterId && !o.allowAnyBroadcaster) { broadcasterId = r.broadcasterId; }
       o.logger.log(r.added.length ? `  Subscribed to ${r.added.length} Kick event(s) from the studio.` : '  Kick event subscriptions checked from the studio: all present.');
       return send(res, 200, { ok: true, added: r.added, existing: r.existing });
@@ -645,7 +549,7 @@ data: ${JSON.stringify(stats.snapshot())}
         ok: true, version: VERSION, clients: clients.size, lastEventAt, channel: slugOption(),
         features: { chat: chatReady(), alerts: chatReady(), live: chatReady(), channel: true, subscribers: api.hasCredentials(), settings: true },
         alertsPaused, lastAlert: lastAlert ? lastAlert.kind : null,
-        tunnel: tunnelUrl ? tunnelUrl + '/kick/webhook' : null, recentErrors: recentErrors.slice()
+        tunnel: tunnelUrl ? tunnelUrl + kick.webhookPath : null, recentErrors: recentErrors.slice()
       });
     }
     if (p === '/channel' || p === '/subscribers') {
@@ -777,7 +681,7 @@ function main(env = process.env, argv = process.argv.slice(2)) {
         relay.setTunnel(url);
         if (url) {
           log.log('');
-          log.log(`  Webhook URL for your Kick app: ${url}/kick/webhook`);
+          log.log(`  Webhook URL for your Kick app: ${url}${WEBHOOK_PATH}`);
           log.log('  Paste it at kick.com/settings/developer -> your app -> Webhook URL. A new tunnel means a new URL.');
           log.log('');
         }
@@ -790,7 +694,7 @@ function main(env = process.env, argv = process.argv.slice(2)) {
   log.log(`Kick relay ${VERSION} starting...`);
   relay.start().then(({ webhookPort, eventsPort, chat }) => {
     log.log('Kick relay running.');
-    log.log(`  Webhook (expose this through a tunnel): http://127.0.0.1:${webhookPort}/kick/webhook`);
+    log.log(`  Webhook (expose this through a tunnel): http://127.0.0.1:${webhookPort}${WEBHOOK_PATH}`);
     if (argv.includes('--record') || env.RELAY_RECORD === '1') log.log(`  Record mode: verified webhooks are saved, without names or message text, to ${path.join(ROOT, 'recordings')}`);
     webhookPortNow = webhookPort;
     maybeTunnel();
