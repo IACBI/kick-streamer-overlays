@@ -419,7 +419,8 @@ function statusOf(port, p, headers) {
       hits: { token: 0, channels: 0, key: 0, v2: 0, v1: 0 },
       seq: 0, valid: new Set(), secret: 'test-secret', expiresIn: 3600, tokenForm: null, tokenType: '',
       channelsMode: 'ok', retryAfter: '9', keyMode: 'ok', keyPem: publicKey,
-      v2: { status: 200, headers: {} }, v1: { status: 200, headers: {} }, delayMs: 0
+      v2: { status: 200, headers: {} }, v1: { status: 200, headers: {} }, delayMs: 0,
+      subs: [], subPosts: []
     };
     const server = http.createServer(async (req, res) => {
       const u = new URL(req.url, 'http://x');
@@ -454,6 +455,15 @@ function statusOf(port, p, headers) {
         if (m.channelsMode === 'rate') return reply(429, { error: 'slow' }, { 'Retry-After': m.retryAfter });
         if (m.channelsMode === '500') return reply(500, { error: 'boom' });
         return reply(200, SUBS_BODY(u.searchParams.get('slug')));
+      }
+      if (u.pathname === '/public/v1/events/subscriptions') {
+        const tok = /^Bearer (.+)$/.exec(req.headers.authorization || '');
+        if (!tok || !m.valid.has(tok[1])) return reply(401, { error: 'unauthorized' });
+        if (req.method === 'GET') return reply(200, { data: m.subs.map((e, i) => ({ id: 'sub-' + i, event: e })) });
+        const b = JSON.parse(raw);
+        m.subPosts.push(b);
+        b.events.forEach((e) => m.subs.push(e.name));
+        return reply(200, { data: b.events.map((e, i) => ({ name: e.name, subscription_id: 'new-' + i })) });
       }
       const mm = /^\/api\/(v1|v2)\/channels\/([^/]+)$/.exec(u.pathname);
       if (mm) {
@@ -1111,6 +1121,39 @@ function statusOf(port, p, headers) {
     check('public key: after 30 s the fetch is tried again and recovers', x3.status === 200 && mock.hits.key === f0 + 2);
     r2.stop();
   }
+  console.log('== relay: /subscribe from the studio');
+  {
+    mock.subs = ['chat.message.sent'];
+    mock.subPosts = [];
+    const clock = mkClock();
+    const r = createRelay(baseOpts({ credentials: { id: 'test-id', secret: mock.secret }, channelSlug: 'iacbi', broadcasterUserId: '', now: clock.now }));
+    const { eventsPort: ep } = await r.start();
+    const sub = (headers) => get(ep, withKey('/subscribe'), 'POST', Object.assign({ Origin: 'null', 'Content-Type': 'application/json' }, headers || {}), '{}');
+    check('subscribe: GET is refused (405)', (await eget(ep, '/subscribe')).status === 405);
+    check('subscribe: no Origin is refused', (await sub({ Origin: undefined })).status === 403);
+    const first = await sub();
+    const fb = JSON.parse(first.body);
+    check('subscribe: creates only the missing events, as numbers for broadcaster_user_id', first.status === 200 && fb.added.length === 9 && fb.existing.join() === 'chat.message.sent'
+      && mock.subPosts.length === 1 && mock.subPosts[0].broadcaster_user_id === 4242 && mock.subPosts[0].method === 'webhook', first.body);
+    check('subscribe: a second click within 5 s gets 429', (await sub()).status === 429);
+    clock.advance(6000);
+    const second = JSON.parse((await sub()).body);
+    check('subscribe: once everything exists nothing more is requested', second.ok && second.added.length === 0 && mock.subPosts.length === 1);
+    const h = JSON.parse((await eget(ep, '/health')).body);
+    check('subscribe: the broadcaster id is known afterwards, so chat is accepted', h.features.chat === true);
+    r.stop();
+    const r2 = createRelay(baseOpts({ credentials: false, channelSlug: 'iacbi' }));
+    const p2 = (await r2.start()).eventsPort;
+    const no = await get(p2, withKey('/subscribe'), 'POST', { Origin: 'null', 'Content-Type': 'application/json' }, '{}');
+    check('subscribe: without credentials it answers 503 no-credentials', no.status === 503 && JSON.parse(no.body).error === 'no-credentials');
+    r2.stop();
+    const r3 = createRelay(baseOpts({ credentials: { id: 'test-id', secret: 'wrong' }, channelSlug: 'iacbi' }));
+    const p3 = (await r3.start()).eventsPort;
+    const bad = await get(p3, withKey('/subscribe'), 'POST', { Origin: 'null', 'Content-Type': 'application/json' }, '{}');
+    check('subscribe: rejected credentials answer 401 auth', bad.status === 401 && JSON.parse(bad.body).error === 'auth', bad.body);
+    r3.stop();
+  }
+
   mock.close();
 
   console.log('\n== relay: logging and the command line (child processes)');

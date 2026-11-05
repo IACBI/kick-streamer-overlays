@@ -21,6 +21,7 @@ const { createLogger } = require('./log.js');
 const { startTunnel, cloudflaredPath } = require('./tunnel.js');
 const { createStats } = require('./stats.js');
 const { createSite } = require('./site.js');
+const { ensureSubscriptions } = require('./subscribe.js');
 const path = require('path');
 
 const { version: VERSION } = require('../package.json');
@@ -50,7 +51,8 @@ const MAX_TEXT = 400;
 const STATS_FRAME_MS = 300;             // a burst of gifts sends one stats frame, not one per event
 const TEST_GAP_MS = 1500;              // test alerts are for setup; a stuck button must not flood the stream
 const SAVE_GAP_MS = 500;               // studio saves rewrite a file; one at a time is plenty
-const POST_ROUTES = new Set(['/test-alert', '/control', '/overlay', '/stats/reset', '/credentials']);
+const POST_ROUTES = new Set(['/test-alert', '/control', '/overlay', '/stats/reset', '/credentials', '/subscribe']);
+const SUBSCRIBE_GAP_MS = 5000;         // each run asks Kick three or four times
 // Fixed samples, so a test request cannot put any text of its own on stream.
 const TEST_ALERTS = {
   follow: { kind: 'follow', username: 'TestFollower' },
@@ -559,6 +561,26 @@ data: ${JSON.stringify(stats.snapshot())}
     return send(res, 200, { ok: true, saved: r.saved, credentials: api.hasCredentials() });
   }
 
+  // ---- /subscribe: the studio's "Connect chat and alerts" creates the missing Kick event subscriptions ----
+  let lastSubscribeAt = -Infinity;
+  const SUBSCRIBE_STATUS = { 'no-credentials': 503, 'no-channel': 400, auth: 401, 'not-found': 404, upstream: 502 };
+  async function handleSubscribe(req, res) {
+    if (req.headers.origin === undefined) return send(res, 403, { ok: false, error: 'origin required' });
+    const now = o.now();
+    if (now - lastSubscribeAt < SUBSCRIBE_GAP_MS) return send(res, 429, { ok: false, error: 'rate' }, { 'Retry-After': '5' });
+    lastSubscribeAt = now;
+    try {
+      const r = await ensureSubscriptions({ api, slug: slugOption(), apiBase: o.apiBase, fetchImpl: o.fetchImpl });
+      if (!broadcasterId && !o.allowAnyBroadcaster) { broadcasterId = r.broadcasterId; }
+      o.logger.log(r.added.length ? `  Subscribed to ${r.added.length} Kick event(s) from the studio.` : '  Kick event subscriptions checked from the studio: all present.');
+      return send(res, 200, { ok: true, added: r.added, existing: r.existing });
+    } catch (e) {
+      const code = e && e.code && Object.hasOwn(SUBSCRIBE_STATUS, e.code) ? e.code : 'upstream';
+      o.logger.warn('Kick event subscription failed:', e && e.message);
+      return send(res, SUBSCRIBE_STATUS[code], { ok: false, error: code });
+    }
+  }
+
   // ---- events listener (local only, for the overlay page) ----
   async function handleEvents(req, res) {
     // Only loopback names are served, so a web page cannot reach this port through DNS rebinding.
@@ -596,6 +618,7 @@ data: ${JSON.stringify(stats.snapshot())}
       return send(res, 200, { ok: true, settings, rev: site.settingsRev(), credentials: api.hasCredentials() });
     }
     if (p === '/settings' || p === '/credentials') return handleSave(req, res, p);
+    if (p === '/subscribe') return handleSubscribe(req, res);
     if (p === '/test-alert') return handleTestAlert(res, url.searchParams.get('kind') || '');
     if (p === '/control') return handleControl(res, url.searchParams.get('action') || '');
     if (p === '/overlay') return handleOverlay(res, url.searchParams);

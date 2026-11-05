@@ -817,6 +817,32 @@
     }
   }
 
+  // Creates the missing Kick event subscriptions through the relay: chat, alerts and stream status start arriving
+  // once the app's Webhook URL points at the relay's tunnel.
+  var CONNECT_ERRORS = { 'no-credentials': 'e.connectNoCreds', 'no-channel': 'e.connectNoChannel', auth: 'e.connectAuth' };
+  async function connectEvents() {
+    var btn = $('olayBagla');
+    btn.disabled = true;
+    say(kickStatus, '', t('relay.checking'));
+    try {
+      var res = await fetch(K.relayUrl(window.location.origin + '/subscribe'), {
+        method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: '{}'
+      });
+      var data = await res.json().catch(function () { return null; });
+      if (res.ok && data && data.ok) {
+        var n = Array.isArray(data.added) ? data.added.length : 0;
+        say(kickStatus, 'ok', n ? t('e.connectOk', { n: n }) : t('e.connectAll'));
+      } else {
+        var code = data && typeof data.error === 'string' ? data.error : '';
+        say(kickStatus, 'err', t(Object.prototype.hasOwnProperty.call(CONNECT_ERRORS, code) ? CONNECT_ERRORS[code] : 'e.connectFail'));
+      }
+    } catch (e) {
+      say(kickStatus, 'err', t('e.connectFail'));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   function downloadLocal() {
     if (SELF) { saveLocalToRelay(); return; }
     var id = $('kickClientId').value.trim();
@@ -1194,6 +1220,7 @@
     kickTestBtn.addEventListener('click', testKick);
     $('yerelIndir').addEventListener('click', downloadLocal);
     $('relayKaydet').addEventListener('click', saveToRelay);
+    $('olayBagla').addEventListener('click', connectEvents);
 
     window.addEventListener('resize', fitPreview);
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fitPreview).observe(stage);
@@ -1254,6 +1281,9 @@
     $('kaydetKutu').hidden = false;
     $('s4-again').hidden = true;
     $('yerelIndir').setAttribute('data-i18n', 's5.saveRelay');
+    $('olayBagla').hidden = false;
+    document.querySelector('[data-i18n="s5.hint"]').setAttribute('data-i18n', 's5.hintRelay');
+    document.querySelector('[data-i18n="s5.intro"]').setAttribute('data-i18n', 's5.introRelay');
   }
   writeForm(K.normalize({}));
   if (!SELF) loadDraft();

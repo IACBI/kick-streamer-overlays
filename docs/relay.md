@@ -8,6 +8,7 @@ The relay also serves the pack itself on its local port. Open `http://127.0.0.1:
 
 - **One link per overlay, for good.** Links such as `http://127.0.0.1:8790/chat.html` carry no settings. The studio's **Save and apply to OBS** writes them to `AYARLAR.js` (the previous file is kept as `AYARLAR.backup.js`), and every overlay served by the relay reloads within a few seconds. A hand edit of `AYARLAR.js` is picked up the same way.
 - **Kick app from the browser.** In the studio's Kick app step, **Save in the relay** writes the client ID and secret to `AYARLAR.local.js`. The relay uses them at once; pages never receive them.
+- **Kick events from the browser.** **Connect chat and alerts** creates the missing webhook subscriptions, the same as `node relay/subscribe.js` (step 6 below), and tells the relay your broadcaster ID.
 - **Works in OBS as a plain URL.** OBS's **Local file** sources cannot reach the relay; these links do.
 - **What it serves:** the top-level pages and the `shared/`, `alerts/`, `badges/` and `branding/` folders, by file type. Nothing else in the folder can be read through it. The access key goes only to the relay's own pages (the browser's `Sec-Fetch-Site` header decides), and saving needs the key, a JSON body and a local `Origin`.
 
@@ -42,7 +43,7 @@ Kick sends chat messages, bans, follows, subscriptions, gifted subscriptions, Ki
    node relay/subscribe.js
    ```
 
-   With the relay executable, run it with `subscribe` instead, for example `kick-relay-win-x64.exe subscribe`. Add `--list` to see the subscriptions that already exist.
+   In the studio opened from the relay, **Connect chat and alerts** does the same. With the relay executable, run it with `subscribe` instead, for example `kick-relay-win-x64.exe subscribe`. Add `--list` to see the subscriptions that already exist.
 7. Add `chat.html` and `alerts.html` in OBS as usual. Messages and alerts appear as soon as Kick delivers them. `info-panel.html` keeps reading viewers from Kick's public data, and with the relay running it also switches on and off as soon as the stream starts or ends.
 
 The relay accepts only events with a valid Kick signature, passes each one on only once, and passes events on only for your broadcaster ID. While that ID is unknown, events are dropped and the relay says so in its log; it retries the lookup at most once a minute. Its overlay port listens on `127.0.0.1` only and refuses requests with a foreign `Host` header, so the tunnel exposes just the webhook path. Kick limits subscriptions per app: 10,000 per event type, and 1,000 for chat messages while the app is unverified.

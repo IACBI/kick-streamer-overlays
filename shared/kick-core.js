@@ -1434,7 +1434,7 @@
   function aliases() { return Object.assign({}, ALIASES); }
 
   global.KickOverlay = {
-    version: '3.1.0',
+    version: '3.1.1',
     enums: enumsOf,
     schemaKeys: schemaKeys,
     aliases: aliases,
