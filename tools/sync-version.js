@@ -25,11 +25,19 @@ function read(root = ROOT) {
   return { version, coreVersion: m[2], core, corePath };
 }
 
-/** Writes the package.json version into kick-core.js. Returns the version it replaced, or null if already equal. */
+/**
+ * Writes the package.json version into kick-core.js and into its source part (src/core/90-api.js, when present),
+ * so the built file and the parts stay equal. Returns the version it replaced, or null if already equal.
+ */
 function sync(root = ROOT) {
   const { version, coreVersion, core, corePath } = read(root);
-  if (coreVersion === version) return null;
-  fs.writeFileSync(corePath, core.replace(VERSION_LINE, `$1${version}$3`));
+  const partPath = path.join(root, 'src', 'core', '90-api.js');
+  let part = null;
+  try { part = fs.readFileSync(partPath, 'utf8'); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+  const partStale = part !== null && (part.match(VERSION_LINE) || [])[2] !== version;
+  if (coreVersion === version && !partStale) return null;
+  if (partStale) fs.writeFileSync(partPath, part.replace(VERSION_LINE, `$1${version}$3`));
+  if (coreVersion !== version) fs.writeFileSync(corePath, core.replace(VERSION_LINE, `$1${version}$3`));
   return coreVersion;
 }
 

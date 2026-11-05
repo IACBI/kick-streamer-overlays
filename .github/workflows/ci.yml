@@ -24,7 +24,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - name: Syntax check (every tracked .js file)
         shell: bash
-        run: git ls-files -z '*.js' | xargs -0 -n1 node --check
+        run: git ls-files -z '*.js' ':!src/core/*' | xargs -0 -n1 node --check
       - name: Unit tests
         run: node tests/run.js
       - name: Relay tests
@@ -43,6 +43,8 @@ jobs:
         run: npm run lint
       - name: Type check
         run: npm run typecheck
+      - name: shared/kick-core.js is built from src/core
+        run: node tools/build-core.js --check
       - name: Version in shared/kick-core.js matches package.json
         run: node tools/sync-version.js --check
 

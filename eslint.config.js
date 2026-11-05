@@ -7,7 +7,8 @@ const js = require('@eslint/js');
 const globals = require('globals');
 
 module.exports = [
-  { ignores: ['node_modules/**', 'dist/**', 'qa-out/**'] },
+  // src/core/ holds fragments of one script (tools/build-core.js joins them); the joined shared/kick-core.js is linted.
+  { ignores: ['node_modules/**', 'dist/**', 'qa-out/**', 'src/core/**'] },
   js.configs.recommended,
   {
     files: ['**/*.js'],

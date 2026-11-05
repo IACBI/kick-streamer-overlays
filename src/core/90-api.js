@@ -1,0 +1,61 @@
+  // Schema-level assertion helper for tests and the studio.
+  function enumsOf(name) { return ENUMS[name] ? ENUMS[name].slice() : null; }
+  function schemaKeys() { return Object.keys(SCHEMA); }
+  function aliases() { return Object.assign({}, ALIASES); }
+
+  global.KickOverlay = {
+    version: '3.1.6',
+    enums: enumsOf,
+    schemaKeys: schemaKeys,
+    aliases: aliases,
+    normalize: normalize,
+    normalizeLocal: normalizeLocal,
+    readSettings: readSettings,
+    relayServed: relayServed,
+    isPreview: isPreview,
+    isDebug: isDebug,
+    sample: SAMPLE,
+    splitLines: splitLines,
+    t: t,
+    useLang: useLang,
+    speechLang: speechLang,
+    fmt: fmt,
+    pct: pct,
+    applyLook: applyLook,
+    tween: tween,
+    setFill: setFill,
+    poller: poller,
+    loadFont: loadFont,
+    text: text,
+    note: note,
+    debug: debug,
+    createGoalBar: createGoalBar,
+    getJson: getJson,
+    parse: {
+      followers: parseFollowers,
+      live: parseLive,
+      subBadges: parseSubBadges,
+      official: parseOfficialChannel,
+      time: parseTime
+    },
+    relayInfo: relayInfo,
+    relayBlocked: relayBlocked,
+    relayBlockedNote: relayBlockedNote,
+    relayUrl: relayUrl,
+    kick: { channel: kickChannel },
+    official: { token: appToken, channel: officialChannel, clearToken: clearToken },
+    createSubscriberSource: createSubscriberSource,
+    connectRelay: connectRelay,
+    alertTones: ALERT_TONES,
+    createAlertMedia: createAlertMedia,
+    rewardHidden: rewardHidden,
+    alertIcon: alertIcon,
+    stepGoal: stepGoal,
+    subTrain: subTrain,
+    parseStats: parseStats,
+    eventText: eventText,
+    sampleStats: sampleStats,
+    ttsText: ttsText,
+    obsSceneCollection: obsSceneCollection
+  };
+})(typeof window !== 'undefined' ? window : globalThis);

@@ -1,6 +1,6 @@
 {
   "name": "kick-streamer-overlays",
-  "version": "3.1.5",
+  "version": "3.1.6",
   "description": "Free OBS overlays for Kick: goal bars, viewer panel, chat, alerts, countdown, announcement bar and a settings studio.",
   "private": true,
   "license": "MIT",
@@ -23,8 +23,9 @@
     "typecheck": "tsc -p tsconfig.json",
     "build:relay": "node tools/build-relay.js",
     "test:relay-binary": "node tests/relay-binary-test.js",
-    "check": "npm run lint && npm run typecheck && node tools/sync-version.js --check && npm test",
-    "version": "node tools/sync-version.js && git add shared/kick-core.js",
+    "check": "npm run lint && npm run typecheck && node tools/build-core.js --check && node tools/sync-version.js --check && npm test",
+    "build:core": "node tools/build-core.js",
+    "version": "node tools/sync-version.js && git add shared/kick-core.js src/core/90-api.js",
     "relay": "node relay/server.js",
     "relay:setup": "node relay/setup.js",
     "record": "node tools/record-previews.js"
