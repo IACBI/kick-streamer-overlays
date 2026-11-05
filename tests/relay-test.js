@@ -110,15 +110,17 @@ function openSse(port) {
   return { frames, close: () => req.destroy() };
 }
 
-function get(port, p, method = 'GET', headers) {
+function get(port, p, method = 'GET', headers, body) {
   return new Promise((resolve, reject) => {
-    const req = http.request({ host: '127.0.0.1', port, path: p, method, headers }, (res) => {
+    const h = {};
+    for (const [k, v] of Object.entries(headers || {})) if (v !== undefined) h[k] = v;
+    const req = http.request({ host: '127.0.0.1', port, path: p, method, headers: h }, (res) => {
       let data = '';
       res.on('data', (c) => { data += c; });
       res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: data }));
     });
     req.on('error', reject);
-    req.end();
+    req.end(body);
   });
 }
 // Events-port requests carry the access key; `get` alone is used for keyless probes.
@@ -1275,6 +1277,82 @@ function statusOf(port, p, headers) {
     check('stats: the stream going live starts the numbers over', JSON.parse((await eget(ep, '/stats')).body).recent.length === 0);
     first.close();
     r.stop();
+  }
+
+  console.log('== relay: serves the pack and saves settings');
+  {
+    const os = require('os');
+    const fsx = require('fs');
+    const cfg = fsx.mkdtempSync(path.join(os.tmpdir(), 'kick-relay-site-'));
+    fsx.writeFileSync(path.join(cfg, 'AYARLAR.local.js'), "window.KICK_OVERLAY_YEREL = { kickClientId: 'old-id', kickClientSecret: 'very-secret-value' };\n");
+    const r = createRelay({ publicKeyPem: publicKey, accessKey: ACCESS_KEY, webhookPort: 0, eventsPort: 0, broadcasterUserId: '113812015',
+      configRoot: cfg, siteRoot: path.join(__dirname, '..'), fetchImpl: async () => { throw new Error('offline'); }, logger: quietLogger() });
+    const { eventsPort: ep } = await r.start();
+    const postJson = (p, body, headers) => get(ep, withKey(p), 'POST', Object.assign({ 'Content-Type': 'application/json', Origin: 'http://127.0.0.1:' + ep }, headers || {}), JSON.stringify(body));
+
+    const root = await get(ep, '/');
+    check('site: / redirects to the studio', root.status === 302 && root.headers.location === '/studio.html');
+    const page = await get(ep, '/follower-bar.html');
+    check('site: an overlay page is served without a key, as HTML with nosniff', page.status === 200 && /text\/html/.test(page.headers['content-type']) && page.headers['x-content-type-options'] === 'nosniff' && page.body.includes('kick-core.js'));
+    const css = await get(ep, '/shared/themes.css');
+    check('site: shared assets are served with their type and an ETag', css.status === 200 && /text\/css/.test(css.headers['content-type']) && !!css.headers.etag);
+    const again = await get(ep, '/shared/themes.css', 'GET', { 'If-None-Match': css.headers.etag });
+    check('site: an unchanged file answers 304', again.status === 304);
+    const blocked = await Promise.all(['/package.json', '/relay/server.js', '/tests/run.js', '/shared/../package.json', '/shared/%2e%2e/package.json',
+      '/shared/..%2fpackage.json', '/.git/config', '/shared/.hidden.js', '/kick-relay-stats.json', '/AYARLAR.backup.js', '/shared/kick-core.js%00.png']
+      .map(async (p) => [p, (await get(ep, p)).status]));
+    check('site: files outside the pack, dot files and traversal are not served', blocked.every(([, st]) => st === 404 || st === 400 || st === 401), JSON.stringify(blocked));
+    const local = await get(ep, '/AYARLAR.local.js');
+    check('site: AYARLAR.local.js is an empty stub; the secret never leaves the relay', local.status === 200 && !local.body.includes('very-secret-value') && !local.body.includes('old-id'));
+    const keySame = await get(ep, '/AYARLAR.relay.js', 'GET', { 'Sec-Fetch-Site': 'same-origin' });
+    check('site: the key script goes to the relay\'s own pages and marks them', keySame.status === 200 && keySame.body.includes(ACCESS_KEY) && keySame.body.includes('KICK_RELAY_SELF = true'));
+    const keyCross = await get(ep, '/AYARLAR.relay.js', 'GET', { 'Sec-Fetch-Site': 'cross-site' });
+    check('site: another site cannot load the key script', keyCross.status === 403 && !keyCross.body.includes(ACCESS_KEY));
+    const keyRef = await get(ep, '/AYARLAR.relay.js', 'GET', { Referer: 'https://evil.example/' });
+    check('site: a foreign referer without Sec-Fetch-Site is refused too', keyRef.status === 403 && !keyRef.body.includes(ACCESS_KEY));
+    const pub = await get(ep, '/AYARLAR.js');
+    check('site: AYARLAR.js falls back to an empty settings object', pub.status === 200 && pub.body.includes('KICK_OVERLAY_AYARLAR'));
+
+    const rev0 = JSON.parse((await eget(ep, '/settings/rev')).body).rev;
+    check('settings: GET /settings needs the key', (await get(ep, '/settings')).status === 401);
+    check('settings: POST without an Origin is refused', (await postJson('/settings', { settings: {} }, { Origin: undefined })).status === 403);
+    check('settings: POST from a foreign origin is refused', (await postJson('/settings', { settings: {} }, { Origin: 'https://evil.example' })).status === 403);
+    check('settings: POST that is not JSON is refused (415)', (await get(ep, withKey('/settings'), 'POST', { 'Content-Type': 'text/plain', Origin: 'null' }, '{}')).status === 415);
+    const saved = await postJson('/settings', { settings: { kanal: 'https://kick.com/Some_Channel', stil: 'neon', takipciHedefi: '5000', yenilemeSn: 1, bilinmeyen: 'x', ozelCss: '@import url(https://evil.example/x.css);' } });
+    const savedBody = JSON.parse(saved.body);
+    check('settings: POST /settings saves and answers with the new revision', saved.status === 200 && savedBody.ok === true && savedBody.channel === 'some_channel', saved.body);
+    const file = fsx.readFileSync(path.join(cfg, 'AYARLAR.js'), 'utf8');
+    const vmx = require('vm');
+    const box = { window: {} };
+    vmx.runInNewContext(file, box);
+    const w = box.window.KICK_OVERLAY_AYARLAR;
+    check('settings: values are normalized, unknown keys and unsafe CSS are dropped, defaults are left out',
+      w.kanal === 'some_channel' && w.stil === 'neon' && w.takipciHedefi === 5000 && w.yenilemeSn === 10 && !('bilinmeyen' in w) && !('ozelCss' in w) && !('sekil' in w), JSON.stringify(w));
+    check('settings: the file is plain data (one assignment, no code)', /^\/\/[^\n]*\n\/\/[^\n]*\nwindow\.KICK_OVERLAY_AYARLAR = \{[\s\S]*\};\n$/.test(file));
+    const got = JSON.parse((await eget(ep, '/settings')).body);
+    check('settings: GET /settings returns what was saved', got.ok && got.settings.kanal === 'some_channel' && got.credentials === true);
+    await sleep(20);
+    const rev1 = JSON.parse((await eget(ep, '/settings/rev')).body).rev;
+    check('settings: the revision changes after a save', rev1 !== rev0 && rev1 > 0);
+    check('settings: a second save inside the gap gets 429', (await postJson('/settings', { settings: {} })).status === 429);
+    await sleep(600);
+    await postJson('/settings', { settings: { kanal: 'other' } });
+    check('settings: the previous file is kept as AYARLAR.backup.js', fsx.readFileSync(path.join(cfg, 'AYARLAR.backup.js'), 'utf8').includes('some_channel'));
+    check('settings: the served AYARLAR.js is the saved one', (await get(ep, '/AYARLAR.js')).body.includes('"other"'));
+
+    await sleep(600);
+    check('credentials: only one of the two fields is refused', (await postJson('/credentials', { clientId: 'abc', clientSecret: '' })).status === 400);
+    await sleep(600);
+    const cr = await postJson('/credentials', { clientId: 'new-id', clientSecret: 'new-secret' });
+    check('credentials: POST /credentials saves them and never echoes the secret', cr.status === 200 && !cr.body.includes('new-secret') && JSON.parse(cr.body).saved === true);
+    const localText = fsx.readFileSync(path.join(cfg, 'AYARLAR.local.js'), 'utf8');
+    check('credentials: AYARLAR.local.js holds the new values', localText.includes('new-id') && localText.includes('new-secret') && !localText.includes('old-id'));
+    await sleep(600);
+    await postJson('/credentials', { clientId: '', clientSecret: '' });
+    const health = JSON.parse((await eget(ep, '/health')).body);
+    check('credentials: empty fields remove them; /health says subscribers is off', !fsx.readFileSync(path.join(cfg, 'AYARLAR.local.js'), 'utf8').includes('new-id') && health.features.subscribers === false && health.features.settings === true);
+    r.stop();
+    fsx.rmSync(cfg, { recursive: true, force: true });
   }
 
   const failed = results.filter((ok) => !ok).length;
