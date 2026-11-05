@@ -424,3 +424,9 @@ h3.st-sub { font-size: 14px; font-weight: 700; color: var(--st-muted); margin: 1
 .st-savebar { margin: 0 0 16px; padding: 14px 16px; border: 1px solid var(--st-accent, currentColor); border-radius: 12px; }
 .st-savebar .st-note { margin-top: 0; }
 .st-savebar.is-dirty { box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-accent, #53fc18) 35%, transparent); }
+
+/* Live features checklist, filled from the relay's /health while the studio is open from the relay. */
+.st-checklist { margin-top: 14px; }
+.st-checklist h3 { margin: 0 0 6px; }
+.st-checklist .st-linkbtn { margin-inline-start: 6px; }
+.st-checklist code { overflow-wrap: anywhere; }

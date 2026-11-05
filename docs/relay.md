@@ -9,6 +9,8 @@ The relay also serves the pack itself on its local port. Open `http://127.0.0.1:
 - **One link per overlay, for good.** Links such as `http://127.0.0.1:8790/chat.html` carry no settings. The studio's **Save and apply to OBS** writes them to `AYARLAR.js` (the previous file is kept as `AYARLAR.backup.js`), and every overlay served by the relay reloads within a few seconds. A hand edit of `AYARLAR.js` is picked up the same way.
 - **Kick app from the browser.** In the studio's Kick app step, **Save in the relay** writes the client ID and secret to `AYARLAR.local.js`. The relay uses them at once; pages never receive them.
 - **Kick events from the browser.** **Connect chat and alerts** creates the missing webhook subscriptions, the same as `node relay/subscribe.js` (step 6 below), and tells the relay your broadcaster ID.
+- **Live features checklist.** The Kick app step lists what is set up and what is missing (channel, Kick app, tunnel with its Webhook URL and a copy button, channel ID, last event from Kick), and updates every few seconds.
+- **Tunnel by itself.** The relay executable starts the Cloudflare quick tunnel on its own once Kick app credentials exist and `cloudflared` is installed (next to the relay, in its install folder, or on `PATH`). `RELAY_TUNNEL=0` turns that off; with Node.js, use `--tunnel` as before.
 - **Works in OBS as a plain URL.** OBS's **Local file** sources cannot reach the relay; these links do.
 - **What it serves:** the top-level pages and the `shared/`, `alerts/`, `badges/` and `branding/` folders, by file type. Nothing else in the folder can be read through it. The access key goes only to the relay's own pages (the browser's `Sec-Fetch-Site` header decides), and saving needs the key, a JSON body and a local `Origin`.
 
