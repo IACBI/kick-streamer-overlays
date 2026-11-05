@@ -565,7 +565,7 @@
     if (!Object.keys(look).length) return null;
     var n = K.normalize(Object.assign(currentSettings(), look));
     var out = {};
-    Object.keys(look).forEach(function (k) { out[k] = n[k]; });
+    LOOK_KEYS.forEach(function (k) { if (Object.prototype.hasOwnProperty.call(look, k)) out[k] = n[k]; });
     return out;
   }
 
