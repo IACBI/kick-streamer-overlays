@@ -10,6 +10,8 @@ Download the release instead when you want live chat, alerts, stream stats, the 
 
 ## OBS
 
+**Easiest: from the relay.** Start the relay and use the studio at `http://127.0.0.1:8790/` (see [the relay](relay.md#studio-and-overlays-from-the-relay)). Its links and the scene collection below carry no settings: press **Save and apply to OBS** after a change and every overlay updates by itself. The rest of this section also works with the studio opened from the folder.
+
 **All overlays at once.** In the studio's **Add to OBS** step, press **Download OBS scene collection**. In OBS choose **Scene Collection → Import**, add the downloaded `kick-overlay-obs.json`, then pick **Kick Overlay Pack** from the **Scene Collection** menu. You get one scene with every overlay as a Browser source at its size, laid out for a 1920 × 1080 canvas; the combined bar and the countdown come in hidden, and the alerts source already has **Control audio via OBS** on. Download it again after you change settings. Keep the project folder where it is: the links point at its files.
 
 **Control dock.** With the relay running, `dock.html` works as an OBS dock: press **Copy the OBS control dock link** in the studio, then in OBS open **Docks → Custom Browser Docks**, type a name and paste the link as the URL. It shows whether the relay is running and lets you pause and resume alerts (they keep queueing while paused), skip the one on screen, replay the last one, and send a test alert of each kind. It can also restart the countdown with new minutes and a title, and replace the announcement bar's lines during the stream (**Back to settings** returns to `duyuruMetinleri`). An overlay that opens later picks up the running countdown and the current lines.

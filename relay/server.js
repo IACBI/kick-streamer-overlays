@@ -573,6 +573,7 @@ data: ${JSON.stringify(stats.snapshot())}
   const SUBSCRIBE_STATUS = { 'no-credentials': 503, 'no-channel': 400, auth: 401, 'not-found': 404, upstream: 502 };
   async function handleSubscribe(req, res) {
     if (req.headers.origin === undefined) return send(res, 403, { ok: false, error: 'origin required' });
+    if (!/^application\/json\b/i.test(req.headers['content-type'] || '')) return send(res, 415, { ok: false, error: 'json only' });
     const now = o.now();
     if (now - lastSubscribeAt < SUBSCRIBE_GAP_MS) return send(res, 429, { ok: false, error: 'rate' }, { 'Retry-After': '5' });
     lastSubscribeAt = now;

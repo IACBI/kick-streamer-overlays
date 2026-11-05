@@ -7,7 +7,7 @@ Yes. The pack is MIT-licensed, including for commercial streaming. Keep the copy
 No, for the goal bars, the info panel, the countdown and the announcement bar: they read Kick's public data straight from OBS. Live chat, alerts, stream stats, the dock and the subscriber total need the [relay](relay.md), a small program that runs on your own computer, and a free Kick developer app.
 
 **Online or downloaded: which should I use?**
-The [online studio](https://iacbi.github.io/kick-streamer-overlays/) is the quickest way to try a look, and its links work in OBS for everything without the relay. For the relay features, download the release and use the studio from that folder, so the overlays and the relay sit on the same computer. See [setup](setup.md#try-it-online).
+The [online studio](https://iacbi.github.io/kick-streamer-overlays/) is the quickest way to try a look, and its links work in OBS for everything without the relay. For the relay features, download the release, start the relay from that folder and use the studio it opens at `http://127.0.0.1:8790/`: its links never change and **Save** updates OBS directly. See [setup](setup.md#try-it-online) and [the relay](relay.md#studio-and-overlays-from-the-relay).
 
 **Which languages are there?**
 The `dil` setting picks the overlay labels: Turkish (`tr`), English (`en`), both together (`both`), Spanish (`es`), Brazilian Portuguese (`pt`), German (`de`) or Arabic (`ar`, laid out right to left). The studio itself comes in the same six languages. Names and messages from chat keep their own writing direction in every language.
@@ -19,7 +19,7 @@ Yes, as a small pull request: copy `shared/lang/en.js` (overlays and dock) and `
 Anything that has a browser source and loads a web address should work. The pack is built and tested for OBS Studio.
 
 **Is my Kick client secret safe?**
-It is read only from `AYARLAR.local.js`, the `KICK_CLIENT_SECRET` environment variable or the studio's memory, and never goes into a link, a draft, an export or the generated settings file. [SECURITY.md](../SECURITY.md) has the full model.
+It is read only from `AYARLAR.local.js`, the `KICK_CLIENT_SECRET` environment variable or the studio's memory, and never goes into a link, a draft, an export or the generated settings file. **Save in the relay** sends it once to the relay on your own computer, which writes `AYARLAR.local.js`; the relay never serves that file or sends the secret to a page. [SECURITY.md](../SECURITY.md) has the full model.
 
 **Why does the countdown start over?**
 It counts from the moment the source loads. Refreshing the source, or switching scenes with *Shutdown source when not visible* on, starts it again. The dock can restart it with new minutes during the stream.
