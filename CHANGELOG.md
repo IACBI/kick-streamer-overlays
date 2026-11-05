@@ -4,6 +4,12 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.2.3] - 2026-11-06
+
+### Security
+
+- The relay removes line breaks and other control characters from the error texts Kick's live feed sends before it logs them, so a crafted reason cannot add fake lines to the relay log or to the studio's relay check (CodeQL js/log-injection).
+
 ## [3.2.2] - 2026-11-06
 
 ### Added

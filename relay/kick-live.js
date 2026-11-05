@@ -112,9 +112,13 @@ function createKickLive(o) {
   }
 
   // One line per kind of failure, not one per retry: a down feed must not flood the relay log.
+  // Kick's error texts end up in the message, so line breaks and other control characters are removed: a
+  // crafted reason must not forge extra log lines or reach the studio's relay check as more than one line.
   function fail(msg) {
-    lastError = msg;
-    if (warned !== msg) { warned = msg; o.logger.warn(`  Kick live feed: ${msg} Retrying by itself.`); }
+    // eslint-disable-next-line no-control-regex -- matching control characters is the point here
+    const clean = String(msg).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ');
+    lastError = clean;
+    if (warned !== clean) { warned = clean; o.logger.warn('  Kick live feed: ' + clean + ' Retrying by itself.'); }
   }
 
   async function token() {
@@ -168,7 +172,7 @@ function createKickLive(o) {
     if (!isObj(d)) return;
     if (Object.keys(d).length === 0) { ws.send('{}'); return; }      // server ping
     if (d.error && d.id === 3) { o.logger.warn('  Kick live feed: Kick refused the channel feed, so Kicks come only through webhooks.'); return; }
-    if (d.error) { fail(`Kick refused the ${d.id === 1 ? 'connection' : 'chat room'} (${str(d.error.message, 80) || d.error.code}).`); retry(); return; }
+    if (d.error) { fail(`Kick refused the ${d.id === 1 ? 'connection' : 'chat room'} (${str(d.error.message, 80) || (Number.isSafeInteger(d.error.code) ? d.error.code : 'error')}).`); retry(); return; }
     if (d.id === 1 && d.connect) {
       ws.send(JSON.stringify({ id: 2, subscribe: { channel: `chatrooms.${room}.v2` } }));
       if (channel) ws.send(JSON.stringify({ id: 3, subscribe: { channel: `channel_${channel}` } }));
@@ -207,7 +211,7 @@ function createKickLive(o) {
       for (const line of text.split('\n')) if (line && ws) onFrame(line);
     };
     ws.onerror = () => {};
-    ws.onclose = (e) => { if (!stopped) { fail(`socket closed (${e && e.code}${e && e.reason ? ' ' + str(e.reason, 60) : ''}).`); retry(); } };
+    ws.onclose = (e) => { if (!stopped) { fail(`socket closed (${e && Number.isSafeInteger(e.code) ? e.code : '?'}${e && e.reason ? ' ' + str(e.reason, 60) : ''}).`); retry(); } };
   }
 
   return {
