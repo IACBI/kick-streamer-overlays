@@ -4,6 +4,12 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.1.7] - 2026-11-05
+
+### Changed
+
+- Everything the relay knows about Kick now lives in one adapter, `relay/kick.js`: reading a webhook delivery, the signature check with key rotation, turning a body into an overlay event, channel lookups, subscriber numbers and event subscriptions. `relay/server.js` keeps only HTTP, limits, the overlay stream and the studio API, so a change on Kick's side has one place to be fixed.
+
 ## [3.1.6] - 2026-11-05
 
 ### Changed
