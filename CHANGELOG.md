@@ -4,6 +4,18 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.2.2] - 2026-11-06
+
+### Added
+
+- Live chat with no Kick app and no tunnel: the relay reads Kick's own realtime chat feed for the saved channel. Chat messages, deleted messages, bans, subscriptions, gifted subscriptions and Kicks arrive as soon as the relay runs. Follows, channel point rewards, stream start and the live subscriber total still come through a Kick app and its webhooks, and an event that arrives both ways is shown once. `RELAY_KICK_LIVE=0` turns the feed off.
+- The chat overlay removes a message a moderator deleted.
+- The studio's checklist and **Check relay** show the feed's state, and mark the Kick app steps as optional while the feed works.
+
+### Changed
+
+- The relay learns the broadcaster ID from kick.com's public channel data, so webhooks are accepted before any Kick app credentials are saved.
+
 ## [3.2.1] - 2026-11-05
 
 ### Fixed

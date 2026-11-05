@@ -951,12 +951,22 @@
     var items = [];
     var channel = typeof data.channel === 'string' ? data.channel.slice(0, 40) : '';
     items.push(channel ? ['ok', t('chk.channel', { name: channel })] : ['err', t('chk.noChannel')]);
+    // Kick's live feed brings chat and subscriptions by itself; the Kick app and the tunnel then only add the rest,
+    // so their missing steps are shown as optional instead of as warnings.
+    var liveState = data.live && typeof data.live === 'object' ? data.live.state : '';
+    if (channel && liveState === 'live') items.push(['ok', t('chk.live')]);
+    else if (channel && liveState === 'connecting') items.push(['warn', t('chk.liveWait')]);
+    if (liveState === 'live' && f.subscribers !== true) {
+      items.push(['opt', t('chk.optApp')]);
+      return items;
+    }
+    var miss = liveState === 'live' ? 'opt' : 'warn';
     items.push(f.subscribers === true ? ['ok', t('chk.app')] : ['warn', t('chk.noApp')]);
     var tunnel = typeof data.tunnel === 'string' && /^https:\/\/[a-z0-9.-]+\.trycloudflare\.com\/kick\/webhook$/.test(data.tunnel) ? data.tunnel : '';
-    items.push(tunnel ? ['ok', t('chk.tunnel'), tunnel] : ['warn', t('chk.noTunnel')]);
-    items.push(f.chat === true ? ['ok', t('chk.chat')] : ['warn', t('chk.noChat')]);
+    items.push(tunnel ? ['ok', t('chk.tunnel'), tunnel] : [miss, t('chk.noTunnel')]);
+    items.push(f.chat === true ? ['ok', t('chk.chat')] : [miss, t('chk.noChat')]);
     items.push(typeof data.lastEventAt === 'number' && isFinite(data.lastEventAt)
-      ? ['ok', t('chk.event', { ago: ago(now - data.lastEventAt) })] : ['warn', t('chk.noEvent')]);
+      ? ['ok', t('chk.event', { ago: ago(now - data.lastEventAt) })] : [miss, t('chk.noEvent')]);
     return items;
   }
 
@@ -1105,6 +1115,9 @@
     var v = String(data.version || '?').slice(0, 20);
     var out = [];
     out.push(v === K.version ? ['ok', t('relay.d.versionOk')] : ['warn', t('relay.d.version', { relay: v, pack: K.version })]);
+    var liveState = data.live && typeof data.live === 'object' ? data.live.state : '';
+    if (liveState === 'live') out.push(['ok', t('relay.d.liveOk')]);
+    else if (liveState === 'connecting') out.push(['warn', t('relay.d.liveNo')]);
     out.push(f.chat === true ? ['ok', t('relay.d.chatOk')] : ['err', t('relay.d.chatNo')]);
     if (typeof data.lastEventAt === 'number' && isFinite(data.lastEventAt)) out.push(['ok', t('relay.d.events', { ago: ago(now - data.lastEventAt) })]);
     else if (Object.prototype.hasOwnProperty.call(data, 'lastEventAt')) out.push(['warn', t('relay.d.noEvents')]);
@@ -1124,7 +1137,7 @@
     return new Intl.RelativeTimeFormat(lang, { numeric: 'auto' }).format(-pick[0], pick[1]);
   }
 
-  var MARK = { ok: '✓', warn: '!', err: '✗' };
+  var MARK = { ok: '✓', warn: '!', err: '✗', opt: '○' };
   function showDiag(lines) {
     var list = $('relay-tani');
     list.textContent = '';

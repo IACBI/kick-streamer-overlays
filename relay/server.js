@@ -22,6 +22,7 @@ const { startTunnel, cloudflaredPath, cloudflaredFound } = require('./tunnel.js'
 const { createStats } = require('./stats.js');
 const { createSite } = require('./site.js');
 const { createRecorder } = require('./record.js');
+const { createKickLive } = require('./kick-live.js');
 const path = require('path');
 
 const { version: VERSION } = require('../package.json');
@@ -34,6 +35,10 @@ const SUBS_TTL_MS = 15 * 1000;
 const CACHE_MAX = 20;
 const MAX_BLOCK_SEC = 120;
 const RESOLVE_GAP_MS = 60 * 1000;
+const LIVE_RETRY_MS = 60 * 1000;          // the channel lookup for the live feed, when kick.com did not answer
+const DUP_MS = 2 * 60 * 1000;            // the live feed and a webhook may report the same event; the second is dropped
+const DUP_CHAT_MS = 5000;
+const DUP_MAX = 4000;
 const SLUG = /^[a-z0-9_-]{1,40}$/;
 const LOOPBACK_HOST = /^(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?$/i;
 const LOOPBACK_NAME = /^(?:127\.0\.0\.1|localhost|\[::1\])$/i;
@@ -133,6 +138,8 @@ function createRelay(opts) {
     siteRoot: ROOT,            // the pages served on the events port
     configRoot: ROOT,          // where AYARLAR.js and AYARLAR.local.js are read and saved
     recordDir: null,           // record mode: redacted copies of verified webhooks go here
+    kickLive: false,           // Kick's realtime chat feed (relay/kick-live.js); main() turns it on
+    WebSocketImpl: undefined,
     onConfigChange: () => {},  // after the studio saved settings or credentials
     normalizeEvent,
     logger: console,
@@ -265,6 +272,76 @@ data: ${JSON.stringify(stats.snapshot())}
     for (const res of Array.from(clients)) writeClient(res, frame);
   }
 
+  // The live feed and the webhooks can both report one event. Chat has an id on both; alerts are matched by what
+  // they show. Only a match from the OTHER source counts: two equal gifts in a row from one source are two gifts.
+  const seen = new Map();     // key -> { t, src }
+  function duplicate(ev, src) {
+    const t = o.now();
+    const who = String(ev.username || '').toLowerCase();
+    /** @type {[string, number][]} */
+    const keys = ev.kind === 'chat'
+      ? [['msg:' + who + ':' + ev.message, DUP_CHAT_MS]]
+      : ev.kind === 'ban' ? [['ban:' + who, 10000]]
+      : ALERT_KINDS.has(ev.kind) && ev.kind !== 'reward' ? [[ev.kind + ':' + who + ':' + (ev.months || ev.count || ev.amount || ''), DUP_MS]]
+      : [];
+    if (ev.kind === 'chat' && ev.id) keys.push(['id:' + ev.id, DUP_MS]);
+    let dup = false;
+    for (const [k, win] of keys) {
+      const at = seen.get(k);
+      if (at && at.src !== src && t - at.t < win) dup = true;
+      else seen.set(k, { t, src });
+    }
+    if (seen.size > DUP_MAX) {
+      for (const [k, at] of seen) if (t - at.t >= DUP_MS) seen.delete(k);
+      for (const k of seen.keys()) { if (seen.size <= DUP_MAX / 2) break; seen.delete(k); }
+    }
+    return dup;
+  }
+
+  /** @param {any} ev @param {'webhook' | 'live'} src */
+  function deliver(ev, src) {
+    if (duplicate(ev, src)) return;
+    broadcast(ev);
+    // A new stream starts the numbers over; Kick sends is_live true once, when the stream starts.
+    if (ev.kind === 'live' && ev.live === true) { stats.reset(); statsChanged(); }
+    else if (stats.record(ev)) statsChanged();
+  }
+
+  // ---- Kick's realtime feed: chat and subscriptions with no Kick app and no tunnel ----
+  let liveTimer = null, liveSlug = '';
+  const live = o.kickLive ? createKickLive({
+    fetchImpl: o.fetchImpl, WebSocketImpl: o.WebSocketImpl, logger: o.logger,
+    onEvent: (ev) => {
+      if (ALERT_KINDS.has(ev.kind)) ev.id = 'live-' + crypto.randomUUID();
+      deliver(ev, 'live');
+    }
+  }) : null;
+
+  // Looks the channel's chat room up on kick.com and follows it. The same answer gives the broadcaster id, so webhook
+  // events are accepted too, even before Kick app credentials exist.
+  async function followLive() {
+    if (!live) return;
+    clearTimeout(liveTimer);
+    const slug = slugOption();
+    liveSlug = slug;
+    if (!slug || !SLUG.test(slug)) { live.follow(''); return; }
+    const r = /** @type {{ ok: boolean, text?: string }} */ (await kick.fetchChannel(slug).catch(() => ({ ok: false })));
+    if (slug !== liveSlug) return;
+    let j;
+    try { j = r.ok && r.text ? JSON.parse(r.text) : null; } catch (e) { j = null; }
+    const room = j && j.chatroom && j.chatroom.id;
+    if (!room) {
+      o.logger.warn(`  Kick live feed: could not look up the chat room of "${slug}"; trying again in a minute.`);
+      liveTimer = setTimeout(followLive, LIVE_RETRY_MS);
+      if (liveTimer.unref) liveTimer.unref();
+      return;
+    }
+    if (!broadcasterId && !o.broadcasterUserId && j.user_id) broadcasterId = String(j.user_id);
+    live.follow(room, j.id);
+  }
+
+  const liveOn = () => !!live && live.status().state === 'live';
+
   // ---- webhook listener (public via tunnel) ----
   async function handleWebhook(req, res) {
     if (req.url !== kick.webhookPath) return send(res, 404, { error: 'not found' });
@@ -297,12 +374,7 @@ data: ${JSON.stringify(stats.snapshot())}
     // A reward keeps one id across its pending and accepted updates, so it is shown once.
     if (ev && ALERT_KINDS.has(ev.kind)) ev.id = ev.kind === 'reward' ? 'reward-' + ev.redemptionId : String(delivery.id);
     if (ev) {
-      if (broadcasterId ? ev.broadcasterId === broadcasterId : o.allowAnyBroadcaster) {
-        broadcast(ev);
-        // A new stream starts the numbers over; Kick sends is_live true once, when the stream starts.
-        if (ev.kind === 'live' && ev.live === true) { stats.reset(); statsChanged(); }
-        else if (stats.record(ev)) statsChanged();
-      }
+      if (broadcasterId ? ev.broadcasterId === broadcasterId : o.allowAnyBroadcaster) deliver(ev, 'webhook');
       else if (!broadcasterId) {
         warnDropped();
         if (o.now() - lastResolve >= RESOLVE_GAP_MS) resolveBroadcaster();   // maybe it works now; this event is still dropped
@@ -473,6 +545,7 @@ data: ${JSON.stringify(stats.snapshot())}
       fileConfig = null;
       // A new channel needs its own broadcaster id, unless the id was given explicitly.
       if (slugOption() !== before && !o.broadcasterUserId) { broadcasterId = ''; resolveBroadcaster(); }
+      if (slugOption() !== before) followLive();
       o.logger.log('  Settings saved from the studio.');
       o.onConfigChange('settings');
       return send(res, 200, r);
@@ -565,10 +638,11 @@ data: ${JSON.stringify(stats.snapshot())}
     if (p === '/health') {
       return send(res, 200, {
         ok: true, version: VERSION, clients: clients.size, lastEventAt, channel: slugOption(),
-        features: { chat: chatReady(), alerts: chatReady(), live: chatReady(), channel: true, subscribers: api.hasCredentials(), settings: true },
+        features: { chat: chatReady() || liveOn(), alerts: chatReady() || liveOn(), live: chatReady(), channel: true, subscribers: api.hasCredentials(), settings: true },
         alertsPaused, lastAlert: lastAlert ? lastAlert.kind : null,
         tunnel: tunnelUrl ? tunnelUrl + kick.webhookPath : publicOrigin ? publicOrigin + kick.webhookPath : null,
-        server: publicOrigin !== null, recentErrors: recentErrors.slice()
+        server: publicOrigin !== null, recentErrors: recentErrors.slice(),
+        live: live ? live.status() : null
       });
     }
     if (p === '/channel' || p === '/subscribers') {
@@ -626,10 +700,13 @@ data: ${JSON.stringify(stats.snapshot())}
       heartbeat = setInterval(() => { for (const res of Array.from(clients)) writeClient(res, ': ping\n\n'); }, HEARTBEAT_MS);
       heartbeat.unref();
       if (!chatReady()) await resolveBroadcaster();
-      return { webhookPort, eventsPort, chat: chatReady() };
+      if (live) await followLive();
+      return { webhookPort, eventsPort, chat: chatReady(), live: !!live };
     },
     stop() {
       clearInterval(heartbeat);
+      clearTimeout(liveTimer);
+      if (live) live.stop();
       if (statsTimer) { clearTimeout(statsTimer); statsTimer = null; }
       stats.flush();
       for (const res of Array.from(clients)) { try { res.end(); } catch (e) { /* gone */ } }
@@ -685,6 +762,7 @@ function main(env = process.env, argv = process.argv.slice(2)) {
       labelsDir: env.RELAY_LABELS === '0' ? null : path.join(DATA, 'labels'),
       recordDir: argv.includes('--record') || env.RELAY_RECORD === '1' ? path.join(DATA, 'recordings') : null,
       onConfigChange: () => maybeTunnel(),
+      kickLive: env.RELAY_KICK_LIVE !== '0',
       logger: log
     });
   } catch (e) {
@@ -740,8 +818,8 @@ function main(env = process.env, argv = process.argv.slice(2)) {
     if (chat) {
       if (env.RELAY_ALLOW_ANY_BROADCASTER === '1' && !env.RELAY_BROADCASTER_ID) log.log('  Chat and alerts: accepting events for ANY broadcaster (RELAY_ALLOW_ANY_BROADCASTER=1).');
     } else {
-      log.warn('  WARNING: broadcaster id unknown, so chat and alert events will be DROPPED.');
-      log.warn('  Set RELAY_BROADCASTER_ID, or add Kick app credentials and kanal so it can be looked up.');
+      log.warn('  WARNING: no channel yet, so chat and alerts cannot start.');
+      log.warn('  Set your channel in the studio and press Save, or set RELAY_BROADCASTER_ID.');
       log.warn('  The guided setup does that: "node relay/setup.js" (or "kick-relay setup").');
     }
     log.log(env.RELAY_KEY

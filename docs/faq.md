@@ -4,7 +4,10 @@
 Yes. The pack is MIT-licensed, including for commercial streaming. Keep the copyright notice if you share the code.
 
 **Do I need a server or an account?**
-No, for the goal bars, the info panel, the countdown and the announcement bar: they read Kick's public data straight from OBS. Live chat, alerts, stream stats, the dock and the subscriber total need the [relay](relay.md), a small program that runs on your own computer, and a free Kick developer app.
+No, for the goal bars, the info panel, the countdown and the announcement bar: they read Kick's public data straight from OBS. Live chat, subscriptions, gifted subscriptions, Kicks, stream stats and the dock need the [relay](relay.md), a small program that runs on your own computer, but no account: it reads [Kick's chat feed](relay.md#chat-without-a-kick-app) by itself. Follows, channel point rewards and the live subscriber total also need a free Kick developer app.
+
+**Why can't the overlay page get the chat by itself?**
+Kick lets only kick.com pages open its chat feed from a browser. A page on GitHub Pages or in OBS is refused, so the relay, which is a program and not a page, reads the feed and passes it on.
 
 **Online or downloaded: which should I use?**
 The [online studio](https://iacbi.github.io/kick-streamer-overlays/) is the quickest way to try a look, and its links work in OBS for everything without the relay. For the relay features, download the release, start the relay from that folder and use the studio it opens at `http://127.0.0.1:8790/`: its links never change and **Save** updates OBS directly. See [setup](setup.md#try-it-online) and [the relay](relay.md#studio-and-overlays-from-the-relay).
