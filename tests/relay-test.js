@@ -1603,7 +1603,7 @@ function statusOf(port, p, headers) {
     if (s2 !== s1b) {
       s2.emit({ id: 1, error: { code: 'x', message: 'bad\r\nFAKE relay line\u2028more' } });
       check('live: control characters in Kick error texts never reach the log as extra lines',
-        logs.every((m) => !/[\r\n\u2028]/.test(m)) && logs.some((m) => /bad {2}FAKE relay line more/.test(m)) && /\(bad/.test(lv.status().error));
+        logs.every((m) => !/[\r\n\u2028]/.test(m)) && logs.some((m) => /badFAKE relay line more/.test(m)) && /\(bad/.test(lv.status().error));
     }
     check('live: the retry opens a new socket', sockets.length === before + 2, String(sockets.length - before));
     lv.follow('abc');

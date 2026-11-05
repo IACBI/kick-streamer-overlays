@@ -116,7 +116,7 @@ function createKickLive(o) {
   // crafted reason must not forge extra log lines or reach the studio's relay check as more than one line.
   function fail(msg) {
     // eslint-disable-next-line no-control-regex -- matching control characters is the point here
-    const clean = String(msg).replace(/\r|\n/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ');
+    const clean = String(msg).replace(/\r|\n/g, '').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ');
     lastError = clean;
     if (warned !== clean) { warned = clean; o.logger.warn('  Kick live feed: ' + clean + ' Retrying by itself.'); }
   }
