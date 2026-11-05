@@ -15,7 +15,7 @@ const { testCoreApi, testNormalize, testReadSettings, testHelpers } = require('.
 const { testParsers, testKickRest, testOfficial, testSubscriberSource, testMockServer } = require('./unit/kick.test.js');
 const { testSettingsV23, testHelpersV23, testCreateGoalBar, testPoller } = require('./unit/core-v23.test.js');
 const { testChatFeed, testRelayInfoAndChannel, testSubscriberRelayAndBaseline, testConnectRelayReconnect } = require('./unit/relay-client.test.js');
-const { testThemesAndPages, testSyntax, testVersionSync } = require('./unit/pages.test.js');
+const { testThemesAndPages, testSyntax, testVersionSync, testSettingsDoc } = require('./unit/pages.test.js');
 
 (async function main() {
   await testLangFiles();
@@ -39,6 +39,7 @@ const { testThemesAndPages, testSyntax, testVersionSync } = require('./unit/page
   await testThemesAndPages();
   await testSyntax();
   await testVersionSync();
+  await testSettingsDoc();
 
   const total = counts.PASS + counts.FAIL + counts.PENDING;
   console.log('\nSummary: ' + counts.PASS + ' passed, ' + counts.FAIL + ' failed, ' +

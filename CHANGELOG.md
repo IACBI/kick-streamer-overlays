@@ -4,6 +4,13 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.1.3] - 2026-11-05
+
+### Changed
+
+- The studio's links and its `AYARLAR.js` (downloaded or saved through the relay) use the English setting names: `channel=…&theme=neon` instead of `kanal=…&stil=neon`. The Turkish names keep working everywhere, so existing links and files need no change.
+- `docs/settings.md` lists the English name first. A unit test now checks that it documents every setting with the English name and the default the code uses.
+
 ## [3.1.2] - 2026-11-05
 
 ### Added

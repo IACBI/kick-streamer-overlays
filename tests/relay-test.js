@@ -1370,17 +1370,20 @@ function statusOf(port, p, headers) {
     vmx.runInNewContext(file, box);
     const w = box.window.KICK_OVERLAY_AYARLAR;
     check('settings: values are normalized, unknown keys and unsafe CSS are dropped, defaults are left out',
-      w.kanal === 'some_channel' && w.stil === 'neon' && w.takipciHedefi === 5000 && w.yenilemeSn === 10 && !('bilinmeyen' in w) && !('ozelCss' in w) && !('sekil' in w), JSON.stringify(w));
+      w.channel === 'some_channel' && w.theme === 'neon' && w.followerGoal === 5000 && w.refreshSeconds === 10 && !('bilinmeyen' in w) && !('customCss' in w) && !('shape' in w) && !('kanal' in w), JSON.stringify(w));
     check('settings: the file is plain data (one assignment, no code)', /^\/\/[^\n]*\n\/\/[^\n]*\nwindow\.KICK_OVERLAY_AYARLAR = \{[\s\S]*\};\n$/.test(file));
     const got = JSON.parse((await eget(ep, '/settings')).body);
-    check('settings: GET /settings returns what was saved', got.ok && got.settings.kanal === 'some_channel' && got.credentials === true);
+    check('settings: GET /settings returns what was saved, with English names', got.ok && got.settings.channel === 'some_channel' && got.credentials === true);
+    await sleep(600);
+    const eng = JSON.parse((await postJson('/settings', { settings: { channel: 'english_name', theme: 'holo' } })).body);
+    check('settings: English names are accepted in a save too', eng.ok && eng.channel === 'english_name');
     await sleep(20);
     const rev1 = JSON.parse((await eget(ep, '/settings/rev')).body).rev;
     check('settings: the revision changes after a save', rev1 !== rev0 && rev1 > 0);
     check('settings: a second save inside the gap gets 429', (await postJson('/settings', { settings: {} })).status === 429);
     await sleep(600);
     await postJson('/settings', { settings: { kanal: 'other' } });
-    check('settings: the previous file is kept as AYARLAR.backup.js', fsx.readFileSync(path.join(cfg, 'AYARLAR.backup.js'), 'utf8').includes('some_channel'));
+    check('settings: the previous file is kept as AYARLAR.backup.js', fsx.readFileSync(path.join(cfg, 'AYARLAR.backup.js'), 'utf8').includes('english_name'));
     check('settings: the served AYARLAR.js is the saved one', (await get(ep, '/AYARLAR.js')).body.includes('"other"'));
 
     await sleep(600);
