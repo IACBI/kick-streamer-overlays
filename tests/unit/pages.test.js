@@ -169,6 +169,22 @@ async function testVersionSync() {
     eq(b.text, CORE_SOURCE, 'built text matches the committed core (run: npm run build:core)');
   });
 
+  await check('shared/lang scripts are exactly what i18n/ JSON builds, and every language is complete', () => {
+    const L = require('../../tools/build-lang.js');
+    const stale = L.build().filter(({ file, text }) => fs.readFileSync(file, 'utf8') !== text).map((x) => path.basename(x.file));
+    eq(stale, [], 'out of date (run: npm run build:lang)');
+    const gaps = L.status().filter((r) => r.missing.length || r.slots.length || r.extra.length).map((r) => `${r.group}/${r.code}`);
+    eq(gaps, [], 'languages with missing keys, extra keys or slot problems');
+  });
+
+  await check('build-lang renders a language that loads back to the same texts', () => {
+    const L = require('../../tools/build-lang.js');
+    const data = { 'a.b': 'x {n}', plural: { one: 'one', other: '{n} more' }, quote: 'it\'s "fine"' };
+    const ctx = {};
+    vm.runInNewContext(L.render(L.GROUPS[0], 'xx', data), ctx);
+    eq(JSON.stringify(ctx.KICK_LANG.xx), JSON.stringify(data), 'round trip');
+  });
+
   await check('sync-version keeps the core part and the built core on the same version', () => {
     const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ko-version-'));
     try {
