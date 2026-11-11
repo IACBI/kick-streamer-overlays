@@ -159,9 +159,74 @@
         </div>
       </section>
 
-      <!-- 3. Numbers and content -->
+      <!-- 3. Add to OBS. Inside the form only for its place in the page: it has no named setting fields. -->
+      <section class="st-section" aria-labelledby="s4">
+        <h2 id="s4"><span class="st-num">3</span><span data-i18n="s4.title"></span></h2>
+        <ol class="st-steps">
+          <li data-i18n="s4.step1"></li>
+          <li data-i18n="s4.step2"></li>
+          <li data-i18n="s4.step3"></li>
+        </ol>
+        <div class="st-savebar" id="kaydetKutu" hidden>
+          <p class="st-note" data-i18n="save.hint"></p>
+          <div class="st-actions" style="margin-top:0">
+            <button type="button" id="relayKaydet" class="st-btn st-btn--primary" data-i18n="save.button"></button>
+          </div>
+          <p id="kaydet-durum" class="st-status" role="status"></p>
+          <p class="st-note" id="anahtarNot" hidden><span data-i18n="key.note"></span> <button type="button" class="st-linkbtn" id="anahtarUnut" data-i18n="key.forget"></button></p>
+        </div>
+        <p class="st-warnline st-warnbox" id="kanal-uyari" role="status" hidden><span data-i18n="links.needChannel"></span> <button type="button" class="st-linkbtn" id="kanalaGit" data-i18n="links.goChannel"></button></p>
+        <div id="kartlar" class="st-cards"></div>
+        <div class="st-actions">
+          <button type="button" id="hepsiniKopyala" class="st-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
+            <span data-i18n="links.copyAll"></span>
+          </button>
+          <button type="button" id="obsIndir" class="st-btn st-btn--primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+            <span data-i18n="obs.download"></span>
+          </button>
+        </div>
+        <p class="st-note" data-i18n="obs.how"></p>
+        <div class="st-actions">
+          <button type="button" id="dockKopyala" class="st-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
+            <span data-i18n="dock.copy"></span>
+          </button>
+        </div>
+        <p class="st-note" data-i18n="dock.how"></p>
+        <p class="st-note" id="s4-again" data-i18n="s4.again"></p>
+
+        <details class="st-group" style="margin-top:16px">
+          <summary><span data-i18n="file.title"></span><small data-i18n="file.sub"></small></summary>
+          <div class="st-group-body">
+            <p class="st-hint" style="margin-bottom:12px" data-i18n="file.intro"></p>
+            <textarea id="cikti" readonly spellcheck="false" data-i18n-aria="file.aria"></textarea>
+            <div class="st-actions">
+              <button type="button" id="indir" class="st-btn st-btn--primary" data-i18n="file.download"></button>
+              <button type="button" id="kopyala" class="st-btn"><span data-i18n="file.copy"></span></button>
+            </div>
+            <p id="cikti-durum" class="st-status" role="status"></p>
+          </div>
+        </details>
+
+        <details class="st-group" style="margin-top:10px">
+          <summary><span data-i18n="backup.title"></span><small data-i18n="backup.sub"></small></summary>
+          <div class="st-group-body">
+            <p class="st-hint" style="margin-bottom:12px" data-i18n="backup.intro"></p>
+            <div class="st-actions" style="margin-top:0">
+              <button type="button" id="disaAktar" class="st-btn" data-i18n="backup.export"></button>
+              <button type="button" id="iceAktar" class="st-btn" data-i18n="backup.import"></button>
+              <input type="file" id="iceAktarDosya" class="st-sr" accept=".json,application/json" tabindex="-1" data-i18n-aria="backup.import" />
+            </div>
+            <p id="yedek-durum" class="st-status" role="status"></p>
+          </div>
+        </details>
+      </section>
+
+      <!-- 4. Numbers and content -->
       <section class="st-section" aria-labelledby="s3">
-        <h2 id="s3"><span class="st-num">3</span><span data-i18n="s3.title"></span><span class="st-tag" data-i18n="tag.optional"></span></h2>
+        <h2 id="s3"><span class="st-num">4</span><span data-i18n="s3.title"></span><span class="st-tag" data-i18n="tag.optional"></span></h2>
         <p class="st-intro" data-i18n="s3.intro"></p>
 
         <details class="st-group" id="g-goals" open>
@@ -406,71 +471,6 @@
 
     </form>
 
-    <!-- 4. Add to OBS -->
-    <section class="st-section" aria-labelledby="s4">
-      <h2 id="s4"><span class="st-num">4</span><span data-i18n="s4.title"></span></h2>
-      <ol class="st-steps">
-        <li data-i18n="s4.step1"></li>
-        <li data-i18n="s4.step2"></li>
-        <li data-i18n="s4.step3"></li>
-      </ol>
-      <div class="st-savebar" id="kaydetKutu" hidden>
-        <p class="st-note" data-i18n="save.hint"></p>
-        <div class="st-actions" style="margin-top:0">
-          <button type="button" id="relayKaydet" class="st-btn st-btn--primary" data-i18n="save.button"></button>
-        </div>
-        <p id="kaydet-durum" class="st-status" role="status"></p>
-        <p class="st-note" id="anahtarNot" hidden><span data-i18n="key.note"></span> <button type="button" class="st-linkbtn" id="anahtarUnut" data-i18n="key.forget"></button></p>
-      </div>
-      <p class="st-warnline st-warnbox" id="kanal-uyari" role="status" hidden><span data-i18n="links.needChannel"></span> <button type="button" class="st-linkbtn" id="kanalaGit" data-i18n="links.goChannel"></button></p>
-      <div id="kartlar" class="st-cards"></div>
-      <div class="st-actions">
-        <button type="button" id="hepsiniKopyala" class="st-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
-          <span data-i18n="links.copyAll"></span>
-        </button>
-        <button type="button" id="obsIndir" class="st-btn st-btn--primary">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
-          <span data-i18n="obs.download"></span>
-        </button>
-      </div>
-      <p class="st-note" data-i18n="obs.how"></p>
-      <div class="st-actions">
-        <button type="button" id="dockKopyala" class="st-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
-          <span data-i18n="dock.copy"></span>
-        </button>
-      </div>
-      <p class="st-note" data-i18n="dock.how"></p>
-      <p class="st-note" id="s4-again" data-i18n="s4.again"></p>
-
-      <details class="st-group" style="margin-top:16px">
-        <summary><span data-i18n="file.title"></span><small data-i18n="file.sub"></small></summary>
-        <div class="st-group-body">
-          <p class="st-hint" style="margin-bottom:12px" data-i18n="file.intro"></p>
-          <textarea id="cikti" readonly spellcheck="false" data-i18n-aria="file.aria"></textarea>
-          <div class="st-actions">
-            <button type="button" id="indir" class="st-btn st-btn--primary" data-i18n="file.download"></button>
-            <button type="button" id="kopyala" class="st-btn"><span data-i18n="file.copy"></span></button>
-          </div>
-          <p id="cikti-durum" class="st-status" role="status"></p>
-        </div>
-      </details>
-
-      <details class="st-group" style="margin-top:10px">
-        <summary><span data-i18n="backup.title"></span><small data-i18n="backup.sub"></small></summary>
-        <div class="st-group-body">
-          <p class="st-hint" style="margin-bottom:12px" data-i18n="backup.intro"></p>
-          <div class="st-actions" style="margin-top:0">
-            <button type="button" id="disaAktar" class="st-btn" data-i18n="backup.export"></button>
-            <button type="button" id="iceAktar" class="st-btn" data-i18n="backup.import"></button>
-            <input type="file" id="iceAktarDosya" class="st-sr" accept=".json,application/json" tabindex="-1" data-i18n-aria="backup.import" />
-          </div>
-          <p id="yedek-durum" class="st-status" role="status"></p>
-        </div>
-      </details>
-    </section>
-
     <!-- 5. Kick app (optional). Outside the form: secrets never reach the output. -->
     <section class="st-section" aria-labelledby="s5">
       <h2 id="s5"><span class="st-num">5</span><span data-i18n="s5.title"></span><span class="st-tag" data-i18n="tag.optional"></span></h2>
@@ -547,6 +547,12 @@
   <a href="https://github.com/IACBI/kick-streamer-overlays" target="_blank" rel="noopener">GitHub</a>
   <a href="LICENSE" target="_blank" rel="noopener" data-i18n="foot.license"></a>
 </footer>
+
+<!-- Opened from the relay: shown while the form differs from what the relay holds, wherever the page is scrolled. -->
+<div class="st-savefloat" id="kaydetCubuk" hidden>
+  <p data-i18n="save.dirty"></p>
+  <button type="button" id="relayKaydetCubuk" class="st-btn st-btn--primary" data-i18n="save.button"></button>
+</div>
 
 <div class="st-toast" id="toast" role="status" aria-live="polite"></div>
 <div class="st-sr" id="sr-canli" role="status" aria-live="polite"></div>

@@ -372,7 +372,8 @@ h3.st-sub { font-size: 14px; font-weight: 700; color: var(--st-muted); margin: 1
 /* ---- Toast and footer ---- */
 .st-toast {
   position: fixed; left: 50%; bottom: 24px; z-index: 60; transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
-  padding: 10px 18px; border-radius: 999px; background: var(--st-primary); color: var(--st-on-primary); font-weight: 700; font-size: 14px;
+  width: max-content; max-width: calc(100vw - 24px); text-align: center;
+  padding: 10px 18px; border-radius: 22px; background: var(--st-primary); color: var(--st-on-primary); font-weight: 700; font-size: 14px;
   box-shadow: var(--st-shadow); transition: opacity var(--st-slow) var(--st-ease), transform var(--st-slow) var(--st-ease);
 }
 .st-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
@@ -425,6 +426,25 @@ h3.st-sub { font-size: 14px; font-weight: 700; color: var(--st-muted); margin: 1
 .st-savebar { margin: 0 0 16px; padding: 14px 16px; border: 1px solid var(--st-accent, currentColor); border-radius: 12px; }
 .st-savebar .st-note { margin-top: 0; }
 .st-savebar.is-dirty { box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-accent, #53fc18) 35%, transparent); }
+
+/* The same save, floating at the bottom edge while there is something to save. The page gets room under its last
+   section, and the toast moves above the bar. */
+.st-savefloat {
+  position: fixed; left: 50%; bottom: 16px; z-index: 55; transform: translateX(-50%);
+  width: min(680px, calc(100vw - 24px)); display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 16px;
+  border: 1px solid var(--st-line-strong); border-radius: 14px; background: var(--st-panel); box-shadow: var(--st-shadow);
+}
+.st-savefloat[hidden] { display: none; }
+.st-savefloat p { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; }
+.st-savefloat .st-btn { flex: 0 0 auto; white-space: nowrap; }
+/* On a phone the sentence would wrap to five lines over the form; the button says enough. */
+@media (max-width: 560px) {
+  .st-savefloat { padding: 8px; }
+  .st-savefloat p { display: none; }
+  .st-savefloat .st-btn { flex: 1 1 auto; }
+}
+body.has-savebar { padding-bottom: 88px; }
+body.has-savebar .st-toast { bottom: 100px; }
 
 /* Live features checklist, filled from the relay's /health while the studio is open from the relay. */
 .st-checklist { margin-top: 14px; }
