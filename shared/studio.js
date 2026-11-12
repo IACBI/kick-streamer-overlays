@@ -858,20 +858,25 @@
     });
   }
 
+  // Two buttons save: the one in the "Add to OBS" section and the one in the floating bar. The toast repeats the
+  // result, because the status line under the first button is usually scrolled out of view.
   async function saveToRelay() {
-    var btn = $('relayKaydet');
+    var btns = [$('relayKaydet'), $('relayKaydetCubuk')];
     var box = $('kaydet-durum');
-    btn.disabled = true;
+    if (btns[0].disabled) return;
+    btns.forEach(function (b) { b.disabled = true; });
     try {
       await relayPost('/settings', { settings: readRaw() });
       savedJson = JSON.stringify(currentSettings());
       markDirty();
       say(box, 'ok', t('save.ok'));
+      toast(t('save.ok'));
       refreshChecklist();
     } catch (e) {
       say(box, 'err', t('save.fail'));
+      toast(t('save.fail'), true);
     } finally {
-      btn.disabled = false;
+      btns.forEach(function (b) { b.disabled = false; });
     }
   }
 
@@ -881,17 +886,29 @@
     var bar = $('kaydetKutu');
     var box = $('kaydet-durum');
     bar.classList.toggle('is-dirty', dirty);
+    $('kaydetCubuk').hidden = !dirty;
+    document.body.classList.toggle('has-savebar', dirty);
     if (dirty) say(box, '', t('save.dirty'));
     else if (box.textContent === t('save.dirty')) say(box, '', '');
   }
 
   async function loadFromRelay() {
+    var firstRun = false;
     try {
       var res = await fetch(K.relayUrl(window.location.origin + '/settings'), { cache: 'no-store' });
       var data = res.ok ? await res.json() : null;
-      if (data && data.ok && data.settings && typeof data.settings === 'object') writeForm(K.normalize(data.settings));
+      if (data && data.ok && data.settings && typeof data.settings === 'object') {
+        var saved = K.normalize(data.settings);
+        writeForm(saved);
+        // A relay that has no channel yet has never been set up; one that has keeps the label language it runs with.
+        var own = function (k) { return Object.prototype.hasOwnProperty.call(data.settings, k); };
+        firstRun = !saved.kanal && !own('dil') && !own('language');
+      }
     } catch (e) { /* relay busy or old: the form keeps its defaults */ }
     savedJson = JSON.stringify(currentSettings());
+    // After the baseline: the relay does not hold this choice yet, and its links read only what it holds, so it
+    // has to show as an unsaved change.
+    if (firstRun) firstRunLabels();
     update();
     lookFromAddress();   // after the saved settings, so the look shows as an unsaved change
   }
@@ -1037,6 +1054,7 @@
     } catch (e) { /* storage blocked: optional */ }
   }
 
+  // Returns whether a draft was there, so a first visit can be told apart.
   function loadDraft() {
     try {
       var saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
@@ -1044,8 +1062,27 @@
         writeForm(K.normalize(saved));
         var r = K.normalizeLocal({ relayAdresi: saved.relayAdresi }).relayAdresi;
         relayEl.value = r === RELAY_DEFAULT ? '' : r;
+        return true;
       }
     } catch (e) { /* storage blocked or corrupt draft: keep defaults */ }
+    return false;
+  }
+
+  // The first of the browser's languages that is in the list, else English.
+  function browserLang(list) {
+    var prefs = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || '']);
+    for (var i = 0; i < prefs.length; i++) {
+      var code = String(prefs[i] || '').slice(0, 2).toLowerCase();
+      if (list.indexOf(code) >= 0) return code;
+    }
+    return 'en';
+  }
+
+  // The setting's default stays "both" (Turkish and English), because links and settings files that leave it out
+  // rely on it. A first visit to the studio starts on the visitor's own language instead.
+  function firstRunLabels() {
+    var pick = browserLang(K.enums('dil').filter(function (v) { return v !== 'both'; }));
+    writeForm(K.normalize(Object.assign(readRaw(), { dil: pick })));
   }
 
   function saveUi() {
@@ -1055,14 +1092,7 @@
   function loadUi() {
     var ui = null;
     try { ui = JSON.parse(localStorage.getItem(UI_KEY) || 'null'); } catch (e) { /* storage blocked or corrupt: defaults */ }
-    // The first browser language the studio has, else English.
-    var prefs = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || '']);
-    var guess = 'en';
-    for (var i = 0; i < prefs.length; i++) {
-      var code = String(prefs[i] || '').slice(0, 2).toLowerCase();
-      if (LANGS.indexOf(code) >= 0) { guess = code; break; }
-    }
-    lang = ui && LANGS.indexOf(ui.lang) >= 0 ? ui.lang : guess;
+    lang = ui && LANGS.indexOf(ui.lang) >= 0 ? ui.lang : browserLang(LANGS);
     if (ui && typeof ui.tab === 'string') activeId = overlayById(ui.tab).id;
     if (ui && typeof ui.bg === 'string') background = BACKGROUNDS.indexOf(ui.bg) >= 0 ? ui.bg : 'checker';
   }
@@ -1398,6 +1428,12 @@
     kickTestBtn.addEventListener('click', testKick);
     $('yerelIndir').addEventListener('click', downloadLocal);
     $('relayKaydet').addEventListener('click', saveToRelay);
+    $('relayKaydetCubuk').addEventListener('click', saveToRelay);
+    if (SELF) {
+      document.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && String(e.key).toLowerCase() === 's') { e.preventDefault(); saveToRelay(); }
+      });
+    }
     $('olayBagla').addEventListener('click', connectEvents);
 
     window.addEventListener('resize', fitPreview);
@@ -1469,7 +1505,7 @@
     document.querySelector('[data-i18n="s5.intro"]').setAttribute('data-i18n', 's5.introRelay');
   }
   writeForm(K.normalize({}));
-  if (!SELF) loadDraft();
+  if (!SELF && !loadDraft()) firstRunLabels();
   bindEvents();
   if (!SELF) lookFromAddress();
   applyI18n();

@@ -372,9 +372,11 @@ async function offlineChecks() {
 
   // Studio behaviour: links, tabs, presets, language, reset.
   const urlOf = (id) => `document.querySelector('[data-url="${id}"]').value`;
-  const base = await st.eval(`({ follower: ${urlOf('follower')}, tabs: document.querySelectorAll('[role=tab]').length, cards: document.querySelectorAll('[data-card]').length, warn: !document.querySelector('[data-card="follower"] .st-card-warn').hidden })`);
+  const base = await st.eval(`({ langs: Array.from(navigator.languages || [navigator.language]), follower: ${urlOf('follower')}, tabs: document.querySelectorAll('[role=tab]').length, cards: document.querySelectorAll('[data-card]').length, warn: !document.querySelector('[data-card="follower"] .st-card-warn').hidden })`);
   check('studio: twelve overlay tabs and twelve link cards', base.tabs === 12 && base.cards === 12, JSON.stringify(base));
-  check('studio: default link has no query string', /follower-bar\.html$/.test(base.follower), base.follower);
+  // A first visit starts on the browser's label language, so that one setting is in the link and nothing else is.
+  const firstLang = base.langs.map((l) => String(l).slice(0, 2).toLowerCase()).find((l) => ['tr', 'en', 'es', 'pt', 'de', 'ar'].includes(l)) || 'en';
+  check('studio: default link carries only the browser\'s label language', base.follower.endsWith('follower-bar.html?language=' + firstLang), base.follower);
   check('studio: card warns when the channel is empty', base.warn);
 
   await st.eval(`(() => { const k = document.getElementById('kanal'); k.value = 'Test_Kanal'; k.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('[data-preset="neon"]').click(); })()`);
