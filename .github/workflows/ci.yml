@@ -87,6 +87,10 @@ jobs:
         run: npm run build:relay
       - name: Smoke test the executable from an empty folder
         run: npm run test:relay-binary
+      # The release step that puts the relay inside the overlay folder, run here so a tag is never its first run.
+      - name: Release zip with the relay inside
+        if: runner.os != 'Windows'
+        run: bash tools/bundle-release.sh HEAD kick-streamer-overlays-ci dist
 
   # Server mode: the image builds, starts, answers only its public host, and never hands out the access key.
   docker:

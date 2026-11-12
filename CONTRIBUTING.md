@@ -117,4 +117,4 @@ Keep a change focused, say what you checked, and keep the English and Türkçe R
 2. `npm version minor --no-git-tag-version` (or `patch`, `major`). The `version` script copies the number into `shared/kick-core.js`.
 3. Commit, merge to `main`, then tag that commit `vX.Y.Z` and push the tag.
 4. The release workflow checks that the tag matches `package.json`, runs the checks, builds the zip, the relay
-   executables and one zip per system with the relay inside, writes `SHA256SUMS.txt`, and publishes the release with the changelog section as notes.
+   executables and one zip per system with the relay inside (`tools/bundle-release.sh`, which CI also runs), writes `SHA256SUMS.txt`, and publishes the release with the changelog section as notes.
