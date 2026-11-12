@@ -893,6 +893,7 @@
   }
 
   async function loadFromRelay() {
+    var firstRun = false;
     try {
       var res = await fetch(K.relayUrl(window.location.origin + '/settings'), { cache: 'no-store' });
       var data = res.ok ? await res.json() : null;
@@ -901,10 +902,13 @@
         writeForm(saved);
         // A relay that has no channel yet has never been set up; one that has keeps the label language it runs with.
         var own = function (k) { return Object.prototype.hasOwnProperty.call(data.settings, k); };
-        if (!saved.kanal && !own('dil') && !own('language')) firstRunLabels();
+        firstRun = !saved.kanal && !own('dil') && !own('language');
       }
     } catch (e) { /* relay busy or old: the form keeps its defaults */ }
     savedJson = JSON.stringify(currentSettings());
+    // After the baseline: the relay does not hold this choice yet, and its links read only what it holds, so it
+    // has to show as an unsaved change.
+    if (firstRun) firstRunLabels();
     update();
     lookFromAddress();   // after the saved settings, so the look shows as an unsaved change
   }
