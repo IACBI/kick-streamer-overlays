@@ -282,6 +282,7 @@
       "chk.channel": "Kanal gespeichert: {name}",
       "chk.live": "Kick-Live-Feed verbunden: Chat, Abos, Geschenk-Abos und Kicks kommen ohne Kick-App und ohne Tunnel an.",
       "chk.liveWait": "Verbindung zum Kick-Live-Feed wird aufgebaut…",
+      "chk.liveNode": "Dieses Node.js hat kein WebSocket, deshalb kann der Chat ohne Kick-App nicht starten. Nutze Node.js 22 oder neuer oder das Relay-Programm von der Release-Seite.",
       "chk.optApp": "Optional: Eine Kick-App mit Tunnel ergänzt Follows, Kanalpunkte-Belohnungen, den Streamstart und die Live-Abonnentenzahl.",
       "chk.noChannel": "Noch kein Kanal gespeichert: Trage ihn in Schritt 1 ein und klicke auf Speichern.",
       "chk.app": "Kick-App im Relay gespeichert.",

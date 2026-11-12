@@ -281,13 +281,14 @@ legend { padding: 0; margin-bottom: 8px; font-size: 14px; font-weight: 600; }
 
 /* ---- Overlay link cards ---- */
 .st-cards { display: flex; flex-direction: column; gap: 10px; }
-.st-card { border: 1px solid var(--st-line); border-radius: 12px; background: var(--st-raised); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.st-card { border: 1px solid var(--st-line); border-radius: 12px; background: var(--st-raised); padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 6px; }
 .st-card-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .st-card-name { font-weight: 700; font-size: 14.5px; }
 .st-card-size { margin-inline-start: auto; font-size: 12px; font-weight: 700; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--st-line); color: var(--st-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .st-card-desc { font-size: 13px; color: var(--st-muted); }
 .st-card-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.st-card-row input { flex: 1 1 100%; min-height: 36px; font-size: 12.5px; font-family: 'Roboto Mono', ui-monospace, Consolas, monospace; text-overflow: ellipsis; }
+/* Link and buttons share one line where there is room; the link wraps above them on a narrow column. */
+.st-card-row input { flex: 1 1 240px; min-width: 0; min-height: 40px; font-size: 12.5px; font-family: 'Roboto Mono', ui-monospace, Consolas, monospace; text-overflow: ellipsis; }
 .st-card-row .st-btn { white-space: nowrap; }
 .st-card-warn { font-size: 12px; font-weight: 700; color: var(--st-warn); padding: 1px 9px; border: 1px solid currentColor; border-radius: 999px; white-space: nowrap; }
 .st-warnbox { margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--st-warn); border-radius: 10px; }

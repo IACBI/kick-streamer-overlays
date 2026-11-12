@@ -1,7 +1,8 @@
 name: Release
 
 # Pushing a tag vX.Y.Z publishes the GitHub release: the overlay folder as a zip, the relay
-# executables for Windows, Linux and macOS, SHA256SUMS.txt, and the CHANGELOG.md section as notes.
+# executables for Windows, Linux and macOS, one zip per system with the relay inside the folder,
+# SHA256SUMS.txt, and the CHANGELOG.md section as notes.
 on:
   push:
     tags: ['v*.*.*']
@@ -75,6 +76,22 @@ jobs:
           merge-multiple: true
       - name: Overlay folder as a zip (tracked files at the tag)
         run: git archive --format=zip --prefix="kick-streamer-overlays-${GITHUB_REF_NAME}/" -o "out/kick-streamer-overlays-${GITHUB_REF_NAME}.zip" "$GITHUB_REF_NAME"
+      # One download per system: the same folder with that system's relay already in it, so nothing has to be
+      # placed by hand. The plain zip and the bare executables stay, for updating one without the other.
+      - name: Overlay folder with the relay inside, one zip per system
+        run: |
+          base="kick-streamer-overlays-${GITHUB_REF_NAME}"
+          chmod +x out/kick-relay-linux-x64 out/kick-relay-macos-*
+          for exe in out/kick-relay-*; do
+            name="$(basename "$exe")"
+            system="${name#kick-relay-}"
+            system="${system%.exe}"
+            work="$(mktemp -d)"
+            git archive --format=tar --prefix="${base}/" "$GITHUB_REF_NAME" | tar -x -C "$work"
+            cp -p "$exe" "${work}/${base}/${name}"
+            (cd "$work" && zip -q -r -X "${GITHUB_WORKSPACE}/out/${base}-${system}.zip" "$base")
+            unzip -l "out/${base}-${system}.zip" "${base}/${name}" "${base}/studio.html" "${base}/shared/kick-core.js"
+          done
       - name: Checksums
         working-directory: out
         run: |

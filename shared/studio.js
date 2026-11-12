@@ -500,7 +500,7 @@
       input.addEventListener('focus', function () { input.select(); });
       var copy = document.createElement('button');
       copy.type = 'button';
-      copy.className = 'st-btn st-btn--small st-btn--primary';
+      copy.className = 'st-btn st-btn--small';
       copy.setAttribute('data-copy', o.id);
       copy.innerHTML = COPY_ICON;
       var copyLabel = document.createElement('span');
@@ -901,8 +901,8 @@
         var saved = K.normalize(data.settings);
         writeForm(saved);
         // A relay that has no channel yet has never been set up; one that has keeps the label language it runs with.
-        var own = function (k) { return Object.prototype.hasOwnProperty.call(data.settings, k); };
-        firstRun = !saved.kanal && !own('dil') && !own('language');
+        // The shipped AYARLAR.js spells the default language out, so the value is compared, not its presence.
+        firstRun = !saved.kanal && saved.dil === K.normalize({}).dil;
       }
     } catch (e) { /* relay busy or old: the form keeps its defaults */ }
     savedJson = JSON.stringify(currentSettings());
@@ -973,6 +973,7 @@
     var liveState = data.live && typeof data.live === 'object' ? data.live.state : '';
     if (channel && liveState === 'live') items.push(['ok', t('chk.live')]);
     else if (channel && liveState === 'connecting') items.push(['warn', t('chk.liveWait')]);
+    else if (data.live && data.live.unsupported === true) items.push(['warn', t('chk.liveNode')]);
     if (liveState === 'live' && f.subscribers !== true) {
       items.push(['opt', t('chk.optApp')]);
       return items;
@@ -1496,6 +1497,8 @@
     $('anahtarKutu').hidden = !keyMissing;
     $('anahtarNot').hidden = keyMissing;
   }
+  // One filled button per screen: Save when the relay holds the settings, otherwise "Copy all links".
+  if (!SELF) $('hepsiniKopyala').classList.add('st-btn--primary');
   if (SELF) {
     $('kaydetKutu').hidden = false;
     $('s4-again').hidden = true;

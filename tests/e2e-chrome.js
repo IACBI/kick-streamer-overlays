@@ -140,7 +140,11 @@ async function openPageFrom(dir, fileName, query, size, blocked, preload) {
     }
   };
 }
-const openPage = (fileName, query, size, blocked) => openPageFrom(ROOT, fileName, query, size, blocked);
+// Pages opened from the repo folder load whatever AYARLAR.relay.js the developer's own relay left there, and with a key
+// countdown and ticker try to reach that relay. The key is pinned to "none" so these runs are the same on every machine;
+// the relay scenarios use their own copy of the pack (openPageFrom) with a key of their own.
+const NO_LOCAL_KEY = `Object.defineProperty(window, 'KICK_RELAY_KEY', { get: function () { return undefined; }, set: function () {}, configurable: false });`;
+const openPage = (fileName, query, size, blocked) => openPageFrom(ROOT, fileName, query, size, blocked, NO_LOCAL_KEY);
 
 // ---- offline scenarios (empty kanal, no network) -----------------------------
 

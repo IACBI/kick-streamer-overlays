@@ -426,6 +426,28 @@ async function testReadSettings() {
     ok(!('kickClientId' in raw) && !('kickClientSecret' in raw), 'AYARLAR.js contains Kick credentials');
   });
 
+  await check('AYARLAR.js uses the English setting names, every one known, and sets nothing away from its default', () => {
+    const sandbox = {};
+    sandbox.window = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(fs.readFileSync(SETTINGS_FILE, 'utf8'), sandbox, { filename: SETTINGS_FILE });
+    const raw = sandbox.KICK_OVERLAY_AYARLAR;
+    const { K } = loadCore();
+    const names = K.aliases();
+    const unknown = Object.keys(raw).filter((k) => !Object.prototype.hasOwnProperty.call(names, k));
+    eq(unknown.join(), '', 'keys that are not English setting names');
+    eqFields(K.normalize(raw), K.normalize({}), 'shipped value of ');
+  });
+
+  await check('preview and quiet mode answer to the English parameter names and to the original ones', () => {
+    ['?preview=1', '?onizleme=1', '?theme=neon&preview=1'].forEach((search) => {
+      ok(loadCore({ search }).K.isPreview() === true, 'preview for ' + search);
+    });
+    ['', '?preview=0', '?xpreview=1', '?preview=10'].forEach((search) => {
+      ok(loadCore({ search }).K.isPreview() === false, 'no preview for ' + search);
+    });
+  });
+
   await check('.gitignore excludes AYARLAR.local.js', () => {
     const lines = fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8').split(/\r?\n/).map((l) => l.trim());
     ok(lines.includes('AYARLAR.local.js'), 'AYARLAR.local.js is not in .gitignore');

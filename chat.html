@@ -59,7 +59,7 @@
   // Only hex (#rgb or #rrggbb, as in kick-core) reaches the CSS as a name colour.
   const HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
   // Badge art only from Kick's own hosts; anything else falls back to the drawn badge.
-  const BADGE_SRC_RE = /^https:\/\/(?:files\.|api\.|id\.)?kick\.com\/[A-Za-z0-9._~\/%?=&+-]+$/;
+  const BADGE_SRC_RE = /^https:\/\/(?:files\.|api\.|id\.)?kick\.com\/[A-Za-z0-9._~/%?=&+-]+$/;
   const EMOTE_RE = /\[emote:(\d+):([^\]]+)\]/g;
   const BROADCASTER = new Set(['broadcaster', 'owner', 'host']);
   // The default label follows the label language; a name the streamer typed is shown as written.
