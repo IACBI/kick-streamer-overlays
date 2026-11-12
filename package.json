@@ -37,7 +37,7 @@
     "@types/node": "20.19.43",
     "esbuild": "0.28.2",
     "eslint": "10.14.0",
-    "globals": "17.13.0",
+    "globals": "17.14.0",
     "postject": "1.0.0-alpha.6",
     "typescript": "7.0.2"
   },
