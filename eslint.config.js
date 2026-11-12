@@ -12,11 +12,12 @@ const inlineScripts = {
   meta: { name: 'kick-inline-scripts', version: '1.0.0' },
   preprocess(text) {
     const blank = (part) => part.replace(/[^\r\n]/g, ' ');
-    const tag = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+    // The end tag is matched as a browser reads it: any case, and anything up to the ">" ("</script >").
+    const tag = /(<script\b[^>]*>)([\s\S]*?)<\/script\b[^>]*>/gi;
     let out = '', last = 0, m;
     while ((m = tag.exec(text)) !== null) {
       if (/\ssrc\s*=/i.test(m[1])) continue;
-      const start = m.index + m[0].length - m[2].length - '</script>'.length;
+      const start = m.index + m[1].length;
       const end = start + m[2].length;
       out += blank(text.slice(last, start)) + text.slice(start, end);
       last = end;
