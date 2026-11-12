@@ -901,8 +901,8 @@
         var saved = K.normalize(data.settings);
         writeForm(saved);
         // A relay that has no channel yet has never been set up; one that has keeps the label language it runs with.
-        var own = function (k) { return Object.prototype.hasOwnProperty.call(data.settings, k); };
-        firstRun = !saved.kanal && !own('dil') && !own('language');
+        // The shipped AYARLAR.js spells the default language out, so the value is compared, not its presence.
+        firstRun = !saved.kanal && saved.dil === K.normalize({}).dil;
       }
     } catch (e) { /* relay busy or old: the form keeps its defaults */ }
     savedJson = JSON.stringify(currentSettings());
