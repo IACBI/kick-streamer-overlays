@@ -95,8 +95,13 @@ async function launchChrome() {
   throw new Error('Chrome DevTools did not start');
 }
 
-// Opens a file:// page from `dir` as a fresh target. Listeners attach before navigation.
-async function openPageFrom(dir, fileName, query, size, blocked, preload) {
+// Opens a file:// page from `dir` as a fresh target.
+function openPageFrom(dir, fileName, query, size, blocked, preload) {
+  return openUrl(pathToFileURL(path.join(dir, fileName)).href + (query || ''), size, blocked, preload);
+}
+
+// Opens any address as a fresh target. Listeners attach before navigation.
+async function openUrl(url, size, blocked, preload) {
   const target = await (await fetch(`${BASE}/json/new?about:blank`, { method: 'PUT' })).json();
   const c = await cdp(target.webSocketDebuggerUrl);
   const logs = [];
@@ -121,7 +126,7 @@ async function openPageFrom(dir, fileName, query, size, blocked, preload) {
   }
   if (size) await c.send('Emulation.setDeviceMetricsOverride', { width: size[0], height: size[1], deviceScaleFactor: 1, mobile: false });
   if (preload) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: preload });
-  await c.send('Page.navigate', { url: pathToFileURL(path.join(dir, fileName)).href + (query || '') });
+  await c.send('Page.navigate', { url });
   return {
     c, logs,
     eval: async (expr) => {
@@ -702,6 +707,7 @@ async function relayChecks() {
     await statsChecks(copy, webhookPort, privateKey);
     await infoRelayChecks(copy, webhookPort, privateKey);
     await studioRelayChecks(copy, eventsPort);
+    await firstRunChecks();
 
     relay.stop();
     const noteState = `(() => { const n = document.querySelector('.ko-note'); return n && !n.classList.contains('is-hidden') ? n.textContent : ''; })()`;
@@ -786,6 +792,40 @@ async function studioRelayChecks(copy, eventsPort) {
   } finally {
     await st.close();
   }
+}
+
+// The studio as the relay serves it (the recommended setup), on a relay that reads `settingsJs` as its AYARLAR.js.
+async function servedStudio(settingsJs, run) {
+  const { createRelay } = require(path.join(ROOT, 'relay', 'server.js'));
+  const configRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'kick-first-run-'));
+  fs.writeFileSync(path.join(configRoot, 'AYARLAR.js'), settingsJs);
+  const quiet = { log() {}, warn() {}, error() {} };
+  const relay = createRelay({ publicKeyPem: 'unused', webhookPort: 0, eventsPort: 0, accessKey: crypto.randomBytes(16).toString('hex'), credentials: false, configRoot, logger: quiet, fetchImpl: async () => { throw new Error('offline'); } });
+  const { eventsPort } = await relay.start();
+  const st = await openUrl(`http://127.0.0.1:${eventsPort}/studio.html`, [1280, 900]);
+  try {
+    await sleep(2000);
+    const state = await st.eval(`({ langs: Array.from(navigator.languages || [navigator.language]), language: (document.querySelector('input[name="dil"]:checked') || {}).value, saveBar: !document.getElementById('kaydetCubuk').hidden })`);
+    await run(state, st);
+  } finally {
+    await st.close();
+    relay.stop();
+    fs.rmSync(configRoot, { recursive: true, force: true });
+  }
+}
+
+// First run on the relay: the settings file of a fresh download already names the default label language.
+async function firstRunChecks() {
+  const shipped = fs.readFileSync(path.join(ROOT, 'AYARLAR.js'), 'utf8');
+  await servedStudio(shipped, async (s, st) => {
+    const want = s.langs.map((l) => String(l).slice(0, 2).toLowerCase()).find((l) => ['tr', 'en', 'es', 'pt', 'de', 'ar'].includes(l)) || 'en';
+    check('studio on the relay: a fresh download starts on the browser\'s label language', s.language === want, JSON.stringify(s));
+    check('studio on the relay: that first language shows as an unsaved change', s.saveBar === true, JSON.stringify(s));
+    check('studio on the relay: no unexpected errors', unexpected(st.logs).length === 0, short(unexpected(st.logs)));
+  });
+  await servedStudio(`window.KICK_OVERLAY_AYARLAR = {\n  channel: "${CHANNEL}",\n  language: "both"\n};\n`, async (s) => {
+    check('studio on the relay: a set-up relay keeps both languages, with nothing to save', s.language === 'both' && s.saveBar === false, JSON.stringify(s));
+  });
 }
 
 // Alerts on the same relay: signed follow, gift and a hostile name, shown one at a time and only as text.

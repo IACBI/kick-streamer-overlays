@@ -282,7 +282,7 @@
       "chk.channel": "Canal guardado: {name}",
       "chk.live": "Feed en vivo de Kick conectado: el chat, las suscripciones, las suscripciones regaladas y los Kicks llegan sin app de Kick y sin túnel.",
       "chk.liveWait": "Conectando con el feed en vivo de Kick…",
-      "chk.liveNode": "Este Node.js no tiene WebSocket, así que el chat sin app de Kick no puede iniciarse. Usa Node.js 22 o posterior, o el programa del relay de la página de versiones.",
+      "chk.liveNode": "Esta versión de Node.js no tiene WebSocket, así que el chat sin app de Kick no puede iniciarse. Usa Node.js 22 o posterior, o el programa del relay de la página de versiones.",
       "chk.optApp": "Opcional: una app de Kick con túnel añade nuevos seguidores, recompensas de puntos del canal, el inicio del directo y el total de suscriptores en vivo.",
       "chk.noChannel": "Aún no hay canal guardado: escríbelo en el paso 1 y pulsa Guardar.",
       "chk.app": "App de Kick guardada en el relay.",

@@ -4,6 +4,22 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-11-12
+
+### Added
+
+- One download per system: each release has `kick-streamer-overlays-vX.Y.Z-win-x64.zip`, `-linux-x64.zip` and `-macos-arm64.zip`, the overlay folder with that system's relay already inside. The plain zip and the bare relay executables are still released.
+- The studio keeps a save bar at the bottom of the window while there are unsaved changes, and Ctrl+S (Cmd+S on macOS) saves.
+- On a first visit the studio starts on the browser's label language. Saved settings and links that already exist keep theirs; the default for a setting that is left out is still both languages.
+- The studio's checklist says when the relay runs on a Node.js without WebSocket, where chat without a Kick app cannot start, and points to Node.js 22 or the relay program.
+- `preview=1` and `quiet=1` work in overlay links next to `onizleme=1` and `sessiz=1`.
+
+### Changed
+
+- The studio shows **Add to OBS** before the optional numbers and content settings, and the link cards are more compact with one main button per view.
+- The shipped `AYARLAR.js` uses the English setting names (`channel`, `theme`, `language`, …). The Turkish names keep working, so a file you already have needs no change.
+- The relay's `/health` answer has `live.unsupported`, true where the Node.js running it has no WebSocket.
+
 ## [3.2.3] - 2026-11-06
 
 ### Security
