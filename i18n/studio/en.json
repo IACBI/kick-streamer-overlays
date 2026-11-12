@@ -280,6 +280,7 @@
     "chk.channel": "Channel saved: {name}",
     "chk.live": "Kick live feed connected: chat, subscriptions, gifted subs and Kicks arrive with no Kick app and no tunnel.",
     "chk.liveWait": "Connecting to Kick’s live feed…",
+    "chk.liveNode": "This Node.js has no WebSocket, so chat without a Kick app cannot start. Use Node.js 22 or newer, or the relay program from the releases page.",
     "chk.optApp": "Optional: a Kick app with a tunnel adds follows, channel point rewards, stream start and the live subscriber total.",
     "chk.noChannel": "No channel saved yet: enter it in step 1 and press Save.",
     "chk.app": "Kick app saved in the relay.",

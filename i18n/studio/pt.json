@@ -280,6 +280,7 @@
     "chk.channel": "Canal salvo: {name}",
     "chk.live": "Feed ao vivo da Kick conectado: chat, inscrições, inscrições de presente e Kicks chegam sem app da Kick e sem túnel.",
     "chk.liveWait": "Conectando ao feed ao vivo da Kick…",
+    "chk.liveNode": "Este Node.js não tem WebSocket, então o chat sem app da Kick não pode iniciar. Use o Node.js 22 ou mais recente, ou o programa do relay da página de versões.",
     "chk.optApp": "Opcional: um app da Kick com túnel adiciona seguidores, recompensas de pontos do canal, o início da live e o total de inscritos ao vivo.",
     "chk.noChannel": "Nenhum canal salvo ainda: digite-o no passo 1 e clique em Salvar.",
     "chk.app": "App da Kick salvo no relay.",

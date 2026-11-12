@@ -4,110 +4,112 @@
    Edit only the values in this file, save, then right-click the
    source in OBS and choose Refresh.
    Secrets (Kick app credentials) do NOT go here: use AYARLAR.local.js.
+   Every setting is described in docs/settings.md. The original Turkish names
+   (kanal, stil, ...) still work, and win if a file gives both.
    ============================================================ */
 window.KICK_OVERLAY_AYARLAR = {
 
   // Kick channel name, as in kick.com/NAME
-  kanal: "",
+  channel: "",
 
   // Theme: glass | vivid | soft | cinema | neon | minimal | pastel | terminal |
   //        aurora | holo | ember | paper | retro
-  stil: "glass",
+  theme: "glass",
 
   // Corner shape: pill | rounded | square
-  sekil: "pill",
+  shape: "pill",
 
   // Font: inter | poppins | nunito | mono
-  yaziTipi: "inter",
+  font: "inter",
 
   // Labels: tr | en | both | es | pt | de | ar  (both = "Takipçi / Follower"; ar is right to left)
-  dil: "both",
+  language: "both",
 
   // Motion: normal | low | off
-  animasyon: "normal",
+  motion: "normal",
 
   // Accent color (hex). Used by every theme except pastel's fills.
-  renk: "#53fc18",
+  accent: "#53fc18",
 
   // Label shown next to YOUR name in chat
-  yayinciYazisi: "Streamer",
+  streamerLabel: "Streamer",
 
   // Follower goal and fallback count (used when Kick can't be reached)
-  takipciHedefi: 1000,
-  takipciYedek: 0,
+  followerGoal: 1000,
+  followerFallback: 0,
 
   // Subscriber goal
-  aboneHedefi: 100,
+  subscriberGoal: 100,
 
   // Subscriber count used when no Kick app is set in AYARLAR.local.js.
   // With the app set, the live total from Kick is used instead.
-  aboneSayisi: 0,
+  subscriberCount: 0,
 
   // Show "+N this stream" next to the subscriber count
-  oturumFarkiGoster: true,
+  showSessionGain: true,
 
   // Show the percentage of the goal
-  yuzdeGoster: false,
+  showPercent: false,
 
   // Goal bars: pulse at 25 / 50 / 75 % and mark the bar when the goal is reached
-  hedefKutlama: true,
+  goalCelebration: true,
 
   // Show the small error / status note on screen (e.g. "Kick unreachable"). Hide it for a clean stream
-  hataNotu: true,
+  statusNote: true,
 
   // Info panel (info-panel.html): show the stream title on the panel's bottom edge
-  bilgiBaslik: false,
+  infoShowTitle: false,
 
   // Refresh interval in seconds (10–600)
-  yenilemeSn: 30,
+  refreshSeconds: 30,
 
   // Maximum chat messages on screen (3–20)
-  sohbetMaksMesaj: 8,
+  chatMaxMessages: 8,
 
   // Hide chat messages that start with "!" (bot commands)
-  sohbetKomutGizle: false,
+  chatHideCommands: false,
 
   // Usernames hidden from chat, separated by commas (not case-sensitive). Example: "nightbot, moobot"
-  sohbetGizliKullanicilar: "",
+  chatHiddenUsers: "",
 
   // Fade chat messages out after this many seconds. 0 = they stay until pushed out (0–600)
-  sohbetSilinmeSn: 0,
+  chatFadeSeconds: 0,
 
   // Countdown (countdown.html): minutes to count down from when the page loads
-  geriSayimDk: 5,
+  countdownMinutes: 5,
 
-  // Countdown target as a clock time, 24h HH:MM (e.g. "20:30"). Overrides geriSayimDk.
-  // If that time has already passed today, it counts down to tomorrow. Empty = use geriSayimDk
-  geriSayimSaat: "",
+  // Countdown target as a clock time, 24h HH:MM (e.g. "20:30"). Overrides countdownMinutes.
+  // If that time has already passed today, it counts down to tomorrow. Empty = use countdownMinutes
+  countdownTime: "",
 
   // Countdown title. Empty = "Starting soon" in your label language
-  geriSayimBaslik: "",
+  countdownTitle: "",
 
   // Announcement bar (ticker.html): lines separated by |  (up to 12)
   // Example: "Follow for more | !discord | New video every Friday"
-  duyuruMetinleri: "",
+  announcements: "",
 
   // Seconds each announcement stays on screen (3–60)
-  duyuruSn: 6,
+  announcementSeconds: 6,
 
   // Alerts (alerts.html): seconds each alert stays on screen (3–30)
-  uyariSn: 6,
+  alertSeconds: 6,
 
   // Which alerts to show: new followers, subscriptions, gifted subscriptions, Kicks
-  uyariTakip: true,
-  uyariAbone: true,
-  uyariHediye: true,
-  uyariKicks: true,
+  alertFollows: true,
+  alertSubs: true,
+  alertGifts: true,
+  alertKicks: true,
   // Channel point rewards (needs the "Read Channel points rewards" scope in your Kick app)
-  uyariOdul: true,
+  alertRewards: true,
 
   // Play a short sound with each alert, and its volume (0–100).
   // A file in alerts/ (follow.mp3, sub.mp3, gift.mp3, kicks.mp3, reward.mp3) replaces the built-in sound; see alerts/OKU-README.txt.
-  uyariSes: true,
-  uyariSesSeviye: 60,
+  alertSound: true,
+  alertVolume: 60,
 
   // Only needed if you changed the relay's port (see relay/). Default: "http://127.0.0.1:8790"
   // The relay's access key is read from AYARLAR.relay.js automatically; nothing to set here.
-  // relayAdresi: "http://127.0.0.1:8790",
+  // relayAddress: "http://127.0.0.1:8790",
 
 };

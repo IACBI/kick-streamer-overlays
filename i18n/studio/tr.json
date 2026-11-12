@@ -280,6 +280,7 @@
     "chk.channel": "Kanal kaydedildi: {name}",
     "chk.live": "Kick canlı akışı bağlı: sohbet, abonelikler, hediye abonelikler ve Kicks, Kick uygulaması ve tünel olmadan geliyor.",
     "chk.liveWait": "Kick canlı akışına bağlanılıyor…",
+    "chk.liveNode": "Bu Node.js sürümünde WebSocket yok, bu yüzden Kick uygulaması olmadan sohbet başlayamıyor. Node.js 22 veya üstünü ya da sürümler sayfasındaki relay programını kullan.",
     "chk.optApp": "İsteğe bağlı: tünelli bir Kick uygulaması takipleri, kanal puanı ödüllerini, yayın başlangıcını ve canlı abone sayısını ekler.",
     "chk.noChannel": "Henüz kanal kaydedilmedi: 1. adımda yaz ve Kaydet’e bas.",
     "chk.app": "Kick uygulaması relay’e kaydedildi.",

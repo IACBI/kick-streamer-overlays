@@ -277,10 +277,10 @@
     return !!(s.kickClientId && s.kickClientSecret);
   }
 
-  // Preview mode (?onizleme=1) shows sample numbers without any network call.
+  // Preview mode (?preview=1, or the original ?onizleme=1) shows sample numbers without any network call.
   // Used by the studio and the README. Never affects a live OBS source.
   function isPreview() {
-    return !!(global.location && /(?:^|[?&])onizleme=1(?:&|$)/.test(global.location.search));
+    return !!(global.location && /(?:^|[?&])(?:preview|onizleme)=1(?:&|$)/.test(global.location.search));
   }
 
   // ?debug=1 shows the small diagnostics box (K.debug) and keeps error notes visible.
@@ -288,12 +288,12 @@
     return !!(global.location && /(?:^|[?&])debug=1(?:&|$)/.test(global.location.search));
   }
 
-  // The studio reloads its preview after every edit. With ?sessiz=1 (preview only) that reload opens in its final
+  // The studio reloads its preview after every edit. With ?quiet=1 or ?sessiz=1 (preview only) that reload opens in its final
   // state: for a moment html.ko-quiet zeroes the intro durations and count-ups jump straight to their value.
   // 1.6 s outlasts every intro, so lifting the class later restarts nothing.
   var quiet = false;
   (function quietIntro() {
-    if (!isPreview() || !/(?:^|[?&])sessiz=1(?:&|$)/.test(global.location.search)) return;
+    if (!isPreview() || !/(?:^|[?&])(?:quiet|sessiz)=1(?:&|$)/.test(global.location.search)) return;
     var root = global.document && global.document.documentElement;
     if (!root || !root.classList || typeof setTimeout !== 'function') return;
     quiet = true;

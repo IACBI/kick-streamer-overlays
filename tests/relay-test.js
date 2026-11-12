@@ -1616,6 +1616,7 @@ function statusOf(port, p, headers) {
     globalThis.WebSocket = saved;
     await wait(20);
     check('live: without WebSocket support it says which Node.js is needed', logs.some((m) => /Node\.js 22/.test(m)) && noWs.status().state === 'off');
+    check('live: the status says the feed is unsupported there, and not where a WebSocket exists', noWs.status().unsupported === true && lv.status().unsupported === false);
     noWs.stop();
   }
 

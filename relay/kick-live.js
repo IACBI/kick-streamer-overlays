@@ -236,7 +236,8 @@ function createKickLive(o) {
       close();
       setState('off');
     },
-    status: () => ({ state, room, error: lastError })
+    // unsupported: this Node.js cannot open the socket at all, which no retry fixes; the studio says so.
+    status: () => ({ state, room, error: lastError, unsupported: !WS })
   };
 }
 

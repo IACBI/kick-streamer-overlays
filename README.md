@@ -45,7 +45,7 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 - An alerts overlay for new followers, new and renewed subscriptions, gifted subscriptions, Kicks and channel point rewards. One card at a time; during a raid the queue keeps at most 25 and drops the oldest follows first. Each alert type can be turned off. Each type plays its own short sound, and your own sound and image or video can replace it
 - A Kicks goal bar and a sub train (subscriptions in a row, with the time left to keep it going) for the current stream
 - A recent events list and a leaderboard (top gifters or top Kicks senders) for the current stream. The numbers start over when the stream goes live, survive a relay restart, and can be cleared from the dock. The relay also writes them as plain text files for OBS Text sources
-- Preview mode (`?onizleme=1`) with sample numbers and no network calls, and a status box with `?debug=1`
+- Preview mode (`?preview=1`) with sample numbers and no network calls, and a status box with `?debug=1`
 - Studio in Turkish, English, Spanish, Brazilian Portuguese, German and Arabic: live preview with a tab per overlay, quick looks, a copy-link button for each overlay or all of them, JSON export and import of the look (credentials are never included), the `AYARLAR.js` file as an alternative, a step-by-step relay check, and a connection test for your Kick app
 - Every setting also has an English name (`channel`, `theme`, `followerGoal` …), in `AYARLAR.js` and in links
 - The studio tells you when a newer release is out (one request to GitHub a day at most)
@@ -56,7 +56,7 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 - OBS Studio with Browser sources
 - A Kick channel name
 - Optional: a Kick developer app (client ID and secret) for the subscriber total
-- For the relay: Node.js 20 or newer, or the relay executable from the [releases page](https://github.com/IACBI/kick-streamer-overlays/releases), which needs no Node.js
+- For the relay: Node.js 22 or newer (20 still runs it, but chat without a Kick app needs the WebSocket that came with 22), or the relay executable from the [releases page](https://github.com/IACBI/kick-streamer-overlays/releases), which needs no Node.js
 - Node.js 20 or newer, for the tests
 - Optional, for follows and rewards: a tunnel tool such as `cloudflared` or `ngrok`
 
@@ -66,8 +66,8 @@ Open `studio.html`, enter your channel name, pick a look, and copy the link of e
 
 **Recommended: with the relay app.** Links never change, and every edit reaches OBS with one click.
 
-1. From the [releases page](https://github.com/IACBI/kick-streamer-overlays/releases), download `kick-streamer-overlays-vX.Y.Z.zip` and the relay for your system (`kick-relay-win-x64.exe`, `kick-relay-macos-arm64`, …). Unpack the zip somewhere permanent and put the relay in that folder.
-2. Start the relay (double-click it, or run `node relay/server.js`). It opens the studio at `http://127.0.0.1:8790/`.
+1. From the [releases page](https://github.com/IACBI/kick-streamer-overlays/releases), download the zip for your system: `kick-streamer-overlays-vX.Y.Z-win-x64.zip`, `-macos-arm64.zip` or `-linux-x64.zip`. It is the overlay folder with the relay already inside. Unpack it somewhere permanent.
+2. Start the relay (double-click `kick-relay-win-x64.exe` in that folder, or run `node relay/server.js`). It opens the studio at `http://127.0.0.1:8790/`.
 3. Enter your channel name, pick a look, and press **Save and apply to OBS**.
 4. Press **Copy link** on an overlay. In OBS add **Sources → + → Browser**, turn **Local file** off, paste the link (`http://127.0.0.1:8790/follower-bar.html`) into **URL**, and set the size shown on the card.
 
@@ -99,7 +99,7 @@ A link holds only your public settings, never your Kick app credentials.
 | `sub-train.html` | Sub train: subscriptions in a row and the time left; hidden while no train runs (needs the relay) | 520 × 90 |
 | `studio.html` | Studio: previews, settings and links. Open it in a browser, not in OBS | — |
 
-These previews use sample data (`?onizleme=1`), so they show the design and make no request to Kick.
+These previews use sample data (`?preview=1`), so they show the design and make no request to Kick.
 
 <p align="center">
   <img src="screenshots/chat-preview.gif" width="500" alt="Chat preview: sample messages arrive one by one, with badge art"><br>
@@ -202,7 +202,7 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 - Yeni takipçi, yeni ve yenilenen abonelik, hediye abonelik, Kicks ve kanal puanı ödülleri için bildirim overlay'i. Kartlar tek tek gelir; raid sırasında sırada en çok 25 bildirim tutulur ve önce en eski takip bildirimleri atılır. Her bildirim türü ayrı ayrı kapatılabilir. Her tür kendi kısa sesini çalar; yerine kendi sesini ve görselini ya da videonu koyabilirsin
 - O yayın için Kicks hedef çubuğu ve abone treni (art arda gelen abonelikler ve treni sürdürmek için kalan süre)
 - O yayının son olayları ve liderlik tablosu (en çok hediye eden ya da Kicks gönderenler). Sayılar yayın başlayınca sıfırlanır, relay yeniden başlasa da korunur ve panelden elle sıfırlanabilir. Relay bunları OBS Metin kaynakları için düz metin dosyalarına da yazar
-- Önizleme modu (`?onizleme=1`): ağ çağrısı yapmadan örnek sayılar gösterir. `?debug=1` ile küçük bir durum kutusu açılır
+- Önizleme modu (`?preview=1`): ağ çağrısı yapmadan örnek sayılar gösterir. `?debug=1` ile küçük bir durum kutusu açılır
 - Türkçe, İngilizce, İspanyolca, Brezilya Portekizcesi, Almanca ve Arapça stüdyo: her overlay için sekmeli canlı önizleme, hazır görünümler, her overlay için ya da hepsi için bağlantı kopyalama, görünümü JSON olarak dışa ve içe aktarma (kimlik bilgileri hiçbir zaman dahil edilmez), alternatif olarak `AYARLAR.js` dosyası, adım adım relay denetimi ve Kick uygulaman için bağlantı testi
 - Her ayarın İngilizce bir adı da var (`channel`, `theme`, `followerGoal` …); `AYARLAR.js` dosyasında da bağlantılarda da çalışır
 - Stüdyo yeni bir sürüm çıktığında haber verir (GitHub'a günde en fazla bir istek)
@@ -213,7 +213,7 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 - Tarayıcı kaynağı destekleyen OBS Studio
 - Bir Kick kanal adı
 - İsteğe bağlı: abone toplamı için bir Kick geliştirici uygulaması (client ID ve client secret)
-- Relay için Node.js 20 veya üstü ya da [sürümler sayfasındaki](https://github.com/IACBI/kick-streamer-overlays/releases) Node.js gerektirmeyen relay programı
+- Relay için Node.js 22 veya üstü (20 ile de çalışır, ama Kick uygulaması olmadan sohbet 22 ile gelen WebSocket'i ister) ya da [sürümler sayfasındaki](https://github.com/IACBI/kick-streamer-overlays/releases) Node.js gerektirmeyen relay programı
 - Testler için Node.js 20 veya üstü
 - Opsiyonel, takipler ve ödüller için: `cloudflared` veya `ngrok` gibi bir tünel aracı
 
@@ -223,8 +223,8 @@ Your own alert sounds and art, badge art, and the Kick app for the subscriber to
 
 **Önerilen yol: relay uygulamasıyla.** Bağlantılar hiç değişmez, her düzenleme tek tıkla OBS'e ulaşır.
 
-1. [Sürümler sayfasından](https://github.com/IACBI/kick-streamer-overlays/releases) `kick-streamer-overlays-vX.Y.Z.zip` dosyasını ve sistemine uygun relay'i (`kick-relay-win-x64.exe`, `kick-relay-macos-arm64`, …) indir. Zip'i kalıcı bir yere aç ve relay'i o klasöre koy.
-2. Relay'i başlat (çift tıkla ya da `node relay/server.js` çalıştır). Stüdyoyu `http://127.0.0.1:8790/` adresinde açar.
+1. [Sürümler sayfasından](https://github.com/IACBI/kick-streamer-overlays/releases) sistemine uygun zip'i indir: `kick-streamer-overlays-vX.Y.Z-win-x64.zip`, `-macos-arm64.zip` ya da `-linux-x64.zip`. İçinde overlay klasörü ve relay birlikte gelir. Kalıcı bir yere aç.
+2. Relay'i başlat (klasördeki `kick-relay-win-x64.exe` dosyasına çift tıkla ya da `node relay/server.js` çalıştır). Stüdyoyu `http://127.0.0.1:8790/` adresinde açar.
 3. Kanal adını yaz, bir görünüm seç ve **Kaydet ve OBS'e uygula** düğmesine bas.
 4. Bir overlay'in **Bağlantıyı kopyala** düğmesine bas. OBS'te **Kaynaklar → + → Tarayıcı** ekle, **Yerel dosya** kutusunu kapat, bağlantıyı (`http://127.0.0.1:8790/follower-bar.html`) **URL** kutusuna yapıştır ve boyutu kartta yazan değere ayarla.
 
@@ -256,7 +256,7 @@ Bağlantı yalnızca herkese açık ayarlarını taşır, Kick uygulama bilgiler
 | `sub-train.html` | Abone treni: art arda gelen abonelikler ve kalan süre; tren yokken gizlenir (relay gerektirir) | 520 × 90 |
 | `studio.html` | Stüdyo: önizleme, ayarlar ve bağlantılar. OBS'de değil, tarayıcıda aç | — |
 
-Buradaki tüm animasyonlar örnek veri kullanır (`?onizleme=1`); yani tasarımı gösterir ve Kick'e istek yapmaz.
+Buradaki tüm animasyonlar örnek veri kullanır (`?preview=1`); yani tasarımı gösterir ve Kick'e istek yapmaz.
 
 <p align="center">
   <img src="screenshots/chat-preview.gif" width="500" alt="Sohbet önizlemesi: örnek mesajlar teker teker gelir, rozet görselleriyle"><br>

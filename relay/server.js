@@ -9,7 +9,7 @@
 //   2. events listener (127.0.0.1:EVENTS_PORT): serves the overlay over Server-Sent Events, plus
 //      /health, /channel and /subscribers. It is never exposed publicly.
 //
-// Run:  node relay/server.js            (Node.js 20 or newer, no packages)
+// Run:  node relay/server.js            (Node.js 20 or newer, no packages; chat without a Kick app needs 22)
 //   or  kick-relay(.exe) from a release, placed next to AYARLAR.js (no Node.js needed)
 
 const crypto = require('crypto');
